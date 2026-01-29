@@ -66,20 +66,34 @@ async fn test_add_members_basic() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("action").and_then(|v| v.as_str()), Some("add"));
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(2));
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("action").and_then(|v| v.as_str()),
+        Some("add")
+    );
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(2)
+    );
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
-    let members_before = content
+    let members_before = action_result
         .get("membersBefore")
         .and_then(|v| v.as_array())
         .unwrap();
     assert_eq!(members_before.len(), 1);
 
-    let members_after = content
+    let members_after = action_result
         .get("membersAfter")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -120,17 +134,28 @@ async fn test_remove_members_basic() {
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content.get("action").and_then(|v| v.as_str()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("action").and_then(|v| v.as_str()),
         Some("remove")
     );
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(1)
+    );
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
-    let members_after = content
+    let members_after = action_result
         .get("membersAfter")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -160,6 +185,9 @@ async fn test_list_members() {
                 "params": {
                     "action": "list",
                     "workspaceManifest": manifest_path.to_string_lossy()
+                },
+                "options": {
+                    "dryRun": false
                 }
             }),
         )
@@ -168,20 +196,34 @@ async fn test_list_members() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("action").and_then(|v| v.as_str()), Some("list"));
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(0));
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("action").and_then(|v| v.as_str()),
+        Some("list")
+    );
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(0)
+    );
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 
-    let members_before = content
+    let members_before = action_result
         .get("membersBefore")
         .and_then(|v| v.as_array())
         .unwrap();
     assert_eq!(members_before.len(), 3);
 
-    let members_after = content
+    let members_after = action_result
         .get("membersAfter")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -223,13 +265,24 @@ async fn test_add_duplicate_member() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(0));
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(0)
+    );
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 
-    let members_after = content
+    let members_after = action_result
         .get("membersAfter")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -264,9 +317,20 @@ async fn test_dry_run_mode() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("dryRun").and_then(|v| v.as_bool()), Some(true));
+    // M7 response: status at top level (preview for dry run), action-specific data in nested result
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("preview")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("dryRun").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 
@@ -274,10 +338,13 @@ async fn test_dry_run_mode() {
     let current_content = workspace.read_file("Cargo.toml");
     assert_eq!(original_content, current_content);
 
-    // Verify preview of changes
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
+    // Verify preview of action_result
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(1)
+    );
 
-    let members_after = content
+    let members_after = action_result
         .get("membersAfter")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -321,11 +388,22 @@ edition = "2021"
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(1)
+    );
 
     let cargo_toml = workspace.read_file("Cargo.toml");
     assert!(cargo_toml.contains("[workspace]"));
@@ -398,7 +476,9 @@ async fn test_error_on_nonexistent_manifest() {
 
     let error_msg = error.to_string();
     assert!(
-        error_msg.contains("not found") || error_msg.contains("does not exist"),
+        error_msg.contains("not found")
+            || error_msg.contains("does not exist")
+            || error_msg.contains("No such file or directory"),
         "Error should mention file not found: {}",
         error_msg
     );
@@ -431,9 +511,20 @@ async fn test_remove_nonexistent_member() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(0));
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(0)
+    );
+    assert_eq!(
+        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 }
@@ -465,7 +556,18 @@ async fn test_path_normalization() {
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("changesMade").and_then(|v| v.as_u64()), Some(1));
+    // M7 response: status at top level, action-specific data in nested result
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    // update_members uses "result" for action-specific data
+    let action_result = content.get("result").expect("Result should exist");
+
+    assert_eq!(
+        action_result.get("changesMade").and_then(|v| v.as_u64()),
+        Some(1)
+    );
 
     let cargo_toml = workspace.read_file("Cargo.toml");
     assert!(cargo_toml.contains("crates/my-crate"));

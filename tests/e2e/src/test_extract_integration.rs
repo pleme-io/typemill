@@ -30,14 +30,17 @@ async fn test_extract_function_plan_basic_workflow() {
 
     let plan_result = client
         .call_tool(
-            "extract",
+            "refactor",
             json!({
-                "kind": "function",
-                "source": {
+                "action": "extract",
+                "params": {
+                    "kind": "function",
                     "filePath": file_path.to_string_lossy(),
                     "range": {
-                        "start": {"line": 1, "character": 4},
-                        "end": {"line": 2, "character": 26}
+                        "startLine": 1,
+                        "startCharacter": 4,
+                        "endLine": 2,
+                        "endCharacter": 26
                     },
                     "name": "compute_sum_doubled"
                 },
@@ -60,12 +63,15 @@ async fn test_extract_function_plan_basic_workflow() {
             );
 
             let params_exec = json!({
-                "kind": "function",
-                "source": {
+                "action": "extract",
+                "params": {
+                    "kind": "function",
                     "filePath": file_path.to_string_lossy(),
                     "range": {
-                        "start": {"line": 1, "character": 4},
-                        "end": {"line": 2, "character": 26}
+                        "startLine": 1,
+                        "startCharacter": 4,
+                        "endLine": 2,
+                        "endCharacter": 26
                     },
                     "name": "compute_sum_doubled"
                 },
@@ -73,7 +79,7 @@ async fn test_extract_function_plan_basic_workflow() {
             });
 
             let apply_result = client
-                .call_tool("extract", params_exec)
+                .call_tool("refactor", params_exec)
                 .await
                 .expect("Apply should succeed");
 
@@ -83,8 +89,8 @@ async fn test_extract_function_plan_basic_workflow() {
                 .expect("Apply result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Apply should succeed"
             );
         }
@@ -113,14 +119,17 @@ async fn test_extract_variable_dry_run() {
 
     let plan_result = client
         .call_tool(
-            "extract",
+            "refactor",
             json!({
-                "kind": "variable",
-                "source": {
+                "action": "extract",
+                "params": {
+                    "kind": "variable",
                     "filePath": file_path.to_string_lossy(),
                     "range": {
-                        "start": {"line": 1, "character": 17},
-                        "end": {"line": 1, "character": 27}
+                        "startLine": 1,
+                        "startCharacter": 17,
+                        "endLine": 1,
+                        "endCharacter": 27
                     },
                     "name": "base_value"
                 }
@@ -136,12 +145,15 @@ async fn test_extract_variable_dry_run() {
                 .expect("Plan should exist");
 
             let params_exec = json!({
-                "kind": "variable",
-                "source": {
+                "action": "extract",
+                "params": {
+                    "kind": "variable",
                     "filePath": file_path.to_string_lossy(),
                     "range": {
-                        "start": {"line": 1, "character": 17},
-                        "end": {"line": 1, "character": 27}
+                        "startLine": 1,
+                        "startCharacter": 17,
+                        "endLine": 1,
+                        "endCharacter": 27
                     },
                     "name": "base_value"
                 },
@@ -149,7 +161,7 @@ async fn test_extract_variable_dry_run() {
             });
 
             let dry_run_result = client
-                .call_tool("extract", params_exec)
+                .call_tool("refactor", params_exec)
                 .await
                 .expect("Dry run should succeed");
 
@@ -198,14 +210,17 @@ async fn test_extract_plan_metadata_structure() {
     // Use dryRun: true to get the plan structure
     let plan_result = client
         .call_tool(
-            "extract",
+            "refactor",
             json!({
-                "kind": "variable",
-                "source": {
+                "action": "extract",
+                "params": {
+                    "kind": "variable",
                     "filePath": file_path.to_string_lossy(),
                     "range": {
-                        "start": {"line": 2, "character": 4},
-                        "end": {"line": 2, "character": 9}
+                        "startLine": 2,
+                        "startCharacter": 4,
+                        "endLine": 2,
+                        "endCharacter": 9
                     },
                     "name": "multiplier"
                 },

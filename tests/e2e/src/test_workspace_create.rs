@@ -1,4 +1,4 @@
-//! workspace.create_package tests migrated to closure-based helpers (v2)
+//! workspace create_package tests migrated to closure-based helpers (v2)
 //!
 //! BEFORE: 397 lines with manual workspace setup
 //! AFTER: Focused workspace operation verification
@@ -45,12 +45,18 @@ edition = "2021"
             }),
         )
         .await
-        .expect("workspace.create_package should succeed");
+        .expect("workspace create_package should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in changes
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+    assert_eq!(
+        changes.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
@@ -105,12 +111,18 @@ edition = "2021"
             }),
         )
         .await
-        .expect("workspace.create_package should succeed");
+        .expect("workspace create_package should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in changes
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+    assert_eq!(
+        changes.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
@@ -157,12 +169,19 @@ edition = "2021"
             }),
         )
         .await
-        .expect("workspace.create_package should succeed");
+        .expect("workspace create_package should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in changes
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(false)
     );
 
@@ -246,12 +265,18 @@ edition = "2021"
             }),
         )
         .await
-        .expect("workspace.create_package should succeed");
+        .expect("workspace create_package should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in changes
     assert_eq!(
-        content.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+    assert_eq!(
+        changes.get("workspaceUpdated").and_then(|v| v.as_bool()),
         Some(true)
     );
 
@@ -297,12 +322,19 @@ edition = "2021"
             }),
         )
         .await
-        .expect("workspace.create_package should succeed");
+        .expect("workspace create_package should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in changes
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
     // Verify created_files list
-    let created_files = content
+    let created_files = changes
         .get("createdFiles")
         .and_then(|v| v.as_array())
         .expect("created_files should be an array");

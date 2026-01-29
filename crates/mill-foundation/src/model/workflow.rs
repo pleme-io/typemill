@@ -36,7 +36,7 @@ pub struct Workflow {
 /// Each step corresponds to a call to a specific tool.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Step {
-    /// The name of the tool to be called for this step (e.g., "find_references").
+    /// The name of the tool to be called for this step (e.g., "inspect_code").
     pub tool: String,
     /// The JSON parameters to be passed to the tool.
     pub params: Value,

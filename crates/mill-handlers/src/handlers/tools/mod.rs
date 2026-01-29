@@ -17,15 +17,12 @@ pub mod advanced;
 pub mod cross_file_references;
 pub mod editing;
 pub mod file_ops;
-pub mod internal_editing;
 pub mod internal_intelligence;
 pub mod internal_workspace;
 pub mod lifecycle;
-pub mod navigation;
-pub mod system;
 pub mod workspace;
 pub mod workspace_create;
-pub mod workspace_extract_deps;
+pub mod workspace_extract;
 
 #[cfg(test)]
 pub mod perf_benchmark;
@@ -34,15 +31,11 @@ pub mod perf_benchmark;
 pub use advanced::AdvancedToolsHandler;
 pub use editing::EditingToolsHandler;
 pub use file_ops::FileToolsHandler;
-pub use internal_editing::InternalEditingToolsHandler;
 pub use internal_intelligence::InternalIntelligenceHandler;
 pub use internal_workspace::InternalWorkspaceHandler;
 pub use lifecycle::LifecycleHandler;
-pub use navigation::{InternalNavigationHandler, NavigationHandler};
-pub use system::SystemToolsHandler;
-pub use workspace::WorkspaceToolsHandler;
-pub use workspace_create::WorkspaceCreateHandler;
-pub use workspace_extract_deps::WorkspaceExtractDepsHandler;
+pub use workspace_create::WorkspaceCreateService;
+pub use workspace_extract::WorkspaceExtractService;
 
 // Re-export dispatch helpers
 pub use dispatch::dispatch_to_language_plugin;

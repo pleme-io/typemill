@@ -269,11 +269,14 @@ export function caller() {
     // Execute rename with unified API (dryRun: false)
     let apply_response = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
-                "filePath": test_file.to_string_lossy(),
-                "line": 2,
-                "character": 17,
+                "target": {
+                    "kind": "symbol",
+                    "file": test_file.to_string_lossy(),
+                    "line": 2,
+                    "character": 17
+                },
                 "newName": "newFunctionName",
                 "options": {
                     "dryRun": false

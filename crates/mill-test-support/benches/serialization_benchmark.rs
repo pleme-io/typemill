@@ -21,17 +21,14 @@ fn create_complex_request() -> McpRequest {
         id: Some(json!("bench-456")),
         method: "tools/call".to_string(),
         params: Some(json!({
-            "tool": "find_references",
+            "tool": "inspect_code",
             "arguments": {
                 "filePath": "/tmp/very/long/path/to/some/deeply/nested/source/file.rs",
-                "symbol_name": "VeryLongSymbolNameThatRepresentsARealWorldScenario",
-                "include_declaration": true,
-                "additional_options": {
-                    "max_results": 1000,
-                    "include_tests": true,
-                    "include_docs": false,
-                    "search_depth": 10
-                }
+                "symbolName": "VeryLongSymbolNameThatRepresentsARealWorldScenario",
+                "include": ["references", "definition"],
+                "detailLevel": "deep",
+                "limit": 1000,
+                "offset": 0
             }
         })),
     }

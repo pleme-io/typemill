@@ -10,19 +10,19 @@ async fn test_workspace_verify_project_basic() {
         .call_tool("workspace", json!({"action": "verify_project"}))
         .await
         .unwrap();
+    // verify_project returns a WriteResponse with status of "success", "preview", or "error"
     let result = response["result"]
         .as_object()
         .expect("Should have result field");
-    assert!(result.get("status").is_some());
+    assert!(result.get("status").is_some(), "Response should have status field");
     let status = result["status"].as_str().unwrap();
-    assert!(status == "healthy" || status == "degraded" || status == "unhealthy");
-    if let Some(servers) = result.get("servers") {
-        let servers_array = servers.as_array().unwrap();
-        for server in servers_array {
-            assert!(server.get("name").is_some());
-            assert!(server.get("status").is_some());
-        }
-    }
+    assert!(
+        status == "success" || status == "preview" || status == "error",
+        "Status should be 'success', 'preview', or 'error', got: {}",
+        status
+    );
+    // Should also have summary and changes
+    assert!(result.get("summary").is_some(), "Response should have summary");
 }
 /// Test workspace.verify_project with active LSP server
 #[tokio::test]
@@ -42,7 +42,7 @@ const test: Test = { id: 1 };
     )
     .unwrap();
 
-    // Trigger LSP initialization by calling search_code (replaces get_document_symbols)
+    // Trigger LSP initialization by calling search_code
     let _response = client
         .call_tool(
             "search_code",
@@ -55,19 +55,18 @@ const test: Test = { id: 1 };
         .call_tool("workspace", json!({"action": "verify_project"}))
         .await
         .unwrap();
+    // verify_project returns a WriteResponse with status of "success", "preview", or "error"
     let result = response["result"]
         .as_object()
         .expect("Should have result field");
     let status = result["status"].as_str().unwrap();
-    assert!(status == "healthy" || status == "degraded");
-    if let Some(servers) = result.get("servers") {
-        let servers_array = servers.as_array().unwrap();
-        let _has_ts_server = servers_array.iter().any(|s| {
-            s["name"].as_str().unwrap_or("").contains("typescript")
-                || s["name"].as_str().unwrap_or("").contains("ts")
-        });
-        // Server may or may not be running depending on LSP initialization
-    }
+    assert!(
+        status == "success" || status == "preview" || status == "error",
+        "Status should be 'success', 'preview', or 'error', got: {}",
+        status
+    );
+    // Should have summary and changes fields (from WriteResponse)
+    assert!(result.get("summary").is_some(), "Response should have summary");
 }
 /// Test workspace.verify_project with detailed information
 #[tokio::test]
@@ -81,23 +80,21 @@ async fn test_workspace_verify_project_detailed() {
         )
         .await
         .unwrap();
+    // verify_project returns a WriteResponse with status, summary, and changes
     let result = response["result"]
         .as_object()
         .expect("Should have result field");
-    assert!(result.get("status").is_some());
-    if result.get("system").is_some() {
-        let system = &result["system"];
-        assert!(system.is_object());
-    }
-    if let Some(servers) = result.get("servers") {
-        let servers_array = servers.as_array().unwrap();
-        for server in servers_array {
-            assert!(server.get("name").is_some());
-            assert!(server.get("status").is_some());
-            if server.get("details").is_some() {
-                let details = &server["details"];
-                assert!(details.is_object());
-            }
+    assert!(result.get("status").is_some(), "Should have status");
+    assert!(result.get("summary").is_some(), "Should have summary");
+    // changes field contains plugin and metric details
+    if let Some(changes) = result.get("changes") {
+        // Check for plugins info in changes
+        if let Some(plugins) = changes.get("plugins") {
+            assert!(plugins.get("loaded").is_some(), "Should have loaded plugins count");
+        }
+        // Check for metrics in changes
+        if let Some(metrics) = changes.get("metrics") {
+            assert!(metrics.is_object(), "Metrics should be an object");
         }
     }
 }

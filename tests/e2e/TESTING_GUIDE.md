@@ -175,8 +175,8 @@ test test_completion_mock
 test test_completion_real (ignored)
 test test_document_symbols_mock
 test test_document_symbols_real (ignored)
-test test_find_references_mock
-test test_find_references_real (ignored)
+test test_references_mock
+test test_references_real (ignored)
 test test_go_to_definition_mock
 test test_go_to_definition_real (ignored)
 test test_hover_mock
@@ -375,7 +375,7 @@ use crate::test_helpers::*;
 async fn test_rename_file() {
     run_tool_test(
         &[("old.rs", "pub fn test() {}")],  // Initial files
-        "rename",                       // Tool name
+        "rename_all",                   // Tool name
         |ws| build_rename_params(ws, "old.rs", "new.rs", "file"),  // Params builder
         |ws| {                              // Verification closure
             assert!(ws.file_exists("new.rs"));
@@ -397,7 +397,7 @@ async fn test_rename_file() {
 async fn test_rename_with_metadata_check() {
     run_tool_test_with_plan_validation(
         &[("file.rs", "content")],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "file.rs", "renamed.rs", "file"),
         |plan| {                            // Plan validator
             assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("renamePlan"));
@@ -419,7 +419,7 @@ async fn test_rename_with_metadata_check() {
 async fn test_rename_dry_run() {
     run_dry_run_test(
         &[("original.rs", "content")],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "original.rs", "renamed.rs", "file"),
         |ws| {                              // Verify no changes
             assert!(ws.file_exists("original.rs"), "Original should still exist");
@@ -437,7 +437,7 @@ async fn test_rename_dry_run() {
 async fn test_checksum_validation() {
     run_tool_test_with_mutation(
         &[("file.rs", "original")],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "file.rs", "renamed.rs", "file"),
         |ws, _plan| {                       // Mutation hook (between plan and apply)
             ws.create_file("file.rs", "MODIFIED");  // Corrupt checksum
@@ -456,13 +456,13 @@ async fn test_checksum_validation() {
 Use these helpers to build tool parameters with absolute paths:
 
 ```rust
-// Rename operations
+// Rename operations (use with "rename_all" tool)
 build_rename_params(ws, "old.rs", "new.rs", "file")
 
-// Move operations
+// Move operations (use with "relocate" tool)
 build_move_params(ws, "src/file.rs", "lib/file.rs", "file")
 
-// Delete operations
+// Delete operations (use with "prune" tool)
 build_delete_params(ws, "unused.rs", "file")
 ```
 **Why closures?** The params builder runs AFTER workspace creation, so paths are always absolute and correct.

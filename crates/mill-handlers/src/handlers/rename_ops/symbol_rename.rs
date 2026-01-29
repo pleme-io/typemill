@@ -1,4 +1,4 @@
-use super::{RenameHandler, RenameOptions, RenameTarget};
+use super::{RenameService, RenameOptions, RenameTarget};
 use crate::handlers::tools::cross_file_references;
 use lsp_types::WorkspaceEdit;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -7,7 +7,7 @@ use serde_json::json;
 use std::path::Path;
 use tracing::{debug, error};
 
-impl RenameHandler {
+impl RenameService {
     /// Generate plan for symbol rename using LSP
     pub(crate) async fn plan_symbol_rename(
         &self,

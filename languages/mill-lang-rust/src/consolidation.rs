@@ -37,7 +37,7 @@ pub async fn execute_consolidation_post_processing(
     // Task 0: Circular dependency validation
     // ✅ COMPLETED: Validation now happens during PLANNING phase (directory_rename.rs)
     // The validation is called before any files are moved, preventing circular dependencies.
-    // See: crates/mill-handlers/src/handlers/rename_handler/directory_rename.rs:93-136
+    // See: crates/mill-handlers/src/handlers/rename_ops/directory_rename.rs:93-136
 
     // Task 1: Fix nested src/ structure
     flatten_nested_src_directory(&metadata.target_module_path).await?;

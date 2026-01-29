@@ -3,7 +3,7 @@
 //! Handles: search_code
 //!
 //! Implements workspace-wide symbol search with filtering and pagination.
-//! Reuses the existing workspace symbol search functionality from NavigationHandler
+//! Reuses the existing workspace symbol search functionality via the plugin system
 //! but exposes it through a more specialized API for code search.
 
 use super::tools::ToolHandler;

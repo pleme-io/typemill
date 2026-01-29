@@ -1131,9 +1131,9 @@ async fn handle_tools_command(format: &str) {
         }
     };
 
-    // Get public tool list with handlers (excludes internal tools)
+    // Get tool list with handlers (Magnificent Seven only)
     let registry = dispatcher.tool_registry.lock().await;
-    let tools_with_handlers = registry.list_public_tools_with_handlers();
+    let tools_with_handlers = registry.list_tools_with_handlers();
     drop(registry); // Release lock
 
     match format {
@@ -1723,7 +1723,7 @@ async fn handle_convert_naming(
     });
 
     let params = json!({
-        "name": "rename",
+        "name": "rename_all",
         "arguments": arguments,
     });
 

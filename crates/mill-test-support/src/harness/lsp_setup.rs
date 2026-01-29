@@ -258,12 +258,13 @@ export function testFunction(param: string): string {
             .await
             .map_err(|e| format!("LSP did not become ready: {}", e))?;
 
-        // Test get_document_symbols to verify LSP is working
+        // Test search_code to verify LSP is working
         let response = client
             .call_tool(
-                "get_document_symbols",
+                "search_code",
                 json!({
-                    "filePath": test_file.to_string_lossy()
+                    "query": "TestInterface",
+                    "limit": 10
                 }),
             )
             .await
@@ -282,20 +283,15 @@ export function testFunction(param: string): string {
             ));
         }
 
-        // Check for proper response structure (may be nested in result.content)
-        let symbols = if let Some(result) = response.get("result") {
-            if let Some(content) = result.get("content") {
-                content.get("symbols").and_then(|s| s.as_array())
-            } else {
-                result.get("symbols").and_then(|s| s.as_array())
-            }
-        } else {
-            response.get("symbols").and_then(|s| s.as_array())
-        };
+        // Check for proper response structure
+        let symbols = response
+            .get("result")
+            .and_then(|r| r.get("results"))
+            .and_then(|s| s.as_array());
 
         match symbols {
             Some(_symbols_array) => {
-                // LSP is working - it returned a symbols array (even if empty is okay for simple files)
+                // LSP is working - it returned a results array (even if empty is okay for simple files)
                 println!(
                     "✅ LSP verification successful: TypeScript LSP server is responding correctly"
                 );
@@ -304,7 +300,7 @@ export function testFunction(param: string): string {
                 return Err(format!(
                     "LSP response has unexpected format.\n\
                     Response: {}\n\
-                    Expected a symbols array in the response.",
+                    Expected a results array in the response.",
                     response
                 ));
             }

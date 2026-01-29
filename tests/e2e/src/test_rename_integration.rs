@@ -19,7 +19,7 @@ use crate::test_helpers::*;
 async fn test_rename_file_plan_and_apply() {
     run_tool_test_with_plan_validation(
         &[("original.rs", "pub fn hello() {}\n")],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "original.rs", "renamed.rs", "file"),
         |plan| {
             assert_eq!(
@@ -59,7 +59,7 @@ async fn test_rename_file_plan_and_apply() {
 async fn test_rename_file_dry_run_preview() {
     run_dry_run_test(
         &[("test.rs", "pub fn test() {}\n")],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "test.rs", "test_renamed.rs", "file"),
         |ws| {
             assert!(
@@ -87,7 +87,7 @@ async fn test_rename_directory_plan_and_apply() {
             ("old_module/lib.rs", "pub fn old() {}\n"),
             ("old_module/utils.rs", "pub fn util() {}\n"),
         ],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "old_module", "new_module", "directory"),
         |plan| {
             assert_eq!(

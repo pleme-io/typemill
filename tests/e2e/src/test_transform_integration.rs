@@ -100,8 +100,8 @@ async fn test_transform_if_to_match_plan_and_apply() {
                 .expect("Apply result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Transform should succeed"
             );
         }
@@ -166,8 +166,8 @@ async fn test_transform_add_async_dry_run() {
                 .expect("Dry run result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Dry run should succeed"
             );
 

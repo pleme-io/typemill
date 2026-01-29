@@ -83,44 +83,36 @@ graph TB
     style CLI fill:#4ECDC4
 ```
 
-### Public Tools (17 total)
+### Public Tools (7 total - Magnificent Seven API)
 
-#### Navigation (8) - Point Queries for IDE Workflows
-- `find_definition`
-- `find_references`
-- `find_implementations`
-- `find_type_definition`
-- `search_symbols`
-- `get_symbol_info`
-- `get_diagnostics`
-- `get_call_hierarchy`
+> **Note**: This section describes the **new Magnificent Seven API**. Legacy tools are now internal.
 
-#### Refactoring (5) - Unified API with dryRun Option
-- `rename` - Rename files, directories, symbols (options.dryRun: true/false)
-- `extract` - Extract function, variable, constant (options.dryRun: true/false)
-- `inline` - Inline variable, function, constant (options.dryRun: true/false)
-- `move` - Move symbols, files, directories (options.dryRun: true/false)
-- `delete` - Delete symbols, files, directories (options.dryRun: true/false)
+#### Code Intelligence (2) - Code Inspection and Search
+- `inspect_code` - Unified code intelligence
+- `search_code` - Search for symbols across workspace
 
-#### Workspace (3) - Workspace Operations
-- `workspace.create_package`
-- `workspace.extract_dependencies`
-- `workspace.find_replace`
+#### Refactoring (4) - Unified API with dryRun Option
+- `rename_all` - Rename files, directories, symbols
+- `refactor` - Extract/inline/transform operations
+- `relocate` - Move symbols, files, directories
+- `prune` - Delete symbols, files, directories
 
-#### System (1) - Health Monitoring
-- `health_check`
+#### Workspace (1) - Workspace Operations
+- `workspace` - All workspace operations via `action` parameter:
+  - `action: "create_package"`
+  - `action: "extract_dependencies"`
+  - `action: "find_replace"`
+  - `action: "update_members"`
+  - `action: "verify_project"`
 
 ---
 
-### Internal Tools (20 total)
+### Internal Tools (15 total)
 
 #### Lifecycle (3) - Event Notifications
 - `notify_file_opened`
 - `notify_file_saved`
 - `notify_file_closed`
-
-#### Internal Editing (1) - Backend Plumbing
-- `rename_symbol_with_imports`
 
 #### Internal Workspace (1) - Backend Plumbing
 - `apply_workspace_edit`
@@ -128,11 +120,6 @@ graph TB
 #### Internal Intelligence (2) - LSP Backend
 - `get_completions`
 - `get_signature_help`
-
-#### Workspace Tools (3) - Legacy Operations
-- `move_directory`
-- `update_dependencies`
-- `update_dependency`
 
 #### File Operations (4) - Legacy CRUD
 - `create_file`
@@ -145,9 +132,9 @@ graph TB
 - `write_file`
 - `list_files`
 
-#### Legacy Advanced (2) - Low-Level Plumbing
-- `execute_edits` → replaced by unified refactoring API
-- `execute_batch` → replaced by internal workflow batching
+#### Advanced Internal (2) - Low-Level Plumbing
+- `execute_edits`
+- `execute_batch`
 
 ---
 
@@ -165,15 +152,13 @@ graph TB
 
 ```json
 {
-  "operation": "rename",
-  "kind": "symbol",
-  "arguments": { ... },
+  "tool": "rename_all",
+  "params": { ... },
   "options": { ... }
 }
 ```
 
-- **operation**: `"rename" | "extract" | "inline" | "move" | "delete"`
-- **kind**: operation-specific enumeration
+- **tool**: `"rename_all" | "relocate" | "prune" | "refactor"`
 
 ---
 
@@ -181,7 +166,7 @@ graph TB
 
 ```json
 {
-  "plan_type": "RenamePlan",
+  "plan_type": "EditPlan",
   "plan_version": "1.0",
   "edits": [ /* WorkspaceEdit */ ],
   "summary": {
@@ -191,7 +176,7 @@ graph TB
   },
   "warnings": [ { "code": "AMBIGUOUS_TARGET", "message": "..." } ],
   "metadata": {
-    "kind": "rename.symbol",
+    "kind": "refactor",
     "language": "rust",
     "estimated_impact": "low",
     "created_at": "2025-10-10T12:00:00Z"
@@ -202,7 +187,7 @@ graph TB
 }
 ```
 
-- **plan_type**: `"RenamePlan" | "ExtractPlan" | "InlinePlan" | "MovePlan" | "DeletePlan"`
+- **plan_type**: `"EditPlan"`
 - **plan_version**: string, default `"1.0"` (increment for breaking changes)
 - **edits**: conforms to LSP `WorkspaceEdit`
 - **summary**: counts must match unique file paths in `edits`
@@ -220,7 +205,7 @@ graph TB
 
 ### Operation-Specific Arguments
 
-#### rename
+##### rename_all
 - **kind**: `"symbol" | "parameter" | "type" | "file" | "directory"`
 - **arguments.target**:
   ```json
@@ -237,7 +222,8 @@ graph TB
 
 ---
 
-#### extract
+#### refactor (extract action)
+- **action**: `"extract"` (or `"inline"`)
 - **kind**: `"function" | "variable" | "module" | "interface" | "class" | "constant" | "type_alias"`
 - **arguments.source**: requires `file_path` and `range`
 - Optional `destination` path or module
@@ -245,14 +231,15 @@ graph TB
 
 ---
 
-#### inline
+#### refactor (inline action)
+- **action**: `"inline"`
 - **kind**: `"variable" | "function" | "constant" | "type_alias"`
 - **arguments.target**: `{ "file_path": "...", "position": { ... } }`
 - **options.inline_all**: boolean (default false)
 
 ---
 
-#### move
+#### relocate
 - **kind**: `"symbol" | "to_module" | "to_namespace" | "consolidate"`
 - For symbol moves:
   ```json
@@ -265,7 +252,7 @@ graph TB
 
 ---
 
-#### delete
+#### prune
 - **kind**: `"unused_imports" | "dead_code" | "redundant_code" | "file"`
 - **arguments.target**: file-based or scoped deletions
 - **options.aggressive**: boolean (default false)

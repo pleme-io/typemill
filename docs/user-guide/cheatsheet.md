@@ -32,7 +32,7 @@ mill docs                       # List all documentation topics
 mill docs quickstart            # View quick start guide
 mill docs cheatsheet            # View this cheat sheet
 mill docs tools                 # View tools catalog
-mill docs tools/refactoring     # View refactoring guide
+mill docs tools/refactor        # View refactor guide
 mill docs --search "keyword"    # Search all documentation
 mill docs <topic> --raw         # View raw markdown
 ```
@@ -57,21 +57,21 @@ mill tool <tool_name> --param value            # Flag format (supported tools)
 
 ## Navigation Tools
 
-### Find Definition
+### Inspect Code
 ```bash
-mill tool find_definition '{"file_path": "src/app.ts", "line": 10, "character": 5}'
+# Find definition
+mill tool inspect_code '{"filePath": "src/app.ts", "line": 9, "character": 5, "include": ["definition"]}'
+
+# Find references
+mill tool inspect_code '{"filePath": "src/app.ts", "line": 9, "character": 5, "include": ["references"]}'
+
+# Get diagnostics
+mill tool inspect_code '{"filePath": "src/app.ts", "include": ["diagnostics"]}'
 ```
-### Find References
+
+### Search Code
 ```bash
-mill tool find_references '{"file_path": "src/app.ts", "line": 10, "character": 5}'
-```
-### Search Symbols
-```bash
-mill tool search_symbols '{"query": "Config", "scope": "workspace"}'
-```
-### Get Diagnostics (Errors/Warnings)
-```bash
-mill tool get_diagnostics '{"file_path": "src/app.ts"}'
+mill tool search_code '{"query": "Config", "limit": 10}'
 ```
 ---
 
@@ -81,62 +81,70 @@ mill tool get_diagnostics '{"file_path": "src/app.ts"}'
 - **`dryRun: true`** (default) - Preview changes without modifying files
 - **`dryRun: false`** - Execute changes
 
-### Rename File
+### Rename File (rename_all)
 ```bash
 # Preview
-mill tool rename --target file:src/old.ts --new-name src/new.ts
+mill tool rename_all --target file:src/old.ts --new-name src/new.ts
 
 # Execute
-mill tool rename --target file:src/old.ts --new-name src/new.ts '{"options": {"dryRun": false}}'
+mill tool rename_all --target file:src/old.ts --new-name src/new.ts '{"options": {"dryRun": false}}'
 ```
-### Rename Directory
+
+### Rename Directory (rename_all)
 ```bash
 # Preview
-mill tool rename --target directory:old-dir --new-name new-dir
+mill tool rename_all --target directory:old-dir --new-name new-dir
 
 # Execute
-mill tool rename '{"target": {"kind": "directory", "path": "old-dir"}, "newName": "new-dir", "options": {"dryRun": false}}'
+mill tool rename_all '{"target": {"kind": "directory", "filePath": "old-dir"}, "newName": "new-dir", "options": {"dryRun": false}}'
 ```
+
 ### Rename Symbol (via AI assistant)
 Ask Claude:
 ```
 "Rename the function fetchData to loadData"
 ```
-### Extract Function
+
+### Extract Function (refactor)
 ```bash
-mill tool extract '{"kind": "function", "source": {"file_path": "src/app.ts", "start_line": 10, "start_character": 5, "end_line": 15, "end_character": 10}, "name": "handleLogin"}'
+mill tool refactor '{"action": "extract", "params": {"kind": "function", "filePath": "src/app.ts", "range": {"startLine": 9, "startCharacter": 5, "endLine": 14, "endCharacter": 10}, "name": "handleLogin"}}'
 ```
-### Move Symbol
+
+### Move Symbol (relocate)
 ```bash
-mill tool move '{"source": {"file_path": "src/app.ts", "line": 10, "character": 5}, "destination": {"file_path": "src/utils.ts"}}'
+mill tool relocate '{"target": {"kind": "symbol", "filePath": "src/app.ts", "line": 9, "character": 5}, "destination": {"filePath": "src/utils.ts"}}'
 ```
-### Inline Variable
+
+### Inline Variable (refactor)
 ```bash
-mill tool inline '{"target": {"kind": "variable", "file_path": "src/app.ts", "line": 10, "character": 5}}'
+mill tool refactor '{"action": "inline", "params": {"kind": "variable", "filePath": "src/app.ts", "line": 9, "character": 5}}'
 ```
-### Delete File
+
+### Delete File (prune)
 ```bash
 # Preview
-mill tool delete --target file:src/unused.ts
+mill tool prune --target file:src/unused.ts
 
 # Execute
-mill tool delete '{"target": {"kind": "file", "path": "src/unused.ts"}, "options": {"dryRun": false}}'
+mill tool prune '{"target": {"kind": "file", "filePath": "src/unused.ts"}, "options": {"dryRun": false}}'
 ```
 ---
 
 ## Workspace Tools
 
-### Find and Replace
+### Find and Replace (workspace)
 ```bash
-mill tool workspace.find_replace '{"pattern": "oldName", "replacement": "newName", "scope": "workspace"}'
+mill tool workspace '{"action": "find_replace", "pattern": "oldName", "replacement": "newName", "scope": "workspace"}'
 ```
-### Create Package (Rust)
+
+### Create Package (workspace)
 ```bash
-mill tool workspace.create_package '{"name": "my-crate", "template": "minimal", "package_type": "library"}'
+mill tool workspace '{"action": "create_package", "params": {"name": "my-crate", "packageType": "library"}, "options": {"template": "minimal"}}'
 ```
-### Extract Dependencies (Rust)
+
+### Extract Dependencies (workspace)
 ```bash
-mill tool workspace.extract_dependencies '{"module_path": "src/utils.rs"}'
+mill tool workspace '{"action": "extract_dependencies", "params": {"sourceManifest": "source/Cargo.toml", "targetManifest": "target/Cargo.toml", "dependencies": ["tokio"]}}'
 ```
 ---
 
@@ -158,17 +166,17 @@ mill convert-naming --from snake_case --to camelCase --glob "**/*.ts" --dry-run
 
 1. **Preview** (default - always safe):
    ```bash
-   mill tool rename --target file:old.ts --new-name new.ts
+   mill tool rename_all --target file:old.ts --new-name new.ts
    ```
 
 2. **Review** the plan output
 
 3. **Execute** if satisfied:
    ```bash
-   mill tool rename '{"target": {"kind": "file", "path": "old.ts"}, "newName": "new.ts", "options": {"dryRun": false}}'
+   mill tool rename_all '{"target": {"kind": "file", "path": "old.ts"}, "newName": "new.ts", "options": {"dryRun": false}}'
    ```
 
-### Scope Options (for rename operations)
+### Scope Options (for rename_all operations)
 
 Control what gets updated:
 
@@ -180,7 +188,7 @@ Control what gets updated:
 ```
 Example:
 ```bash
-mill tool rename --target directory:old-dir --new-name new-dir --scope standard
+mill tool rename_all --target directory:old-dir --new-name new-dir --scope standard
 ```
 ---
 
@@ -196,10 +204,10 @@ mill start
 ### Rename File Safely
 ```bash
 # 1. Preview
-mill tool rename --target file:src/old.ts --new-name src/new.ts
+mill tool rename_all --target file:src/old.ts --new-name src/new.ts
 
 # 2. Execute
-mill tool rename '{"target": {"kind": "file", "path": "src/old.ts"}, "newName": "src/new.ts", "options": {"dryRun": false}}'
+mill tool rename_all '{"target": {"kind": "file", "path": "src/old.ts"}, "newName": "src/new.ts", "options": {"dryRun": false}}'
 ```
 ### Refactor with AI
 Ask Claude:
@@ -271,57 +279,70 @@ mill docs --search "dry run"
 
 > **Quick lookup for tool parameters** - See [tools/](../tools/) for complete documentation
 
-### Navigation Tools
+### Navigation Tools (Magnificent Seven API)
 
 | Tool | Required Parameters | Optional Parameters | Returns |
 |------|-------------------|-------------------|---------|
-| `find_definition` | `file_path`, `line`, `character` | - | Location |
-| `find_references` | `file_path`, `line`, `character` | `include_declaration` | Location[] |
-| `find_implementations` | `file_path`, `line`, `character` | - | Location[] |
-| `find_type_definition` | `file_path`, `line`, `character` | - | Location |
-| `search_symbols` | `query` | `scope`, `kind` | SymbolInfo[] |
-| `get_symbol_info` | `file_path`, `line`, `character` | - | SymbolInfo |
-| `get_diagnostics` | `file_path` | `severity` | Diagnostic[] |
-| `get_call_hierarchy` | `file_path`, `line`, `character` | `direction` | CallHierarchy |
+| `inspect_code` | `filePath` | `line`, `character`, `include`, `detailLevel` | Varies by include fields |
+| `search_code` | `query` | `scope`, `kind` | SymbolInfo[] |
+
+**Include fields for inspect_code:**
+- `"definition"` - Find symbol definition
+- `"references"` - Find all references
+- `"implementations"` - Find implementations
+- `"typeInfo"` - Find type information
+- `"callHierarchy"` - Get call hierarchy
+- `"diagnostics"` - Get errors/warnings
+
+**Detail levels:**
+- `"basic"` - Definition + type info only
+- `"deep"` - All available information
 
 **Example:**
 ```bash
-mill tool find_definition '{"file_path": "src/app.ts", "line": 10, "character": 5}'
+mill tool inspect_code '{"filePath": "src/app.ts", "line": 9, "character": 5, "include": ["definition", "typeInfo"]}'
 ```
 
 ---
 
-### Refactoring Tools
+### Refactoring Tools (Magnificent Seven API)
 
 All refactoring tools support `options.dryRun` (default: `true`)
 
 | Tool | Required Parameters | Optional Parameters | Returns |
 |------|-------------------|-------------------|---------|
-| `rename` | `target`, `newName` | `options` (dryRun, scope) | EditPlan/ApplyResult |
-| `extract` | `kind`, `source`, `name` | `options` (dryRun) | EditPlan/ApplyResult |
-| `inline` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
-| `move` | `source`, `destination` | `options` (dryRun) | EditPlan/ApplyResult |
-| `delete` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
+| `rename_all` | `target`, `newName` | `options` (dryRun, scope) | EditPlan/ApplyResult |
+| `refactor` | `action`, varies by action | `options` (dryRun) | EditPlan/ApplyResult |
+| `relocate` | `target`, `destination` | `options` (dryRun) | EditPlan/ApplyResult |
+| `prune` | `target` | `options` (dryRun) | EditPlan/ApplyResult |
+
+**Actions for refactor:**
+- `extract` - Extract function, variable, constant
+- `inline` - Inline variable, function, constant
 
 **Target formats:**
-- File: `{"kind": "file", "path": "src/app.ts"}`
-- Directory: `{"kind": "directory", "path": "src/utils"}`
-- Symbol: `{"file": "src/app.ts", "line": 10, "character": 5}`
+- File: `{"kind": "file", "filePath": "src/app.ts"}`
+- Directory: `{"kind": "directory", "filePath": "src/utils"}`
+- Symbol: `{"kind": "symbol", "filePath": "src/app.ts", "line": 9, "character": 5}`
 
 **Example:**
 ```bash
-mill tool rename '{"target": {"kind": "file", "path": "old.ts"}, "newName": "new.ts", "options": {"dryRun": false}}'
+mill tool rename_all '{"target": {"kind": "file", "filePath": "old.ts"}, "newName": "new.ts", "options": {"dryRun": false}}'
 ```
 
 ---
 
-### Workspace Tools
+### Workspace Tools (Magnificent Seven API)
 
 | Tool | Required Parameters | Optional Parameters | Returns |
 |------|-------------------|-------------------|---------|
-| `workspace.create_package` | `name`, `packageType`, `path` | `options` (dryRun) | CreateResult |
-| `workspace.extract_dependencies` | `source_crate`, `target_crate`, `module_path` | `options` (dryRun) | ExtractResult |
-| `workspace.find_replace` | `pattern`, `replacement` | `mode`, `scope`, `dryRun` | ReplaceResult |
+| `workspace` | `action` | varies by action | Varies by action |
+
+**Actions for workspace:**
+- `create_package` - Create new package (requires: name, packageType, path)
+- `extract_dependencies` - Extract dependencies (requires: source_crate, target_crate, module_path)
+- `find_replace` - Find and replace (requires: pattern, replacement)
+- `verify_project` - Health check (no additional params)
 
 **Package types:**
 - Rust: `"rust_library"`, `"rust_binary"`
@@ -330,20 +351,25 @@ mill tool rename '{"target": {"kind": "file", "path": "old.ts"}, "newName": "new
 
 **Example:**
 ```bash
-mill tool workspace.create_package '{"name": "my-crate", "packageType": "rust_library", "path": "crates/my-crate", "options": {"dryRun": false}}'
+mill tool workspace '{"action": "create_package", "name": "my-crate", "packageType": "rust_library", "path": "crates/my-crate", "options": {"dryRun": false}}'
 ```
 
 ---
 
-### System Tools
+### System Tools (Magnificent Seven API)
 
 | Tool | Required Parameters | Optional Parameters | Returns |
 |------|-------------------|-------------------|---------|
-| `health_check` | - | - | HealthStatus |
+| `workspace` | `action: "verify_project"` | - | HealthStatus |
 
 **Example:**
 ```bash
-mill tool health_check '{}'
+mill tool workspace '{"action": "verify_project"}'
+```
+
+**Legacy (internal-only):**
+```bash
+mill tool health_check '{}'  # Now internal, use workspace instead
 ```
 
 ---

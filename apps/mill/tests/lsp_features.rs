@@ -46,10 +46,10 @@ async fn test_go_to_definition_mock() {
 // =============================================================================
 
 #[tokio::test]
-async fn test_find_references_mock() {
+async fn test_references_mock() {
     let futures = FIND_REFERENCES_TESTS
         .iter()
-        .map(|case| run_find_references_test(case, false));
+        .map(|case| run_references_test(case, false));
     join_all(futures).await;
 }
 

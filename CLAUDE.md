@@ -53,7 +53,7 @@ All refactoring tools support **`options.dryRun`** for safe preview (default: tr
 ### Default Behavior (Safe Preview)
 ```json
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": {
     "target": {"kind": "file", "path": "src/old.rs"},
     "newName": "src/new.rs"
@@ -66,7 +66,7 @@ All refactoring tools support **`options.dryRun`** for safe preview (default: tr
 ### Execution Mode (Explicit Opt-in)
 ```json
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": {
     "target": {"kind": "file", "path": "src/old.rs"},
     "newName": "src/new.rs",
@@ -92,7 +92,7 @@ All refactoring tools support **`options.dryRun`** for safe preview (default: tr
       "filePath": "src/app.ts",
       "line": 10,
       "character": 5,
-      "include": ["definition", "references", "diagnostics"]
+      "include": ["definition", "typeInfo"]
     }
   }
 }

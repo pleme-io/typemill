@@ -158,13 +158,13 @@ Once connected, try these commands with your AI assistant:
 ```
 "Find the definition of the App component in src/App.tsx"
 ```
-Mill uses the `find_definition` tool to show the exact location.
+Mill uses the `inspect_code` tool (with `include: ["definition"]`) to show the exact location.
 
 ### 2. Show All References
 ```
 "Show me everywhere the Config type is used"
 ```
-Mill uses the `find_references` tool to list all usages.
+Mill uses the `inspect_code` tool (with `include: ["references"]`) to list all usages.
 
 ### 3. Rename Safely
 ```
@@ -283,7 +283,7 @@ cat .typemill/config.json
 mill status
 
 # Test with a tool call
-mill tool health_check '{}'
+mill tool workspace '{"action": "verify_project"}'
 ```
 ---
 
@@ -343,7 +343,7 @@ mill docs tools         # View tool documentation
 ### Learn Common Workflows
 
 - **[cheatsheet.md](cheatsheet.md)** - Quick command reference
-- **[../tools/refactoring.md](../tools/refactoring.md)** - Advanced refactoring patterns
+- **[../tools/refactor.md](../tools/refactor.md)** - Advanced refactoring patterns
 
 ### Configure Advanced Features
 
@@ -357,13 +357,13 @@ You can call tools directly without an AI assistant:
 
 ```bash
 # Find definition
-mill tool find_definition '{"file_path": "src/App.tsx", "line": 10, "character": 5}'
+mill tool inspect_code '{"filePath": "src/App.tsx", "line": 9, "character": 5, "include": ["definition"]}'
 
 # Rename file (preview)
-mill tool rename --target file:src/old.ts --new-name src/new.ts
+mill tool rename_all --target file:src/old.ts --new-name src/new.ts
 
 # Rename file (execute)
-mill tool rename --target file:src/old.ts --new-name src/new.ts --dry-run false
+mill tool rename_all --target file:src/old.ts --new-name src/new.ts --dry-run false
 ```
 ---
 

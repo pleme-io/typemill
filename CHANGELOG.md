@@ -174,7 +174,7 @@ The project underwent a complete architectural transformation from TypeScript/No
 
 - **Gitignore Plugin Enhancement** - Automatic `.gitignore` pattern updates during rename operations
 
-- **Project Factory Pattern** - TypeScript and Python now support `workspace.create_package`
+- **Project Factory Pattern** - TypeScript and Python now support `workspace` with `action: "create_package"`
   - Language-specific project templates and scaffolding
   - 100% parity across TypeScript, Rust, and Python
 
@@ -253,7 +253,7 @@ The project underwent a complete architectural transformation from TypeScript/No
   - E2E tests validating all scope modes and edge cases
   - Fine-grained control over what files get updated during renames
 
-- **workspace.find_replace Tool** - Find and replace text across workspace
+- **workspace find_replace action** - Find and replace text across workspace
   - 100% test coverage with edge case handling
   - UTF-8 safe character boundary handling
   - MCP protocol-compliant response format
@@ -425,7 +425,7 @@ The project underwent a complete architectural transformation from TypeScript/No
   - **Now**: Single tool call with preview (`dryRun: true`) or execution (`dryRun: false`)
   - Safe dry-run previews without filesystem modifications
   - Atomic execution with rollback on errors
-  - **See**: [docs/tools/refactoring.md](docs/tools/refactoring.md) for complete unified API documentation
+  - **See**: [docs/tools/refactor.md](docs/tools/refactor.md) for complete refactor tool documentation
 
 - **Additional Language Plugins** - Markdown, TOML, YAML plugins for rename support
 - **Build Automation** - xtask pattern with cross-platform Rust tasks (`cargo xtask install`, `check-all`, etc.)

@@ -15,7 +15,7 @@ use serde_json::json;
 async fn test_delete_file_plan_and_apply() {
     run_tool_test_with_plan_validation(
         &[("to_delete.rs", "pub fn unused() {}\n")],
-        "delete",
+        "prune",
         |ws| build_delete_params(ws, "to_delete.rs", "file"),
         |plan| {
             assert_eq!(
@@ -40,7 +40,7 @@ async fn test_delete_file_plan_and_apply() {
 async fn test_delete_file_dry_run_preview() {
     run_dry_run_test(
         &[("keep_for_now.rs", "pub fn test() {}\n")],
-        "delete",
+        "prune",
         |ws| build_delete_params(ws, "keep_for_now.rs", "file"),
         |ws| {
             assert!(
@@ -67,14 +67,17 @@ async fn test_delete_directory_plan_and_apply() {
     let mut params = build_delete_params(&workspace, "temp_dir", "directory");
     params["options"] = json!({"dryRun": true});
 
-    let plan = client
-        .call_tool("delete", params)
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = client
+        .call_tool("prune", params)
         .await
-        .expect("delete should succeed")
-        .get("result")
-        .and_then(|r| r.get("content"))
+        .expect("prune should succeed");
+    let outer_result = result.get("result").expect("Result should exist");
+    let response = outer_result.get("content").expect("Content should exist");
+    let plan = response
+        .get("changes")
         .cloned()
-        .expect("Plan should exist");
+        .expect("Plan should exist in changes field");
 
     assert_eq!(
         plan.get("planType").and_then(|v| v.as_str()),
@@ -86,7 +89,7 @@ async fn test_delete_directory_plan_and_apply() {
     params_exec["options"] = json!({"dryRun": false});
 
     client
-        .call_tool("delete", params_exec)
+        .call_tool("prune", params_exec)
         .await
         .expect("Delete should succeed");
 

@@ -1,4 +1,4 @@
-//! workspace.extract_dependencies tests migrated to closure-based helpers (v2)
+//! workspace extract_dependencies tests migrated to closure-based helpers (v2)
 //!
 //! BEFORE: 735 lines with repetitive workspace setup
 //! AFTER: Focused dependency extraction verification
@@ -82,18 +82,25 @@ anyhow = "1.0"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(2)
     );
     assert_eq!(
-        content
+        changes
             .get("targetManifestUpdated")
             .and_then(|v| v.as_bool()),
         Some(true)
@@ -142,11 +149,19 @@ criterion = "0.5"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
+
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(1)
@@ -189,19 +204,29 @@ serde = "0.9"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in nested result
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
     // Verify warnings
-    let warnings = content.get("warnings").and_then(|v| v.as_array()).unwrap();
+    let warnings = changes
+        .get("warnings")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert!(warnings
         .iter()
         .any(|w| w.as_str().unwrap().contains("serde")
             && w.as_str().unwrap().contains("already exists")));
 
     // Verify dependencies_added
-    let deps_added = content
+    let deps_added = changes
         .get("dependenciesAdded")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -252,11 +277,19 @@ tokio = "1.0"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
+
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(1)
@@ -296,11 +329,19 @@ my-local = { path = "../my-local" }
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
+
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(1)
@@ -340,18 +381,28 @@ tokio = "1.0"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(0)
     );
 
-    let warnings = content.get("warnings").and_then(|v| v.as_array()).unwrap();
+    let warnings = changes
+        .get("warnings")
+        .and_then(|v| v.as_array())
+        .unwrap();
     assert!(warnings
         .iter()
         .any(|w| w.as_str().unwrap().contains("nonexistent")
@@ -389,19 +440,29 @@ tokio = "1.0"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
 
-    assert_eq!(content.get("dryRun").and_then(|v| v.as_bool()), Some(true));
+    // M7 response: status at top level (preview for dry run), action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("preview")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes.get("dryRun").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+    assert_eq!(
+        changes
             .get("targetManifestUpdated")
             .and_then(|v| v.as_bool()),
         Some(false)
     );
     assert_eq!(
-        content
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(1)
@@ -441,18 +502,26 @@ feature-dep = { version = "1.0", optional = true }
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
+
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(1)
     );
 
     // Verify optional flag
-    let deps_added = content
+    let deps_added = changes
         .get("dependenciesAdded")
         .and_then(|v| v.as_array())
         .unwrap();
@@ -496,11 +565,19 @@ cc = "1.0"
             }),
         )
         .await
-        .expect("workspace.extract_dependencies should succeed");
+        .expect("workspace extract_dependencies should succeed");
 
     let content = result.get("result").expect("Result should exist");
+
+    // M7 response: status at top level, action-specific data in nested result
     assert_eq!(
-        content
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success")
+    );
+    let changes = content.get("changes").expect("Changes should exist");
+
+    assert_eq!(
+        changes
             .get("dependenciesExtracted")
             .and_then(|v| v.as_u64()),
         Some(1)

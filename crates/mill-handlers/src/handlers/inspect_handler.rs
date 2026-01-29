@@ -114,8 +114,9 @@ impl InspectHandler {
         let file_path = PathBuf::from(&params.file_path);
         let mut result = InspectResult::default();
 
-        // Default include list (all intelligence types)
-        const DEFAULT_INCLUDE: &[&str] = &[
+        // Include lists based on detail level
+        const BASIC_INCLUDE: &[&str] = &["definition", "typeInfo"];
+        const DEEP_INCLUDE: &[&str] = &[
             "definition",
             "typeInfo",
             "references",
@@ -124,10 +125,16 @@ impl InspectHandler {
             "diagnostics",
         ];
 
-        // Get include list (default to all if not specified)
+        // Get include list: explicit include > detailLevel > default (basic)
         let include: Vec<String> = match &params.include {
             Some(inc) => inc.clone(),
-            None => DEFAULT_INCLUDE.iter().map(|s| s.to_string()).collect(),
+            None => {
+                let level = params.detail_level.as_deref().unwrap_or("basic");
+                match level {
+                    "deep" => DEEP_INCLUDE.iter().map(|s| s.to_string()).collect(),
+                    _ => BASIC_INCLUDE.iter().map(|s| s.to_string()).collect(),
+                }
+            }
         };
 
         debug!(
@@ -247,9 +254,6 @@ impl ToolHandler for InspectHandler {
         &["inspect_code"]
     }
 
-    fn is_internal(&self) -> bool {
-        false // Public tool
-    }
 
     async fn handle_tool_call(
         &self,
@@ -277,9 +281,8 @@ impl ToolHandler for InspectHandler {
                 }
             }
         } else {
-            // Position-based lookup: use provided coordinates
-            // Convert 1-based line to 0-based for LSP
-            let line = params.line.unwrap().saturating_sub(1);
+            // Position-based lookup: use provided coordinates (0-based)
+            let line = params.line.unwrap();
             let character = params.character.unwrap();
             (line as u32, character as u32)
         };
@@ -306,17 +309,17 @@ impl ToolHandler for InspectHandler {
 struct InspectParams {
     /// File path to inspect
     file_path: String,
-    /// Line number (1-based, optional if symbolName is provided)
+    /// Line number (0-based, optional if symbolName is provided)
     line: Option<u64>,
     /// Character position (0-based, optional if symbolName is provided)
     character: Option<u64>,
     /// Symbol name for name-based lookup (alternative to line/character)
     symbol_name: Option<String>,
-    /// What intelligence to include (defaults to all)
+    /// What intelligence to include (defaults based on detailLevel)
     #[serde(default)]
     include: Option<Vec<String>>,
-    /// Detail level: "summary" | "full" (reserved for future use)
-    #[serde(default)]
+    /// Detail level: "basic" (definition, typeInfo) | "deep" (all fields)
+    #[serde(default, alias = "detailLevel")]
     detail_level: Option<String>,
     /// Maximum number of results per list field (pagination)
     #[serde(default)]

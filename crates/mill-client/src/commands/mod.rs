@@ -359,7 +359,7 @@ mod tests {
     #[test]
     fn test_validate_tool_name() {
         // Valid names
-        assert!(utils::validate_tool_name("find_definition").is_ok());
+        assert!(utils::validate_tool_name("inspect_code").is_ok());
         assert!(utils::validate_tool_name("test123").is_ok());
         assert!(utils::validate_tool_name("simple").is_ok());
 

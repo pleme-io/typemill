@@ -4,9 +4,9 @@
 //!
 //! This handler implements the unified workspace tool for package management
 //! and workspace operations. It dispatches to existing handlers based on action:
-//! - create_package -> WorkspaceCreateHandler logic
-//! - extract_dependencies -> WorkspaceExtractDepsHandler logic
-//! - find_replace -> FindReplaceHandler logic
+//! - create_package -> WorkspaceCreateService logic
+//! - extract_dependencies -> WorkspaceExtractService logic
+//! - find_replace -> find_replace service
 //! - verify_project -> health_check style verification
 
 use super::tools::{extensions::get_concrete_app_state, ToolHandler};
@@ -21,21 +21,11 @@ use crate::handlers::tool_definitions::{
 };
 
 /// Handler for unified workspace operations
-pub struct WorkspaceHandler {
-    workspace_create_handler: super::tools::workspace_create::WorkspaceCreateHandler,
-    workspace_extract_deps_handler:
-        super::tools::workspace_extract_deps::WorkspaceExtractDepsHandler,
-    find_replace_handler: super::workspace::find_replace_handler::FindReplaceHandler,
-}
+pub struct WorkspaceHandler;
 
 impl WorkspaceHandler {
     pub fn new() -> Self {
-        Self {
-            workspace_create_handler: super::tools::workspace_create::WorkspaceCreateHandler::new(),
-            workspace_extract_deps_handler:
-                super::tools::workspace_extract_deps::WorkspaceExtractDepsHandler::new(),
-            find_replace_handler: super::workspace::find_replace_handler::FindReplaceHandler::new(),
-        }
+        Self
     }
 }
 
@@ -86,7 +76,7 @@ impl ToolHandler for WorkspaceHandler {
 }
 
 impl WorkspaceHandler {
-    /// Handle create_package action - delegates to WorkspaceCreateHandler
+    /// Handle create_package action - delegates to create package service
     async fn handle_create_package(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -108,14 +98,18 @@ impl WorkspaceHandler {
         // Build arguments for the existing handler
         let mut create_args = json!({});
 
-        // Map params fields to the expected format for WorkspaceCreateHandler
-        if let Some(name) = params.get("name").and_then(|v| v.as_str()) {
+        // Map params fields to the expected format for create package service
+        // Accept multiple field names for flexibility
+        if let Some(pkg_path) = params.get("packagePath").and_then(|v| v.as_str()) {
+            create_args["packagePath"] = json!(pkg_path);
+        } else if let Some(path) = params.get("path").and_then(|v| v.as_str()) {
+            create_args["packagePath"] = json!(path);
+        } else if let Some(name) = params.get("name").and_then(|v| v.as_str()) {
             create_args["packagePath"] = json!(name);
         }
-        if let Some(path) = params.get("path").and_then(|v| v.as_str()) {
-            create_args["packagePath"] = json!(path);
-        }
-        if let Some(template) = params.get("template").and_then(|v| v.as_str()) {
+        if let Some(pkg_type) = params.get("packageType").and_then(|v| v.as_str()) {
+            create_args["packageType"] = json!(pkg_type);
+        } else if let Some(template) = params.get("template").and_then(|v| v.as_str()) {
             create_args["packageType"] = json!(template);
         }
 
@@ -123,22 +117,15 @@ impl WorkspaceHandler {
         create_args["options"] = json!(options);
 
         // Create a new tool call for the existing handler
-        let delegate_tool_call = ToolCall {
-            name: "workspace.create_package".to_string(),
-            arguments: Some(create_args),
-        };
-
-        // Delegate to existing handler
-        let result = self
-            .workspace_create_handler
-            .handle_tool_call(context, &delegate_tool_call)
-            .await?;
+        // Delegate to create package service
+        let result =
+            super::tools::workspace_create::handle_create_package(context, create_args).await?;
 
         // Convert to WriteResponse format
         self.convert_create_package_response(result, &options).await
     }
 
-    /// Handle extract_dependencies action - delegates to WorkspaceExtractDepsHandler
+    /// Handle extract_dependencies action - delegates to extract service
     async fn handle_extract_dependencies(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -175,22 +162,16 @@ impl WorkspaceHandler {
         extract_args["options"] = json!(options);
 
         // Create a new tool call for the existing handler
-        let delegate_tool_call = ToolCall {
-            name: "workspace.extract_dependencies".to_string(),
-            arguments: Some(extract_args),
-        };
-
-        // Delegate to existing handler
-        let result = self
-            .workspace_extract_deps_handler
-            .handle_tool_call(context, &delegate_tool_call)
-            .await?;
+        // Delegate to extract dependencies service
+        let result =
+            super::tools::workspace_extract::handle_extract_dependencies(context, extract_args)
+                .await?;
 
         // Convert to WriteResponse format
         self.convert_extract_deps_response(result, &options).await
     }
 
-    /// Handle find_replace action - delegates to FindReplaceHandler
+    /// Handle find_replace action - delegates to find_replace service
     async fn handle_find_replace(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -222,11 +203,14 @@ impl WorkspaceHandler {
         if let Some(mode) = params.get("mode") {
             find_replace_args["mode"] = mode.clone();
         }
-        if let Some(glob) = params.get("glob") {
-            // Map glob to scope.includePatterns
-            find_replace_args["scope"] = json!({
-                "includePatterns": [glob]
-            });
+        if let Some(whole_word) = params.get("wholeWord") {
+            find_replace_args["wholeWord"] = whole_word.clone();
+        }
+        if let Some(preserve_case) = params.get("preserveCase") {
+            find_replace_args["preserveCase"] = preserve_case.clone();
+        }
+        if let Some(scope) = params.get("scope") {
+            find_replace_args["scope"] = scope.clone();
         }
 
         // Add dryRun from options
@@ -236,17 +220,9 @@ impl WorkspaceHandler {
             find_replace_args["dryRun"] = json!(true); // Default to safe mode
         }
 
-        // Create a new tool call for the existing handler
-        let delegate_tool_call = ToolCall {
-            name: "workspace.find_replace".to_string(),
-            arguments: Some(find_replace_args),
-        };
-
-        // Delegate to existing handler
-        let result = self
-            .find_replace_handler
-            .handle_tool_call(context, &delegate_tool_call)
-            .await?;
+        // Delegate to service
+        let result =
+            super::workspace::handle_find_replace(context, find_replace_args).await?;
 
         // Convert to WriteResponse format
         self.convert_find_replace_response(result, &options).await
@@ -556,6 +532,11 @@ impl WorkspaceHandler {
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
 
+        let create_if_missing = options
+            .get("createIfMissing")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+
         // Get the sub-action (add, remove, list)
         let sub_action = params
             .get("action")
@@ -593,6 +574,22 @@ impl WorkspaceHandler {
             ))
         })?;
 
+        // Check if workspace section exists
+        let has_workspace_section = doc.get("workspace").is_some();
+
+        if !has_workspace_section && !create_if_missing {
+            return Err(ServerError::invalid_request(
+                "Cargo.toml does not contain a [workspace] section. Use createIfMissing: true to create it."
+            ));
+        }
+
+        // Create workspace section if needed and allowed
+        if !has_workspace_section && create_if_missing {
+            let mut workspace_table = toml_edit::Table::new();
+            workspace_table.insert("members", Item::Value(toml_edit::Value::Array(toml_edit::Array::new())));
+            doc.insert("workspace", Item::Table(workspace_table));
+        }
+
         // Get current members
         let members_before: Vec<String> = doc
             .get("workspace")
@@ -612,7 +609,10 @@ impl WorkspaceHandler {
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
-                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .filter_map(|v| v.as_str().map(|s| {
+                                // Normalize path separators (backslash to forward slash)
+                                s.replace('\\', "/")
+                            }))
                             .collect()
                     })
                     .unwrap_or_default();
@@ -727,7 +727,8 @@ impl WorkspaceHandler {
                 "membersBefore": members_before,
                 "membersAfter": members_after,
                 "changesMade": changes_made,
-                "workspaceUpdated": workspace_updated && !dry_run
+                "workspaceUpdated": workspace_updated && !dry_run,
+                "dryRun": dry_run
             }
         });
 

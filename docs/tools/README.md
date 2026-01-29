@@ -23,8 +23,6 @@ This directory contains focused documentation for each tool category. Each categ
 | **Workspace Management (1 tool)** ||||
 | `workspace` | Workspace | Package management, find/replace, dependency extraction, project verification | [workspace.md](workspace.md) |
 
-**Note:** Legacy tools (find_definition, find_references, rename, extract, inline, move, delete, etc.) are now internal-only and not exposed via the public API. Use the new tools above instead.
-
 ---
 
 ## Categories
@@ -143,7 +141,7 @@ Supports Rust (Cargo), TypeScript (npm/yarn/pnpm), and Python (PDM/Poetry/Hatch)
 - **Parameters table** - Always include for clarity
 - **JSON examples** - Show full MCP request/response
 - **Code blocks** - Use proper syntax highlighting
-- **Anchors** - Use lowercase with underscores for tool names (`#find_definition`)
+- **Anchors** - Use lowercase with underscores for tool names (`#inspect_code`)
 - **Consistency** - Follow the template structure exactly
 
 ---
@@ -175,7 +173,7 @@ All refactoring tools use a unified `options.dryRun` parameter:
 **Preview mode (default, safe):**
 ```json
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": {
     "target": {...},
     "newName": "...",
@@ -186,7 +184,7 @@ All refactoring tools use a unified `options.dryRun` parameter:
 **Execution mode (explicit opt-in):**
 ```json
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": {
     "target": {...},
     "newName": "...",

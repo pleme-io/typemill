@@ -27,12 +27,6 @@ impl ToolHandler for AdvancedToolsHandler {
         &["execute_edits", "execute_batch"]
     }
 
-    fn is_internal(&self) -> bool {
-        // Advanced tools are internal - low-level plumbing replaced by higher-level APIs
-        // - execute_edits → replaced by unified refactoring API (rename, extract, etc.)
-        // - execute_batch → replaced by workflow batching
-        true
-    }
 
     async fn handle_tool_call(
         &self,

@@ -1,6 +1,6 @@
 # Workspace Tools - Rust
 
-Language-specific details for `workspace.create_package` with Rust/Cargo projects.
+Language-specific details for `workspace` with `action: "create_package"` in Rust/Cargo projects.
 
 **See [workspace.md](workspace.md) for shared API documentation.**
 
@@ -71,9 +71,12 @@ When `addToWorkspace: true`:
 
 ```bash
 # Create library package
-mill tool workspace.create_package '{
-  "packagePath": "crates/mill-utils",
-  "package_type": "library",
+mill tool workspace '{
+  "action": "create_package",
+  "params": {
+    "packagePath": "crates/mill-utils",
+    "packageType": "library"
+  },
   "options": {
     "template": "minimal",
     "addToWorkspace": true
@@ -88,9 +91,12 @@ mill tool workspace.create_package '{
 # - crates/mill-utils/tests/integration_test.rs
 
 # Create binary with full template
-mill tool workspace.create_package '{
-  "packagePath": "crates/mill-cli",
-  "package_type": "binary",
+mill tool workspace '{
+  "action": "create_package",
+  "params": {
+    "packagePath": "crates/mill-cli",
+    "packageType": "binary"
+  },
   "options": {
     "template": "full"
   }

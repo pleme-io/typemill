@@ -1,7 +1,7 @@
 //! End-to-end workspace operations tests
 //!
 //! Note: LSP integration tests have been moved to crates/mill-handlers/tests/lsp_integration_tests.rs
-//! where they can access internal APIs like `get_document_symbols` for integration testing.
+//! where they can access internal LSP APIs for integration testing.
 
 #[tokio::test]
 #[cfg(unix)] // Zombie reaper is Unix-specific

@@ -1,4 +1,4 @@
-use super::{RenameHandler, RenameOptions, RenameTarget};
+use super::{RenameService, RenameOptions, RenameTarget};
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::{PlanMetadata, PlanSummary, RenamePlan};
@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::debug;
 
-impl RenameHandler {
+impl RenameService {
     /// Generate plan for file rename using MoveService
     pub(crate) async fn plan_file_rename(
         &self,

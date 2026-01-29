@@ -134,11 +134,11 @@ resolver = "2"
     // Apply rename with unified API (dryRun: false)
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/source-crate").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/source-crate").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/target-crate").to_string_lossy(),
                 "options": {

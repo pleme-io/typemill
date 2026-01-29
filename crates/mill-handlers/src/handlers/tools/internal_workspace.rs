@@ -149,12 +149,6 @@ impl ToolHandler for InternalWorkspaceHandler {
         &["apply_workspace_edit"]
     }
 
-    fn is_internal(&self) -> bool {
-        // This tool is internal - it's used by the workflow planner to apply
-        // LSP workspace edits. AI agents should use high-level tools like
-        // rename which internally may trigger workspace edits.
-        true
-    }
 
     async fn handle_tool_call(
         &self,

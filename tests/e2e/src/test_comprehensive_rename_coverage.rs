@@ -37,7 +37,7 @@ fn main() {
 "#,
             ),
         ],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "config", "configuration", "directory"),
         |ws| {
             let content = ws.read_file("src/main.rs");
@@ -70,7 +70,7 @@ See the [Guide](docs/guide.md) for details.
 "#,
             ),
         ],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "docs", "documentation", "directory"),
         |ws| {
             let content = ws.read_file("README.md");
@@ -113,7 +113,7 @@ jobs:
 "#,
             ),
         ],
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "integration-tests", "tests", "directory"),
         |ws| {
             let content = ws.read_file(".github/workflows/ci.yml");
@@ -146,11 +146,11 @@ async fn test_david_scope_filtering() {
     // Apply with unified API (dryRun: false)
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("old").to_string_lossy()
+                    "filePath": workspace.absolute_path("old").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("new").to_string_lossy(),
                 "options": {
@@ -185,11 +185,11 @@ async fn test_comprehensive_93_percent_coverage() {
     // Apply the comprehensive rename with unified API (dryRun: false)
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("integration-tests").to_string_lossy()
+                    "filePath": workspace.absolute_path("integration-tests").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("tests").to_string_lossy(),
                 "options": {

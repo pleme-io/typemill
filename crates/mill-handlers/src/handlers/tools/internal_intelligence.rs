@@ -66,9 +66,6 @@ impl ToolHandler for InternalIntelligenceHandler {
         &["get_completions", "get_signature_help"]
     }
 
-    fn is_internal(&self) -> bool {
-        true
-    }
 
     async fn handle_tool_call(
         &self,

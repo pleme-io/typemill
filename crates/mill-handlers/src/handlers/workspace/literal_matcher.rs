@@ -1,4 +1,4 @@
-//! Literal String Matching Engine for workspace.find_replace
+//! Literal string matching engine for workspace find_replace action
 //!
 //! This module provides efficient literal string matching with optional word boundary detection
 //! for the find_replace tool. It handles UTF-8 correctly and converts byte offsets to line/column

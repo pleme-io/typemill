@@ -21,7 +21,7 @@ use std::path::Path;
 ///
 /// # Arguments
 /// * `files` - Initial files to create in workspace (path, content)
-/// * `tool` - Tool name (e.g., "rename", "move", "extract")
+/// * `tool` - Tool name (e.g., "rename_all", "relocate", "refactor")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `verify` - Closure for custom assertions on the workspace after operation
 ///
@@ -29,7 +29,7 @@ use std::path::Path;
 /// ```no_run
 /// run_tool_test(
 ///     &[("old.rs", "pub fn test() {}")],
-///     "rename",
+///     "rename_all",
 ///     |ws| build_rename_params(ws, "old.rs", "new.rs", "file"),
 ///     |ws| {
 ///         assert!(ws.file_exists("new.rs"));
@@ -97,7 +97,7 @@ where
 ///
 /// # Arguments
 /// * `files` - Initial files to create
-/// * `tool` - Tool name (e.g., "rename", "extract")
+/// * `tool` - Tool name (e.g., "rename_all", "refactor")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `plan_validator` - Closure to assert on plan structure/metadata
 /// * `result_validator` - Closure to assert on final workspace state
@@ -106,7 +106,7 @@ where
 /// ```no_run
 /// run_tool_test_with_plan_validation(
 ///     &[("file.rs", "content")],
-///     "rename",
+///     "rename_all",
 ///     |ws| build_rename_params(ws, "file.rs", "renamed.rs", "file"),
 ///     |plan| {
 ///         assert_eq!(plan.get("planType").and_then(|v| v.as_str()), Some("renamePlan"));
@@ -162,11 +162,19 @@ where
         .await
         .map_err(|e| anyhow::anyhow!("Failed to preview with '{}': {}", tool, e))?;
 
-    let plan = plan_result
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = plan_result
         .get("result")
-        .and_then(|r| r.get("content"))
+        .ok_or_else(|| anyhow::anyhow!("Response should have result"))?;
+
+    let response = result
+        .get("content")
+        .ok_or_else(|| anyhow::anyhow!("Response should have result.content (M7 format)"))?;
+
+    let plan = response
+        .get("changes")
         .cloned()
-        .ok_or_else(|| anyhow::anyhow!("Plan should have result.content"))?;
+        .ok_or_else(|| anyhow::anyhow!("Plan should have result.content.changes (M7 format)"))?;
 
     // VALIDATE PLAN BEFORE EXECUTING
     plan_validator(&plan).map_err(|e| anyhow::anyhow!("Plan validation failed: {}", e))?;
@@ -198,7 +206,7 @@ where
 ///
 /// # Arguments
 /// * `files` - Initial files to create
-/// * `tool` - Tool name (e.g., "rename", "extract")
+/// * `tool` - Tool name (e.g., "rename_all", "refactor")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `error_contains` - Optional substring that error message should contain
 ///
@@ -206,7 +214,7 @@ where
 /// ```no_run
 /// run_tool_test_expecting_failure(
 ///     &[("file.rs", "content")],
-///     "rename",
+///     "rename_all",
 ///     |ws| build_rename_params(ws, "nonexistent.rs", "new.rs", "file"),
 ///     Some("file not found")
 /// ).await?;
@@ -284,7 +292,7 @@ where
 ///
 /// # Arguments
 /// * `files` - Initial files to create
-/// * `tool` - Tool name (e.g., "rename", "extract")
+/// * `tool` - Tool name (e.g., "rename_all", "refactor")
 /// * `params_fn` - Closure that builds params given workspace (for absolute paths)
 /// * `verify_no_changes` - Closure to assert workspace is unchanged
 ///
@@ -292,7 +300,7 @@ where
 /// ```no_run
 /// run_dry_run_test(
 ///     &[("original.rs", "content")],
-///     "rename",
+///     "rename_all",
 ///     |ws| build_rename_params(ws, "original.rs", "renamed.rs", "file"),
 ///     |ws| {
 ///         assert!(ws.file_exists("original.rs"), "Original file should still exist");
@@ -352,7 +360,7 @@ where
 /// Helper to build tool parameters with absolute paths
 ///
 /// Converts relative paths to absolute paths for the workspace.
-/// Useful for building rename/move parameters.
+/// Useful for building rename_all/relocate parameters.
 ///
 /// # Example
 /// ```no_run
@@ -369,7 +377,7 @@ pub fn build_rename_params(
     json!({
         "target": {
             "kind": kind,
-            "path": workspace.absolute_path(old_path).to_string_lossy().to_string()
+            "filePath": workspace.absolute_path(old_path).to_string_lossy().to_string()
         },
         "newName": workspace.absolute_path(new_path).to_string_lossy().to_string()
     })
@@ -385,7 +393,7 @@ pub fn build_move_params(
     json!({
         "target": {
             "kind": kind,
-            "path": workspace.absolute_path(source).to_string_lossy().to_string()
+            "filePath": workspace.absolute_path(source).to_string_lossy().to_string()
         },
         "destination": workspace.absolute_path(destination).to_string_lossy().to_string()
     })
@@ -396,7 +404,7 @@ pub fn build_delete_params(workspace: &TestWorkspace, path: &str, kind: &str) ->
     json!({
         "target": {
             "kind": kind,
-            "path": workspace.absolute_path(path).to_string_lossy().to_string()
+            "filePath": workspace.absolute_path(path).to_string_lossy().to_string()
         }
     })
 }

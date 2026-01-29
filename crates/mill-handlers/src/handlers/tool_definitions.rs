@@ -63,7 +63,7 @@ pub fn inspect_code_schema() -> Value {
                 },
                 "line": {
                     "type": "integer",
-                    "description": "1-based line number of the symbol position"
+                    "description": "0-based line number of the symbol position"
                 },
                 "character": {
                     "type": "integer",
@@ -167,7 +167,7 @@ pub fn rename_all_schema() -> Value {
                         },
                         "line": {
                             "type": "integer",
-                            "description": "1-based line number (required for symbol rename)"
+                            "description": "0-based line number (required for symbol rename)"
                         },
                         "character": {
                             "type": "integer",
@@ -225,7 +225,7 @@ pub fn relocate_schema() -> Value {
                         },
                         "line": {
                             "type": "integer",
-                            "description": "1-based line number (required for symbol move)"
+                            "description": "0-based line number (required for symbol move)"
                         },
                         "character": {
                             "type": "integer",
@@ -277,7 +277,7 @@ pub fn prune_schema() -> Value {
                         },
                         "line": {
                             "type": "integer",
-                            "description": "1-based line number (required for symbol delete)"
+                            "description": "0-based line number (required for symbol delete)"
                         },
                         "character": {
                             "type": "integer",
@@ -347,16 +347,16 @@ pub fn refactor_schema() -> Value {
                             "type": "object",
                             "description": "Code range to extract (for extract action)",
                             "properties": {
-                                "startLine": { "type": "integer", "description": "1-based start line" },
+                                "startLine": { "type": "integer", "description": "0-based start line" },
                                 "startCharacter": { "type": "integer", "description": "0-based start character" },
-                                "endLine": { "type": "integer", "description": "1-based end line" },
+                                "endLine": { "type": "integer", "description": "0-based end line" },
                                 "endCharacter": { "type": "integer", "description": "0-based end character" }
                             },
                             "required": ["startLine", "startCharacter", "endLine", "endCharacter"]
                         },
                         "line": {
                             "type": "integer",
-                            "description": "1-based line number (for inline action)"
+                            "description": "0-based line number (for inline action)"
                         },
                         "character": {
                             "type": "integer",

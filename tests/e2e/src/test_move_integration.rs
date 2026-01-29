@@ -46,7 +46,7 @@ async fn test_move_folder_with_imports() {
         params_exec["options"] = json!({"dryRun": false, "validateChecksums": true});
 
         client
-            .call_tool("move", params_exec)
+            .call_tool("relocate", params_exec)
             .await
             .expect("Apply should succeed");
 
@@ -74,7 +74,7 @@ async fn test_move_folder_with_imports() {
 async fn test_move_file_plan_and_apply() {
     run_tool_test_with_plan_validation(
         &[("src/helper.rs", "pub fn helper() -> i32 { 42 }\n")],
-        "move",
+        "relocate",
         |ws| build_move_params(ws, "src/helper.rs", "lib/helper.rs", "file"),
         |plan| {
             assert_eq!(
@@ -109,7 +109,7 @@ async fn test_move_file_dry_run_preview() {
             ("source/file.rs", "pub fn test() {}\n"),
             ("target/.gitkeep", ""), // Create target directory
         ],
-        "move",
+        "relocate",
         |ws| build_move_params(ws, "source/file.rs", "target/file.rs", "file"),
         |ws| {
             assert!(
@@ -145,14 +145,17 @@ async fn test_move_module_plan_structure() {
     );
     params["options"] = json!({"dryRun": true});
 
-    let plan = client
-        .call_tool("move", params)
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = client
+        .call_tool("relocate", params)
         .await
-        .expect("move should succeed")
-        .get("result")
-        .and_then(|r| r.get("content"))
+        .expect("relocate should succeed");
+    let outer_result = result.get("result").expect("Result should exist");
+    let response = outer_result.get("content").expect("Content should exist");
+    let plan = response
+        .get("changes")
         .cloned()
-        .expect("Plan should exist");
+        .expect("Plan should exist in changes field");
 
     // Verify plan structure (don't need to apply)
     assert!(plan.get("metadata").is_some(), "Should have metadata");

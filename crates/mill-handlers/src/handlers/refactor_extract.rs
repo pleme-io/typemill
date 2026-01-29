@@ -7,130 +7,88 @@
     clippy::manual_clamp
 )]
 
-//! Inline operation handler - implements inline command with dryRun option
+//! Extract planning service for refactor operations
 //!
-//! Supports inlining variables, functions, and constants by replacing references
-//! with their definitions. This handler reuses existing AST refactoring logic.
+//! Supports extracting code elements into new functions, variables, constants, or modules.
+//! This service reuses existing AST refactoring logic from mill-ast and language plugins.
 
-use crate::handlers::tools::ToolHandler;
-use async_trait::async_trait;
 use lsp_types::{Position, Range, WorkspaceEdit};
-use mill_foundation::core::model::mcp::ToolCall;
+use mill_ast::refactoring::CodeRange;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
-use mill_foundation::protocol::{EditPlan, InlinePlan, PlanMetadata, PlanSummary, RefactorPlan};
+use mill_foundation::protocol::{EditPlan, ExtractPlan, PlanMetadata, PlanSummary};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
-pub struct InlineHandler;
+pub struct RefactorExtractPlanner;
 
-impl InlineHandler {
+impl RefactorExtractPlanner {
     pub fn new() -> Self {
         Self
     }
 
-    /// Handle inline() tool call
-    async fn handle_inline_plan(
+    /// Build extract plan from validated parameters
+    pub(crate) async fn build_extract_plan(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        let args = tool_call.arguments.clone().unwrap_or(json!({}));
-
-        // Deserialize parameters
-        let params: InlinePlanParams = serde_json::from_value(args).map_err(|e| {
-            ServerError::invalid_request(format!("Invalid inline parameters: {}", e))
-        })?;
-
+        params: &ExtractPlanParams,
+    ) -> ServerResult<ExtractPlan> {
         debug!(
             kind = %params.kind,
-            file_path = %params.target.file_path,
-            line = params.target.position.line,
-            character = params.target.position.character,
-            "Planning inline operation"
+            file_path = %params.source.file_path,
+            "Planning extract operation"
         );
 
         // Validate kind
         match params.kind.as_str() {
-            "variable" | "function" | "constant" => {}
+            "function" | "variable" | "constant" | "module" => {}
             other => {
                 return Err(ServerError::invalid_request(format!(
-                    "Unsupported inline kind: {}. Must be one of: variable, function, constant",
+                    "Unsupported extract kind: {}. Must be one of: function, variable, constant, module",
                     other
                 )))
             }
         }
 
-        // Generate the inline plan
-        let plan = match params.kind.as_str() {
-            "variable" => {
-                self.plan_inline_variable(context, &params.target, &params.options)
-                    .await?
-            }
+        match params.kind.as_str() {
             "function" => {
-                self.plan_inline_function(context, &params.target, &params.options)
-                    .await?
+                self.plan_extract_function(context, &params.source, &params.options)
+                    .await
+            }
+            "variable" => {
+                self.plan_extract_variable(context, &params.source, &params.options)
+                    .await
             }
             "constant" => {
-                self.plan_inline_constant(context, &params.target, &params.options)
-                    .await?
+                self.plan_extract_constant(context, &params.source, &params.options)
+                    .await
+            }
+            "module" => {
+                self.plan_extract_module(context, &params.source, &params.options)
+                    .await
             }
             _ => unreachable!("Already validated kind"),
-        };
-
-        // Wrap in RefactorPlan enum for discriminant
-        let refactor_plan = RefactorPlan::InlinePlan(plan);
-
-        // Check if we should execute or just return plan
-        if params.options.dry_run {
-            // Return plan only (preview mode)
-            let plan_json = serde_json::to_value(&refactor_plan)
-                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
-
-            info!(
-                operation = "inline",
-                dry_run = true,
-                "Returning inline plan (preview mode)"
-            );
-
-            Ok(json!({"content": plan_json}))
-        } else {
-            // Execute the plan
-            info!(
-                operation = "inline",
-                dry_run = false,
-                "Executing inline plan"
-            );
-
-            let result =
-                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
-
-            let result_json = serde_json::to_value(&result).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize execution result: {}", e))
-            })?;
-
-            info!(
-                operation = "inline",
-                success = result.success,
-                applied_files = result.applied_files.len(),
-                "Inline execution completed"
-            );
-
-            Ok(json!({"content": result_json}))
         }
     }
 
-    /// Plan inline variable operation
-    async fn plan_inline_variable(
+    /// Plan extract function operation
+    async fn plan_extract_function(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
-        target: &InlineTarget,
-        options: &InlineOptions,
-    ) -> ServerResult<InlinePlan> {
+        source: &SourceRange,
+        options: &ExtractOptions,
+    ) -> ServerResult<ExtractPlan> {
+        // Convert LSP Range to CodeRange
+        let code_range = CodeRange {
+            start_line: source.range.start.line,
+            start_col: source.range.start.character,
+            end_line: source.range.end.line,
+            end_col: source.range.end.character,
+        };
+
         // Read file content
-        let file_path = Path::new(&target.file_path);
+        let file_path = Path::new(&source.file_path);
         let file_content = context
             .app_state
             .file_service
@@ -149,69 +107,21 @@ impl InlineHandler {
             .downcast_ref::<mill_plugin_api::PluginDiscovery>()
             .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
 
-        let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
+        let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
             &file_content,
-            target.position.line,
-            target.position.character,
-            &target.file_path,
+            &code_range,
+            &source.name,
+            &source.file_path,
             None,                   // No LSP service - use AST-only approach
             Some(plugin_discovery), // Pass plugin registry
         )
         .await
-        .map_err(|e| ServerError::internal(format!("Inline variable failed: {}", e)))?;
+        .map_err(|e| ServerError::internal(format!("Extract function failed: {}", e)))?;
 
-        // Convert EditPlan to InlinePlan
-        self.convert_edit_plan_to_inline_plan(
+        // Convert EditPlan to ExtractPlan
+        self.convert_edit_plan_to_extract_plan(
             edit_plan,
-            &target.file_path,
-            "variable",
-            context,
-            options,
-        )
-        .await
-    }
-
-    /// Plan inline function operation
-    async fn plan_inline_function(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        target: &InlineTarget,
-        options: &InlineOptions,
-    ) -> ServerResult<InlinePlan> {
-        // Function inlining uses similar logic to variable inlining
-        // Language plugins can provide more specialized implementations (AST-only approach)
-        let file_path = Path::new(&target.file_path);
-        let file_content = context
-            .app_state
-            .file_service
-            .read_file(file_path)
-            .await
-            .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
-
-        // Try AST-based inline for functions
-
-        // Get PluginDiscovery from language_plugins by downcasting
-        let plugin_discovery = context
-            .app_state
-            .language_plugins
-            .inner()
-            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
-            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
-
-        let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
-            &file_content,
-            target.position.line,
-            target.position.character,
-            &target.file_path,
-            None,                   // No LSP service - use AST-only approach
-            Some(plugin_discovery), // Pass plugin registry
-        )
-        .await
-        .map_err(|e| ServerError::internal(format!("Inline function failed: {}", e)))?;
-
-        self.convert_edit_plan_to_inline_plan(
-            edit_plan,
-            &target.file_path,
+            &source.file_path,
             "function",
             context,
             options,
@@ -219,15 +129,23 @@ impl InlineHandler {
         .await
     }
 
-    /// Plan inline constant operation
-    async fn plan_inline_constant(
+    /// Plan extract variable operation
+    async fn plan_extract_variable(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
-        target: &InlineTarget,
-        options: &InlineOptions,
-    ) -> ServerResult<InlinePlan> {
-        // Constants use similar logic to variables (AST-only approach)
-        let file_path = Path::new(&target.file_path);
+        source: &SourceRange,
+        options: &ExtractOptions,
+    ) -> ServerResult<ExtractPlan> {
+        // For now, extract variable uses similar logic to extract function
+        // Language plugins can provide more specialized implementations
+        let code_range = CodeRange {
+            start_line: source.range.start.line,
+            start_col: source.range.start.character,
+            end_line: source.range.end.line,
+            end_col: source.range.end.character,
+        };
+
+        let file_path = Path::new(&source.file_path);
         let file_content = context
             .app_state
             .file_service
@@ -235,7 +153,8 @@ impl InlineHandler {
             .await
             .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
 
-        // Use AST-only approach for inlining constants
+        // Try to use extract_variable if available, otherwise fall back to extract_function
+        // and adapt the result (AST-only approach, no LSP service)
 
         // Get PluginDiscovery from language_plugins by downcasting
         let plugin_discovery = context
@@ -245,20 +164,84 @@ impl InlineHandler {
             .downcast_ref::<mill_plugin_api::PluginDiscovery>()
             .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
 
-        let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
+        let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
             &file_content,
-            target.position.line,
-            target.position.character,
-            &target.file_path,
+            &code_range,
+            &source.name,
+            &source.file_path,
             None,                   // No LSP service - use AST-only approach
             Some(plugin_discovery), // Pass plugin registry
         )
         .await
-        .map_err(|e| ServerError::internal(format!("Inline constant failed: {}", e)))?;
+        .map_err(|e| ServerError::internal(format!("Extract variable failed: {}", e)))?;
 
-        self.convert_edit_plan_to_inline_plan(
+        self.convert_edit_plan_to_extract_plan(
             edit_plan,
-            &target.file_path,
+            &source.file_path,
+            "variable",
+            context,
+            options,
+        )
+        .await
+    }
+
+    /// Plan extract constant operation
+    async fn plan_extract_constant(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        source: &SourceRange,
+        options: &ExtractOptions,
+    ) -> ServerResult<ExtractPlan> {
+        let file_path = Path::new(&source.file_path);
+        let file_content = context
+            .app_state
+            .file_service
+            .read_file(file_path)
+            .await
+            .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context
+            .app_state
+            .language_plugins
+            .inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
+        // Get the refactoring provider for this file type
+        let provider = plugin_discovery
+            .refactoring_provider_for_file(&source.file_path)
+            .ok_or_else(|| {
+                ServerError::not_found(format!(
+                    "No refactoring provider found for: {}",
+                    source.file_path
+                ))
+            })?;
+
+        // Check if extract_constant is supported
+        if !provider.supports_extract_constant() {
+            return Err(ServerError::not_supported(format!(
+                "Extract constant not supported for: {}",
+                source.file_path
+            )));
+        }
+
+        // Call the language plugin's extract_constant method
+        // For extract constant, we use the cursor position (start of the range)
+        let edit_plan = provider
+            .plan_extract_constant(
+                &file_content,
+                source.range.start.line,
+                source.range.start.character,
+                &source.name,
+                &source.file_path,
+            )
+            .await
+            .map_err(|e| ServerError::internal(format!("Extract constant failed: {}", e)))?;
+
+        self.convert_edit_plan_to_extract_plan(
+            edit_plan,
+            &source.file_path,
             "constant",
             context,
             options,
@@ -266,15 +249,30 @@ impl InlineHandler {
         .await
     }
 
-    /// Convert EditPlan (from AST) to InlinePlan (protocol type)
-    async fn convert_edit_plan_to_inline_plan(
+    /// Plan extract module operation
+    async fn plan_extract_module(
+        &self,
+        _context: &mill_handler_api::ToolHandlerContext,
+        source: &SourceRange,
+        _options: &ExtractOptions,
+    ) -> ServerResult<ExtractPlan> {
+        // Module extraction is more complex and typically requires language plugin support
+        // For now, return a not implemented error
+        Err(ServerError::not_supported(format!(
+            "Extract module not yet implemented for: {}",
+            source.file_path
+        )))
+    }
+
+    /// Convert EditPlan (from AST) to ExtractPlan (protocol type)
+    async fn convert_edit_plan_to_extract_plan(
         &self,
         edit_plan: EditPlan,
         file_path: &str,
         kind: &str,
         context: &mill_handler_api::ToolHandlerContext,
-        _options: &InlineOptions,
-    ) -> ServerResult<InlinePlan> {
+        _options: &ExtractOptions,
+    ) -> ServerResult<ExtractPlan> {
         // Convert EditPlan edits to LSP WorkspaceEdit
         let workspace_edit = self.convert_to_workspace_edit(&edit_plan)?;
 
@@ -289,7 +287,7 @@ impl InlineHandler {
             }
         }
 
-        // Count created/deleted files (inline operations don't create or delete files)
+        // Count created/deleted files (extract operations typically don't create new files)
         let created_files = 0;
         let deleted_files = 0;
 
@@ -314,7 +312,7 @@ impl InlineHandler {
 
         let metadata = PlanMetadata {
             plan_version: "1.0".to_string(),
-            kind: "inline".to_string(),
+            kind: "extract".to_string(),
             language: language.to_string(),
             estimated_impact: estimated_impact.to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
@@ -325,7 +323,7 @@ impl InlineHandler {
             .generate_file_checksums(context, &affected_files)
             .await?;
 
-        Ok(InlinePlan {
+        Ok(ExtractPlan {
             edits: workspace_edit,
             summary,
             warnings,
@@ -338,7 +336,12 @@ impl InlineHandler {
     fn convert_to_workspace_edit(&self, edit_plan: &EditPlan) -> ServerResult<WorkspaceEdit> {
         let mut changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
 
-        for edit in &edit_plan.edits {
+        // Sort edits by priority (highest first) to preserve execution order
+        // LSP WorkspaceEdit doesn't have priority, so we must sort before conversion
+        let mut sorted_edits = edit_plan.edits.clone();
+        sorted_edits.sort_by(|a, b| b.priority.cmp(&a.priority));
+
+        for edit in &sorted_edits {
             let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
 
             // Convert file path to file:// URI
@@ -403,71 +406,53 @@ impl InlineHandler {
     }
 }
 
-impl Default for InlineHandler {
+impl Default for RefactorExtractPlanner {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[async_trait]
-impl ToolHandler for InlineHandler {
-    fn tool_names(&self) -> &[&str] {
-        &["inline"]
-    }
-
-    fn is_internal(&self) -> bool {
-        // Legacy - use refactor action:inline instead
-        true
-    }
-
-    async fn handle_tool_call(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        match tool_call.name.as_str() {
-            "inline" => self.handle_inline_plan(context, tool_call).await,
-            _ => Err(ServerError::not_supported(format!(
-                "Unknown inline operation: {}",
-                tool_call.name
-            ))),
-        }
     }
 }
 
 // Parameter structures
 
 #[derive(Debug, Deserialize, Serialize)]
-struct InlinePlanParams {
-    kind: String,
-    target: InlineTarget,
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ExtractPlanParams {
+    pub(crate) kind: String,
+    pub(crate) source: SourceRange,
     #[serde(default)]
-    options: InlineOptions,
+    pub(crate) options: ExtractOptions,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct InlineTarget {
+pub(crate) struct SourceRange {
     #[serde(alias = "file_path")]
-    file_path: String,
-    position: Position, // lsp_types::Position
+    pub(crate) file_path: String,
+    pub(crate) range: Range, // lsp_types::Range
+    pub(crate) name: String,
+    #[serde(default)]
+    pub(crate) destination: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct InlineOptions {
+pub(crate) struct ExtractOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "crate::default_true")]
-    dry_run: bool,
+    pub(crate) dry_run: bool,
     #[serde(default)]
-    inline_all: Option<bool>, // Default: false - inline all usages vs current only
+    pub(crate) visibility: Option<String>, // "public" | "private"
+    #[serde(default)]
+    pub(crate) destination_path: Option<String>,
 }
 
-impl Default for InlineOptions {
+// Manual Default to ensure dry_run defaults to true (safe preview mode)
+impl Default for ExtractOptions {
     fn default() -> Self {
         Self {
-            dry_run: true, // Safe default: preview mode
-            inline_all: None,
+            dry_run: true,
+            visibility: None,
+            destination_path: None,
         }
     }
 }

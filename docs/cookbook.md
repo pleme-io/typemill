@@ -20,7 +20,7 @@ This cookbook provides step-by-step recipes for real-world TypeMill usage. Each 
 
 **Scenario**: You have `src/old-utils/` and want to rename it to `src/helpers/`
 
-**Tools Used**: `rename`
+**Tools Used**: `rename_all`
 
 ### Steps
 
@@ -38,7 +38,7 @@ flowchart LR
 
 1. **Preview the changes** (dry run mode - default):
    ```bash
-   mill tool rename --target directory:src/old-utils --new-name src/helpers
+   mill tool rename_all --target directory:src/old-utils --new-name src/helpers
    ```
 
 2. **Review the EditPlan**:
@@ -48,7 +48,7 @@ flowchart LR
 
 3. **Execute the rename**:
    ```bash
-   mill tool rename --target directory:src/old-utils --new-name src/helpers '{"options": {"dryRun": false}}'
+   mill tool rename_all --target directory:src/old-utils --new-name src/helpers '{"options": {"dryRun": false}}'
    ```
 
 4. **Verify the changes**:
@@ -86,7 +86,7 @@ git checkout -- .  # Revert if needed
 
 **Scenario**: You have a 200-line function `processRequest` and want to extract logical chunks into helper functions.
 
-**Tools Used**: `extract`
+**Tools Used**: `refactor`
 
 ### Steps
 
@@ -117,10 +117,14 @@ flowchart TD
 2. **Extract first helper function** (dry run):
    Place your cursor at the start of the code block to extract:
    ```bash
-   mill tool extract '{
-     "kind": "function",
-     "source": {"file": "src/handlers/request.rs", "line": 45, "character": 8},
-     "name": "authenticate_user"
+   mill tool refactor '{
+     "action": "extract",
+     "params": {
+       "kind": "function",
+       "filePath": "src/handlers/request.rs",
+       "range": {"startLine": 44, "startCharacter": 8, "endLine": 60, "endCharacter": 0},
+       "name": "authenticate_user"
+     }
    }'
    ```
 
@@ -131,10 +135,14 @@ flowchart TD
 
 4. **Execute the extraction**:
    ```bash
-   mill tool extract '{
-     "kind": "function",
-     "source": {"file": "src/handlers/request.rs", "line": 45, "character": 8},
-     "name": "authenticate_user",
+   mill tool refactor '{
+     "action": "extract",
+     "params": {
+       "kind": "function",
+       "filePath": "src/handlers/request.rs",
+       "range": {"startLine": 44, "startCharacter": 8, "endLine": 60, "endCharacter": 0},
+       "name": "authenticate_user"
+     },
      "options": {"dryRun": false}
    }'
    ```
@@ -170,7 +178,7 @@ flowchart TD
 
 **Scenario**: Build a web application with Rust backend and TypeScript frontend
 
-**Tools Used**: `workspace.create_package`, `setup`
+**Tools Used**: `workspace` (`action: "create_package"`), `setup`
 
 ### Steps
 
@@ -204,30 +212,39 @@ flowchart LR
 
 2. **Create Rust backend crate**:
    ```bash
-   mill tool workspace.create_package '{
-     "name": "backend",
-     "packageType": "rust_binary",
-     "path": "backend",
+   mill tool workspace '{
+     "action": "create_package",
+     "params": {
+       "name": "backend",
+       "packageType": "rust_binary",
+       "path": "backend"
+     },
      "options": {"dryRun": false}
    }'
    ```
 
 3. **Create TypeScript frontend package**:
    ```bash
-   mill tool workspace.create_package '{
-     "name": "frontend",
-     "packageType": "typescript_package",
-     "path": "frontend",
+   mill tool workspace '{
+     "action": "create_package",
+     "params": {
+       "name": "frontend",
+       "packageType": "typescript_package",
+       "path": "frontend"
+     },
      "options": {"dryRun": false}
    }'
    ```
 
 4. **Create shared library crate**:
    ```bash
-   mill tool workspace.create_package '{
-     "name": "shared",
-     "packageType": "rust_library",
-     "path": "shared",
+   mill tool workspace '{
+     "action": "create_package",
+     "params": {
+       "name": "shared",
+       "packageType": "rust_library",
+       "path": "shared"
+     },
      "options": {"dryRun": false}
    }'
    ```
@@ -254,8 +271,8 @@ flowchart LR
    Should show both `rust-analyzer` and `typescript-language-server` running.
 
 8. **Test refactoring across languages**:
-   - Rename a Rust file: `mill tool rename --target file:shared/src/types.rs --new-name shared/src/models.rs`
-   - Rename a TypeScript file: `mill tool rename --target file:frontend/src/utils.ts --new-name frontend/src/helpers.ts`
+  - Rename a Rust file: `mill tool rename_all --target file:shared/src/types.rs --new-name shared/src/models.rs`
+  - Rename a TypeScript file: `mill tool rename_all --target file:frontend/src/utils.ts --new-name frontend/src/helpers.ts`
 
 ### Project Structure
 
@@ -298,7 +315,7 @@ Run your test suite after refactoring operations to catch issues early.
 
 ### Check Documentation
 For detailed parameter reference, see:
-- [Refactoring Tools](tools/refactoring.md)
+- [Refactor Tool](tools/refactor.md)
 - [Workspace Tools](tools/workspace.md)
 
 ### Get Help

@@ -1,13 +1,7 @@
 //! Relocate handler for Magnificent Seven refactoring API
 //!
-//! Implements the `relocate` tool that wraps the existing MoveHandler functionality
-//! with the new unified API shape. This handler delegates to the legacy MoveHandler
-//! while providing the standardized WriteResponse envelope.
-//!
-//! # Tool Overview
-//!
-//! The `relocate` tool moves symbols, files, or directories to new locations with
-//! automatic import and reference updates across the codebase.
+//! Implements the `relocate` tool that moves symbols, files, or directories
+//! with automatic import and reference updates. Calls services directly.
 //!
 //! # API Format
 //!
@@ -25,70 +19,26 @@
 //!   }
 //! }
 //! ```
-//!
-//! # Response Format
-//!
-//! Returns a `WriteResponse` envelope with:
-//! - `status`: "success" | "error" | "preview"
-//! - `summary`: Human-readable description
-//! - `filesChanged`: List of affected file paths
-//! - `diagnostics`: Warnings or errors
-//! - `changes`: Optional plan or result details
-//!
-//! # Examples
-//!
-//! ## Symbol Move (Preview)
-//! ```json
-//! {
-//!   "target": {"kind": "symbol", "filePath": "src/app.rs", "line": 10, "character": 5},
-//!   "destination": "src/utils.rs",
-//!   "options": {"dryRun": true}
-//! }
-//! ```
-//!
-//! ## File Move (Execute)
-//! ```json
-//! {
-//!   "target": {"kind": "file", "filePath": "src/old.rs"},
-//!   "destination": "src/new.rs",
-//!   "options": {"dryRun": false}
-//! }
-//! ```
-//!
-//! ## Directory Move (Preview)
-//! ```json
-//! {
-//!   "target": {"kind": "directory", "filePath": "src/old-dir"},
-//!   "destination": "src/new-dir",
-//!   "options": {"dryRun": true}
-//! }
-//! ```
 
-use crate::handlers::r#move::MoveHandler;
+use crate::handlers::relocate_ops::{directory_move, file_move, symbol_move};
 use crate::handlers::tool_definitions::{Diagnostic, DiagnosticSeverity, WriteResponse};
 use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
+use mill_foundation::planning::RefactorPlan;
 use serde::Deserialize;
-use serde_json::{json, Value};
-use tracing::{debug, error, info, warn};
+use serde_json::Value;
+use std::path::Path;
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
-/// Handler for the `relocate` tool
-///
-/// This handler wraps the existing MoveHandler functionality and adapts it to
-/// the new Magnificent Seven API format with WriteResponse envelopes.
-pub struct RelocateHandler {
-    /// Internal delegate to the existing move handler
-    move_handler: MoveHandler,
-}
+/// Handler for the `relocate` tool - calls services directly
+pub struct RelocateHandler;
 
 impl RelocateHandler {
     pub fn new() -> Self {
-        Self {
-            move_handler: MoveHandler::new(),
-        }
+        Self
     }
 }
 
@@ -102,11 +52,8 @@ impl Default for RelocateHandler {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RelocateParams {
-    /// The target to move
     target: RelocateTarget,
-    /// Destination path
     destination: String,
-    /// Options for the move operation
     #[serde(default)]
     options: RelocateOptions,
 }
@@ -115,14 +62,10 @@ struct RelocateParams {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RelocateTarget {
-    /// Kind of target: "symbol", "file", or "directory"
     kind: String,
-    /// Path to the file or directory (or file containing the symbol)
     file_path: String,
-    /// 1-based line number (required for symbol moves)
     #[serde(default)]
     line: Option<u32>,
-    /// 0-based character offset (required for symbol moves)
     #[serde(default)]
     character: Option<u32>,
 }
@@ -131,7 +74,6 @@ struct RelocateTarget {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RelocateOptions {
-    /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "crate::default_true")]
     dry_run: bool,
 }
@@ -146,10 +88,6 @@ impl Default for RelocateOptions {
 impl ToolHandler for RelocateHandler {
     fn tool_names(&self) -> &[&str] {
         &["relocate"]
-    }
-
-    fn is_internal(&self) -> bool {
-        false // Public tool in Magnificent Seven API
     }
 
     async fn handle_tool_call(
@@ -167,20 +105,10 @@ impl ToolHandler for RelocateHandler {
 
         // Parse parameters
         let args = tool_call.arguments.clone().ok_or_else(|| {
-            error!(
-                operation_id = %operation_id,
-                "Missing arguments for relocate"
-            );
             ServerError::invalid_request("Missing arguments for relocate")
         })?;
 
-        let params: RelocateParams = serde_json::from_value(args.clone()).map_err(|e| {
-            error!(
-                operation_id = %operation_id,
-                error = %e,
-                arguments = ?args,
-                "Failed to parse relocate parameters"
-            );
+        let params: RelocateParams = serde_json::from_value(args).map_err(|e| {
             ServerError::invalid_request(format!("Invalid relocate parameters: {}", e))
         })?;
 
@@ -193,190 +121,74 @@ impl ToolHandler for RelocateHandler {
             "Parsed relocate parameters"
         );
 
-        // Validate parameters based on target kind
-        if params.target.kind == "symbol" {
-            if params.target.line.is_none() || params.target.character.is_none() {
-                error!(
-                    operation_id = %operation_id,
-                    "Symbol move requires line and character position"
-                );
-                return Err(ServerError::invalid_request(
-                    "Symbol move requires 'line' and 'character' fields in target",
-                ));
+        // Dispatch to appropriate planning function
+        let plan = match params.target.kind.as_str() {
+            "file" => {
+                let old_path = Path::new(&params.target.file_path);
+                let new_path = Path::new(&params.destination);
+                let move_plan = file_move::plan_file_move(old_path, new_path, context, &operation_id).await?;
+                RefactorPlan::MovePlan(move_plan)
             }
-        }
-
-        // Convert to legacy move handler format
-        let legacy_args = self.convert_to_legacy_format(&params, &operation_id)?;
-
-        // Create a ToolCall for the legacy handler
-        let legacy_tool_call = ToolCall {
-            name: "move".to_string(),
-            arguments: Some(legacy_args),
+            "directory" => {
+                let old_path = Path::new(&params.target.file_path);
+                let new_path = Path::new(&params.destination);
+                let move_plan = directory_move::plan_directory_move(old_path, new_path, None, context, &operation_id).await?;
+                RefactorPlan::MovePlan(move_plan)
+            }
+            "symbol" => {
+                let line = params.target.line.ok_or_else(|| {
+                    ServerError::invalid_request("Symbol move requires 'line' field")
+                })?;
+                let character = params.target.character.ok_or_else(|| {
+                    ServerError::invalid_request("Symbol move requires 'character' field")
+                })?;
+                let position = lsp_types::Position { line, character };
+                let move_plan = symbol_move::plan_symbol_move(
+                    &params.target.file_path,
+                    &params.destination,
+                    position,
+                    context,
+                    &operation_id,
+                ).await?;
+                RefactorPlan::MovePlan(move_plan)
+            }
+            _ => {
+                return Err(ServerError::invalid_request(format!(
+                    "Unknown target kind: '{}'. Expected 'file', 'directory', or 'symbol'",
+                    params.target.kind
+                )));
+            }
         };
 
-        // Call the legacy move handler
-        debug!(
-            operation_id = %operation_id,
-            "Delegating to legacy MoveHandler"
-        );
-
-        let legacy_result = self
-            .move_handler
-            .handle_tool_call(context, &legacy_tool_call)
-            .await;
-
-        // Convert legacy response to WriteResponse format
-        self.convert_legacy_response(legacy_result, &params, &operation_id)
+        // Handle dry run vs execution
+        if params.options.dry_run {
+            self.build_preview_response(&plan, &params, &operation_id)
+        } else {
+            self.execute_and_build_response(context, plan, &params, &operation_id).await
+        }
     }
 }
 
 impl RelocateHandler {
-    /// Convert new API parameters to legacy MoveHandler format
-    fn convert_to_legacy_format(
-        &self,
-        params: &RelocateParams,
-        operation_id: &str,
-    ) -> ServerResult<Value> {
-        debug!(
-            operation_id = %operation_id,
-            "Converting relocate parameters to legacy move format"
-        );
-
-        let mut legacy_target = json!({
-            "kind": params.target.kind,
-            "path": params.target.file_path,
-        });
-
-        // Add selector for symbol moves
-        if params.target.kind == "symbol" {
-            if let (Some(line), Some(character)) = (params.target.line, params.target.character) {
-                legacy_target["selector"] = json!({
-                    "position": {
-                        "line": line - 1, // Convert from 1-based to 0-based
-                        "character": character
-                    }
-                });
-            }
-        }
-
-        Ok(json!({
-            "target": legacy_target,
-            "destination": params.destination,
-            "options": {
-                "dry_run": params.options.dry_run
-            }
-        }))
-    }
-
-    /// Convert legacy MoveHandler response to WriteResponse format
-    fn convert_legacy_response(
-        &self,
-        legacy_result: ServerResult<Value>,
-        params: &RelocateParams,
-        operation_id: &str,
-    ) -> ServerResult<Value> {
-        match legacy_result {
-            Ok(legacy_value) => {
-                debug!(
-                    operation_id = %operation_id,
-                    "Successfully received legacy move result"
-                );
-
-                // Extract the content from legacy response
-                let content = legacy_value.get("content").ok_or_else(|| {
-                    error!(
-                        operation_id = %operation_id,
-                        "Legacy response missing 'content' field"
-                    );
-                    ServerError::internal("Legacy response missing content")
-                })?;
-
-                // Determine if this is a preview or execution result
-                let response = if params.options.dry_run {
-                    self.build_preview_response(content, params, operation_id)?
-                } else {
-                    self.build_execution_response(content, params, operation_id)?
-                };
-
-                let response_json = serde_json::to_value(&response).map_err(|e| {
-                    error!(
-                        operation_id = %operation_id,
-                        error = %e,
-                        "Failed to serialize WriteResponse"
-                    );
-                    ServerError::internal(format!("Failed to serialize response: {}", e))
-                })?;
-
-                info!(
-                    operation_id = %operation_id,
-                    status = ?response.status,
-                    files_changed = response.files_changed.len(),
-                    "Relocate operation completed successfully"
-                );
-
-                Ok(response_json)
-            }
-            Err(e) => {
-                error!(
-                    operation_id = %operation_id,
-                    error = %e,
-                    "Legacy move handler failed"
-                );
-
-                let error_response = WriteResponse::error(
-                    format!("Failed to relocate {}: {}", params.target.kind, e),
-                    vec![Diagnostic {
-                        severity: DiagnosticSeverity::Error,
-                        message: e.to_string(),
-                        file_path: Some(params.target.file_path.clone()),
-                        line: params.target.line,
-                    }],
-                );
-
-                let response_json = serde_json::to_value(&error_response).map_err(|e| {
-                    error!(
-                        operation_id = %operation_id,
-                        error = %e,
-                        "Failed to serialize error response"
-                    );
-                    ServerError::internal(format!("Failed to serialize error response: {}", e))
-                })?;
-
-                Ok(response_json)
-            }
-        }
-    }
-
-    /// Build a preview response from the move plan
+    /// Build preview response from plan
     fn build_preview_response(
         &self,
-        content: &Value,
+        plan: &RefactorPlan,
         params: &RelocateParams,
         operation_id: &str,
-    ) -> ServerResult<WriteResponse> {
-        debug!(
-            operation_id = %operation_id,
-            "Building preview response from move plan"
-        );
+    ) -> ServerResult<Value> {
+        debug!(operation_id = %operation_id, "Building preview response");
 
-        // Try to parse as RefactorPlan::MovePlan
-        let plan_type = content
-            .get("type")
-            .and_then(|t| t.as_str())
-            .unwrap_or("unknown");
-
-        if plan_type != "MovePlan" {
-            warn!(
-                operation_id = %operation_id,
-                plan_type = %plan_type,
-                "Unexpected plan type in preview response"
-            );
-        }
-
-        // Extract affected files from the plan
-        let affected_files = self.extract_affected_files(content, operation_id);
-        let warnings = self.extract_warnings(content, operation_id);
+        let (affected_files, warnings) = match plan {
+            RefactorPlan::MovePlan(move_plan) => {
+                let files = Self::extract_files_from_workspace_edit(&move_plan.edits);
+                let warnings: Vec<String> = move_plan.warnings.iter()
+                    .map(|w| w.message.clone())
+                    .collect();
+                (files, warnings)
+            }
+            _ => (vec![], vec![]),
+        };
 
         let summary = format!(
             "Preview: Would move {} from '{}' to '{}' (affects {} file(s))",
@@ -386,162 +198,121 @@ impl RelocateHandler {
             affected_files.len()
         );
 
-        let mut response = WriteResponse::preview(summary, affected_files, content.clone());
+        let plan_json = serde_json::to_value(plan).map_err(|e| {
+            ServerError::internal(format!("Failed to serialize plan: {}", e))
+        })?;
 
-        // Add warnings as diagnostics
+        let mut response = WriteResponse::preview(summary, affected_files, plan_json);
         for warning in warnings {
             response = response.with_warning(warning);
         }
 
-        Ok(response)
+        serde_json::to_value(&response)
+            .map(|v| serde_json::json!({ "content": v }))
+            .map_err(|e| ServerError::internal(format!("Failed to serialize response: {}", e)))
     }
 
-    /// Build an execution response from the execution result
-    fn build_execution_response(
+    /// Extract file paths from a WorkspaceEdit
+    fn extract_files_from_workspace_edit(edit: &lsp_types::WorkspaceEdit) -> Vec<String> {
+        use std::collections::HashSet;
+        let mut files = HashSet::new();
+
+        // Extract from changes map
+        if let Some(ref changes) = edit.changes {
+            for uri in changes.keys() {
+                files.insert(uri.to_string());
+            }
+        }
+
+        // Extract from document_changes
+        if let Some(ref doc_changes) = edit.document_changes {
+            match doc_changes {
+                lsp_types::DocumentChanges::Edits(edits) => {
+                    for edit in edits {
+                        files.insert(edit.text_document.uri.to_string());
+                    }
+                }
+                lsp_types::DocumentChanges::Operations(ops) => {
+                    for op in ops {
+                        match op {
+                            lsp_types::DocumentChangeOperation::Edit(edit) => {
+                                files.insert(edit.text_document.uri.to_string());
+                            }
+                            lsp_types::DocumentChangeOperation::Op(resource_op) => {
+                                match resource_op {
+                                    lsp_types::ResourceOp::Create(c) => {
+                                        files.insert(c.uri.to_string());
+                                    }
+                                    lsp_types::ResourceOp::Rename(r) => {
+                                        files.insert(r.old_uri.to_string());
+                                        files.insert(r.new_uri.to_string());
+                                    }
+                                    lsp_types::ResourceOp::Delete(d) => {
+                                        files.insert(d.uri.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        files.into_iter().collect()
+    }
+
+    /// Execute plan and build response
+    async fn execute_and_build_response(
         &self,
-        content: &Value,
+        context: &mill_handler_api::ToolHandlerContext,
+        plan: RefactorPlan,
         params: &RelocateParams,
         operation_id: &str,
-    ) -> ServerResult<WriteResponse> {
-        debug!(
-            operation_id = %operation_id,
-            "Building execution response from move result"
-        );
+    ) -> ServerResult<Value> {
+        debug!(operation_id = %operation_id, "Executing relocate plan");
 
-        // Extract applied files from execution result
-        let applied_files = content
-            .get("applied_files")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+        let result = crate::handlers::common::execute_refactor_plan(context, plan).await?;
 
-        let success = content
-            .get("success")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        if success {
+        if result.success {
             let summary = format!(
                 "Successfully moved {} from '{}' to '{}' ({} file(s) modified)",
                 params.target.kind,
                 params.target.file_path,
                 params.destination,
-                applied_files.len()
+                result.applied_files.len()
             );
 
-            let mut response = WriteResponse::success(summary, applied_files);
-
-            // Add any warnings from execution
-            let warnings = self.extract_warnings(content, operation_id);
-            for warning in warnings {
-                response = response.with_warning(warning);
-            }
-
-            Ok(response)
+            let response = WriteResponse::success(summary, result.applied_files);
+            serde_json::to_value(&response)
+                .map(|v| serde_json::json!({ "content": v }))
+                .map_err(|e| ServerError::internal(format!("Failed to serialize response: {}", e)))
         } else {
-            let error_msg = content
-                .get("error")
-                .and_then(|v| v.as_str())
-                .unwrap_or("Move operation failed");
-
-            warn!(
-                operation_id = %operation_id,
-                error = %error_msg,
-                "Move execution reported failure"
-            );
-
-            Ok(WriteResponse::error(
-                format!("Failed to move {}: {}", params.target.kind, error_msg),
+            error!(operation_id = %operation_id, "Relocate execution failed");
+            let response = WriteResponse::error(
+                format!("Failed to move {}", params.target.kind),
                 vec![Diagnostic {
                     severity: DiagnosticSeverity::Error,
-                    message: error_msg.to_string(),
+                    message: "Move operation failed".to_string(),
                     file_path: Some(params.target.file_path.clone()),
                     line: params.target.line,
                 }],
-            ))
-        }
-    }
-
-    /// Extract affected file paths from a plan or result
-    fn extract_affected_files(&self, content: &Value, operation_id: &str) -> Vec<String> {
-        // Try to extract from MovePlan structure
-        if let Some(edits) = content.get("edits") {
-            if let Some(changes) = edits.get("changes") {
-                if let Some(obj) = changes.as_object() {
-                    return obj.keys().map(|k| k.to_string()).collect();
-                }
-            }
-            if let Some(doc_changes) = edits.get("documentChanges") {
-                if let Some(arr) = doc_changes.as_array() {
-                    return arr
-                        .iter()
-                        .filter_map(|v| {
-                            v.get("textDocument")
-                                .and_then(|td| td.get("uri"))
-                                .and_then(|uri| uri.as_str())
-                                .map(String::from)
-                        })
-                        .collect();
-                }
-            }
-        }
-
-        // Try summary.affected_files
-        if let Some(summary) = content.get("summary") {
-            if let Some(affected) = summary.get("affected_files").and_then(|v| v.as_u64()) {
-                debug!(
-                    operation_id = %operation_id,
-                    affected_files = affected,
-                    "Found affected_files count in summary, but no file paths available"
-                );
-            }
-        }
-
-        Vec::new()
-    }
-
-    /// Extract warning messages from a plan or result
-    fn extract_warnings(&self, content: &Value, operation_id: &str) -> Vec<String> {
-        let warnings = content
-            .get("warnings")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|w| w.get("message").and_then(|m| m.as_str()).map(String::from))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-
-        if !warnings.is_empty() {
-            debug!(
-                operation_id = %operation_id,
-                warnings_count = warnings.len(),
-                "Extracted warnings from response"
             );
+            serde_json::to_value(&response)
+                .map(|v| serde_json::json!({ "content": v }))
+                .map_err(|e| ServerError::internal(format!("Failed to serialize response: {}", e)))
         }
-
-        warnings
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     #[test]
     fn test_relocate_handler_tool_names() {
         let handler = RelocateHandler::new();
         assert_eq!(handler.tool_names(), &["relocate"]);
-    }
-
-    #[test]
-    fn test_relocate_handler_is_public() {
-        let handler = RelocateHandler::new();
-        assert!(!handler.is_internal());
     }
 
     #[test]
@@ -558,7 +329,7 @@ mod tests {
         assert_eq!(params.target.kind, "file");
         assert_eq!(params.target.file_path, "src/old.rs");
         assert_eq!(params.destination, "src/new.rs");
-        assert!(params.options.dry_run); // Default is true
+        assert!(params.options.dry_run);
     }
 
     #[test]
@@ -581,52 +352,5 @@ mod tests {
         assert_eq!(params.target.line, Some(10));
         assert_eq!(params.target.character, Some(5));
         assert!(!params.options.dry_run);
-    }
-
-    #[test]
-    fn test_legacy_format_conversion_file() {
-        let handler = RelocateHandler::new();
-        let params = RelocateParams {
-            target: RelocateTarget {
-                kind: "file".to_string(),
-                file_path: "src/old.rs".to_string(),
-                line: None,
-                character: None,
-            },
-            destination: "src/new.rs".to_string(),
-            options: RelocateOptions { dry_run: true },
-        };
-
-        let legacy = handler
-            .convert_to_legacy_format(&params, "test-op")
-            .unwrap();
-        assert_eq!(legacy["target"]["kind"], "file");
-        assert_eq!(legacy["target"]["path"], "src/old.rs");
-        assert_eq!(legacy["destination"], "src/new.rs");
-        assert_eq!(legacy["options"]["dry_run"], true);
-    }
-
-    #[test]
-    fn test_legacy_format_conversion_symbol() {
-        let handler = RelocateHandler::new();
-        let params = RelocateParams {
-            target: RelocateTarget {
-                kind: "symbol".to_string(),
-                file_path: "src/app.rs".to_string(),
-                line: Some(10),
-                character: Some(5),
-            },
-            destination: "src/utils.rs".to_string(),
-            options: RelocateOptions { dry_run: false },
-        };
-
-        let legacy = handler
-            .convert_to_legacy_format(&params, "test-op")
-            .unwrap();
-        assert_eq!(legacy["target"]["kind"], "symbol");
-        assert_eq!(legacy["target"]["path"], "src/app.rs");
-        assert_eq!(legacy["target"]["selector"]["position"]["line"], 9); // Converted to 0-based
-        assert_eq!(legacy["target"]["selector"]["position"]["character"], 5);
-        assert_eq!(legacy["options"]["dry_run"], false);
     }
 }

@@ -1,12 +1,38 @@
-//! workspace.find_replace tests migrated to closure-based helpers (v2)
-//!
-//! BEFORE: 1009 lines with repetitive setup
-//! AFTER: Focused find/replace verification (still comprehensive)
+//! workspace find_replace tests using M7 API response envelope
 //!
 //! Tests workspace-wide find and replace operations.
+//! Validates M7 WriteResponse envelope: { status, summary, filesChanged, diagnostics, changes }
 
 use crate::harness::{TestClient, TestWorkspace};
 use serde_json::json;
+
+/// Helper to extract M7 envelope fields
+fn assert_m7_success(result: &serde_json::Value) -> &serde_json::Value {
+    let content = result.get("result").expect("Should have result");
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success"),
+        "Status should be 'success', got: {:?}",
+        content.get("status")
+    );
+    content
+}
+
+fn get_files_changed(content: &serde_json::Value) -> usize {
+    content
+        .get("filesChanged")
+        .and_then(|v| v.as_array())
+        .map(|a| a.len())
+        .unwrap_or(0)
+}
+
+fn get_matches_replaced(content: &serde_json::Value) -> u64 {
+    content
+        .get("changes")
+        .and_then(|c| c.get("matchesReplaced"))
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0)
+}
 
 // =====================================================================
 // 1. Literal Mode Tests
@@ -44,20 +70,9 @@ async fn test_literal_basic_replace() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(content.get("success").and_then(|v| v.as_bool()), Some(true));
-    assert_eq!(
-        content
-            .get("filesModified")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len()),
-        Some(1)
-    );
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(4)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_files_changed(content), 1);
+    assert_eq!(get_matches_replaced(content), 4);
 
     let modified_content = workspace.read_file("test.rs");
     assert!(modified_content.contains("userid: &str"));
@@ -94,12 +109,8 @@ async fn test_literal_whole_word() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(2)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 2);
 
     let modified_content = workspace.read_file("test.txt");
     assert!(modified_content.contains("account is not username"));
@@ -133,12 +144,8 @@ async fn test_literal_case_sensitive() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(1)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 1);
 
     let modified_content = workspace.read_file("test.txt");
     assert_eq!(modified_content, "User account USER User");
@@ -180,12 +187,8 @@ let user = "Bob";
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(3)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 3);
 
     let modified_content = workspace.read_file("test.rs");
     assert!(modified_content.contains("account_info = \"Alice\""));
@@ -225,12 +228,8 @@ TYPEMILL_MAX_WORKERS = 10
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(3)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 3);
 
     let modified_content = workspace.read_file("config.toml");
     assert!(modified_content.contains("TYPEMILL_ENABLE_LOGS = true"));
@@ -268,12 +267,8 @@ item_count = 42
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(2)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 2);
 
     let modified_content = workspace.read_file("test.py");
     assert!(modified_content.contains("name_user = \"Alice\""));
@@ -344,13 +339,9 @@ let USER_NAME = "screaming";
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
+    let content = assert_m7_success(&result);
     // Literal mode is case-sensitive, only snake_case matches
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(1)
-    );
+    assert_eq!(get_matches_replaced(content), 1);
 
     let modified_content = workspace.read_file("test.rs");
     assert!(modified_content.contains("account_id = \"snake\""));
@@ -385,12 +376,8 @@ async fn test_preserve_case_disabled() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(2)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 2);
 
     let modified_content = workspace.read_file("test.txt");
     assert_eq!(modified_content, "accountId accountId");
@@ -431,15 +418,8 @@ async fn test_scope_include_patterns() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content
-            .get("filesModified")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len()),
-        Some(2)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_files_changed(content), 2);
 
     assert!(workspace.read_file("test.rs").contains("account_login"));
     assert!(workspace
@@ -480,15 +460,8 @@ async fn test_scope_exclude_patterns() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content
-            .get("filesModified")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len()),
-        Some(1)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_files_changed(content), 1);
 
     assert!(workspace.read_file("src/main.rs").contains("account_main"));
     assert!(workspace
@@ -525,15 +498,8 @@ async fn test_scope_default_excludes() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content
-            .get("filesModified")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len()),
-        Some(1)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_files_changed(content), 1);
 
     assert!(workspace.read_file("src/main.rs").contains("account code"));
     assert!(workspace
@@ -576,19 +542,9 @@ async fn test_multi_file_replace() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content
-            .get("filesModified")
-            .and_then(|v| v.as_array())
-            .map(|a| a.len()),
-        Some(5)
-    );
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(5)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_files_changed(content), 5);
+    assert_eq!(get_matches_replaced(content), 5);
 
     for i in 1..=5 {
         let content = workspace.read_file(&format!("file{}.txt", i));
@@ -622,11 +578,19 @@ async fn test_dry_run_defaults_true() {
         .await
         .expect("find_replace should succeed");
 
-    let plan = result.get("result").expect("Should have result");
+    let content = result.get("result").expect("Should have result");
+    // Dry run returns preview status
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("preview")
+    );
 
-    assert!(plan.get("edits").is_some());
-    assert!(plan.get("metadata").is_some());
+    // Changes contains the edit plan
+    let changes = content.get("changes").expect("Should have changes");
+    assert!(changes.get("edits").is_some());
+    assert!(changes.get("metadata").is_some());
 
+    // File should be unchanged
     assert_eq!(workspace.read_file("test.txt"), "user data");
 }
 
@@ -655,22 +619,23 @@ async fn test_dry_run_preview() {
         .await
         .expect("find_replace should succeed");
 
-    let plan = result.get("result").expect("Should have result");
-
+    let content = result.get("result").expect("Should have result");
     assert_eq!(
-        plan.get("sourceFile").and_then(|v| v.as_str()),
-        Some("workspace")
+        content.get("status").and_then(|v| v.as_str()),
+        Some("preview")
     );
 
-    let edits = plan.get("edits").and_then(|v| v.as_array()).unwrap();
+    let changes = content.get("changes").expect("Should have changes");
+    let edits = changes.get("edits").and_then(|v| v.as_array()).unwrap();
     assert_eq!(edits.len(), 2);
 
-    let metadata = plan.get("metadata").unwrap();
+    let metadata = changes.get("metadata").unwrap();
     assert_eq!(
         metadata.get("intentName").and_then(|v| v.as_str()),
         Some("find_replace")
     );
 
+    // File should be unchanged
     assert!(workspace.read_file("test.rs").contains("user_login"));
 }
 
@@ -699,9 +664,8 @@ async fn test_execute_mode() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(content.get("success").and_then(|v| v.as_bool()), Some(true));
+    let content = assert_m7_success(&result);
+    assert!(content.get("summary").is_some());
 
     assert_eq!(workspace.read_file("test.txt"), "account data");
 }
@@ -762,17 +726,8 @@ async fn test_pattern_not_found() {
         .await
         .expect("find_replace should succeed even with no matches");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(content.get("success").and_then(|v| v.as_bool()), Some(true));
-    assert_eq!(
-        content.get("matchesFound").and_then(|v| v.as_u64()),
-        Some(0)
-    );
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(0)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 0);
 }
 
 #[tokio::test]
@@ -800,12 +755,8 @@ async fn test_utf8_content() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(2)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 2);
 
     let modified = workspace.read_file("test.txt");
     assert!(modified.contains("用户"));
@@ -844,14 +795,8 @@ async fn test_large_file() {
         .await
         .expect("find_replace should succeed");
 
-    let result_content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        result_content
-            .get("matchesReplaced")
-            .and_then(|v| v.as_u64()),
-        Some(1000)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 1000);
 
     let modified = workspace.read_file("large.txt");
     assert!(!modified.contains("user"));
@@ -892,12 +837,8 @@ function user_logout() {
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(2)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 2);
 
     let modified = workspace.read_file("test.txt");
     assert!(modified.contains("account_login"));
@@ -935,12 +876,8 @@ let z = user*2;
         .await
         .expect("find_replace should succeed");
 
-    let content = result.get("result").expect("Should have result");
-
-    assert_eq!(
-        content.get("matchesReplaced").and_then(|v| v.as_u64()),
-        Some(3)
-    );
+    let content = assert_m7_success(&result);
+    assert_eq!(get_matches_replaced(content), 3);
 
     let modified = workspace.read_file("test.txt");
     assert!(modified.contains("account.name"));

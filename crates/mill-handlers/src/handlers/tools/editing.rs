@@ -51,11 +51,6 @@ impl ToolHandler for EditingToolsHandler {
         &["edit_file", "insert_after_symbol"]
     }
 
-    fn is_internal(&self) -> bool {
-        // edit_file is an internal tool - low-level text editing at line/column positions.
-        // AI agents should use higher-level refactoring tools (rename, extract, etc.) instead.
-        true
-    }
 
     async fn handle_tool_call(
         &self,

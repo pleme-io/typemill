@@ -33,11 +33,6 @@ impl ToolHandler for FileToolsHandler {
         &["read_file", "write_file", "list_files"]
     }
 
-    fn is_internal(&self) -> bool {
-        // Basic file I/O operations are internal - used by backend/workflows.
-        // AI agents should use higher-level operations from the Unified Refactoring API.
-        true
-    }
 
     async fn handle_tool_call(
         &self,

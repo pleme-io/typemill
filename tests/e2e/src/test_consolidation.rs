@@ -147,11 +147,11 @@ async fn test_consolidation_flag_explicit() {
     // Generate consolidation plan with explicit flag
     let plan_result = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/lib").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/lib").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
@@ -163,10 +163,16 @@ async fn test_consolidation_flag_explicit() {
         .await
         .expect("Rename should succeed");
 
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Plan should exist");
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = plan_result.get("result").expect("Result should exist");
+    let response = result.get("content").expect("Content should exist");
+    assert_eq!(
+        response.get("status").and_then(|v| v.as_str()),
+        Some("preview"),
+        "Dry run should return preview status"
+    );
+
+    let plan = response.get("changes").expect("Plan should exist in changes field");
 
     // Validate consolidation metadata
     validate_consolidation_metadata(plan, true).unwrap();
@@ -186,11 +192,11 @@ async fn test_consolidation_auto_detection() {
     // Auto-detection should kick in: source has Cargo.toml, target is inside another crate's src/
     let plan_result = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/lib").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/lib").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
@@ -202,10 +208,16 @@ async fn test_consolidation_auto_detection() {
         .await
         .expect("Rename should succeed");
 
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Plan should exist");
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = plan_result.get("result").expect("Result should exist");
+    let response = result.get("content").expect("Content should exist");
+    assert_eq!(
+        response.get("status").and_then(|v| v.as_str()),
+        Some("preview"),
+        "Dry run should return preview status"
+    );
+
+    let plan = response.get("changes").expect("Plan should exist in changes field");
 
     // Verify is_consolidation was auto-detected
     validate_consolidation_metadata(plan, true).unwrap();
@@ -224,11 +236,11 @@ async fn test_consolidation_override_auto_detection() {
     // Generate plan with explicit consolidate: false to override auto-detection
     let plan_result = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/lib").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/lib").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
@@ -240,10 +252,16 @@ async fn test_consolidation_override_auto_detection() {
         .await
         .expect("Rename should succeed");
 
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Plan should exist");
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = plan_result.get("result").expect("Result should exist");
+    let response = result.get("content").expect("Content should exist");
+    assert_eq!(
+        response.get("status").and_then(|v| v.as_str()),
+        Some("preview"),
+        "Dry run should return preview status"
+    );
+
+    let plan = response.get("changes").expect("Plan should exist in changes field");
 
     // Verify is_consolidation is false (override worked)
     validate_consolidation_metadata(plan, false).unwrap();
@@ -256,12 +274,12 @@ async fn test_consolidation_override_auto_detection() {
 async fn test_non_consolidation_rename() {
     run_tool_test_with_plan_validation(
         &[("src/old_dir/file.rs", "pub fn test() {}")],
-        "rename",
+        "rename_all",
         |ws| {
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": ws.absolute_path("src/old_dir").to_string_lossy()
+                    "filePath": ws.absolute_path("src/old_dir").to_string_lossy()
                 },
                 "newName": ws.absolute_path("src/new_dir").to_string_lossy()
             })
@@ -366,11 +384,11 @@ fn main() {
     // Generate consolidation plan: crates/lib → crates/app/src/lib_mod
     let plan_result = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/lib").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/lib").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
@@ -382,10 +400,16 @@ fn main() {
         .await
         .expect("Rename should succeed");
 
-    let plan = plan_result
-        .get("result")
-        .and_then(|r| r.get("content"))
-        .expect("Plan should exist");
+    // M7 response: Tool returns {"content": WriteResponse}, and WriteResponse has status, summary, filesChanged, diagnostics, changes
+    let result = plan_result.get("result").expect("Result should exist");
+    let response = result.get("content").expect("Content should exist");
+    assert_eq!(
+        response.get("status").and_then(|v| v.as_str()),
+        Some("preview"),
+        "Dry run should return preview status"
+    );
+
+    let plan = response.get("changes").expect("Plan should exist in changes field");
 
     // Debug: print the plan metadata
     if let Some(metadata) = plan.get("metadata") {
@@ -534,11 +558,11 @@ fn main() {
     // Generate and apply consolidation plan
     let plan_result = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/lib").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/lib").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
                 "options": {
@@ -553,7 +577,7 @@ fn main() {
     let params_exec = json!({
         "target": {
             "kind": "directory",
-            "path": workspace.absolute_path("crates/lib").to_string_lossy()
+            "filePath": workspace.absolute_path("crates/lib").to_string_lossy()
         },
         "newName": workspace.absolute_path("crates/app/src/lib_mod").to_string_lossy(),
         "options": {
@@ -563,7 +587,7 @@ fn main() {
     });
 
     client
-        .call_tool("rename", params_exec)
+        .call_tool("rename_all", params_exec)
         .await
         .expect("Apply should succeed");
 

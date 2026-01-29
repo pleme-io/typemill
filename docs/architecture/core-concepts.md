@@ -31,7 +31,7 @@ All refactoring primitives support the **unified dryRun API**: preview mode (def
 #### 1. Rename
 **Concept**: Change symbol/file/directory names throughout the codebase.
 
-**Tool**: `rename` (with dryRun option)
+**Tool**: `rename_all`
 
 **Key Characteristics**:
 - Scope-aware (local vs. global)
@@ -46,7 +46,7 @@ All refactoring primitives support the **unified dryRun API**: preview mode (def
 #### 2. Extract
 **Concept**: Pull code blocks into functions, files, or modules for better organization.
 
-**Tool**: `extract` (with dryRun option)
+**Tool**: `refactor` with `action: "extract"`
 
 **Key Characteristics**:
 - Scope preservation (captures parameters)
@@ -61,7 +61,7 @@ All refactoring primitives support the **unified dryRun API**: preview mode (def
 #### 3. Move
 **Concept**: Relocate code between files/directories while maintaining functionality.
 
-**Tool**: `move` (with dryRun option)
+**Tool**: `relocate`
 
 **Key Characteristics**:
 - Import/export rewiring
@@ -76,7 +76,7 @@ All refactoring primitives support the **unified dryRun API**: preview mode (def
 #### 4. Inline
 **Concept**: Replace references with values/implementations, reducing indirection.
 
-**Tool**: `inline` (with dryRun option)
+**Tool**: `refactor` with `action: "inline"`
 
 **Key Characteristics**:
 - Scope-aware replacement
@@ -91,7 +91,7 @@ All refactoring primitives support the **unified dryRun API**: preview mode (def
 #### 5. Delete
 **Concept**: Remove symbols, files, directories, or dead code safely.
 
-**Tool**: `delete` (with dryRun option)
+**Tool**: `prune`
 
 **Key Characteristics**:
 - Dependency detection
@@ -109,7 +109,7 @@ Analysis primitives provide intelligence that informs refactoring decisions.
 #### 1. Linting
 **Concept**: Enforce style and detect simple errors.
 
-**Tools**: `get_diagnostics`, `get_code_actions`
+**Tools**: `inspect_code` with `include: ["diagnostics"]`
 
 **Key Characteristics**:
 - Real-time feedback
@@ -124,7 +124,7 @@ Analysis primitives provide intelligence that informs refactoring decisions.
 #### 2. Complexity Analysis
 **Concept**: Measure code complexity (cyclomatic complexity, nesting depth).
 
-**Tools**: `get_document_symbols`, `prepare_call_hierarchy`, `find_references`
+**Tools**: `inspect_code` with various operations, `search_code`
 
 **Key Characteristics**:
 - Quantitative metrics
@@ -145,13 +145,13 @@ The power of this framework comes from **composing primitives** to achieve compl
 **Goal**: Extract large file into multiple smaller modules.
 
 **Primitive Sequence**:
-1. **Inspect References** (`find_references`) - Understand structure
-2. **Identify Candidates** (`search_symbols`) - Locate extraction targets
-3. **Extract Functions** (`extract` with `dryRun: false`) - Pull out logical units
-4. **Move to New Files** (`move` with `dryRun: false`) - Create module structure
+1. **Inspect References** (`inspect_code` with `include: ["references"]`) - Understand structure
+2. **Identify Candidates** (`search_code`) - Locate extraction targets
+3. **Extract Functions** (`refactor` with `action: "extract"`) - Pull out logical units
+4. **Move to New Files** (`relocate`) - Create module structure
 5. **Update Imports** (automatic via unified API) - Maintain references
 6. **Verify Behavior** (tests/build) - Ensure clean migration
-7. **Format All Files** (`format_document`) - Apply consistent style
+7. **Format All Files** (`inspect_code` with appropriate include fields) - Apply consistent style
 
 ---
 
@@ -182,13 +182,13 @@ TypeMill implements a **consistent safety pattern** for all refactoring operatio
 **Example Workflow**:
 ```bash
 # Step 1: Preview (default dryRun: true)
-mill tool rename '{"target": {...}, "newName": "newUser"}'
+mill tool rename_all '{"target": {...}, "newName": "newUser"}'
 # Output: RenamePlan with edits, warnings, checksums
 
 # Step 2: Review plan (verify correctness)
 
 # Step 3: Execute (explicit dryRun: false)
-mill tool rename '{
+mill tool rename_all '{
   "target": {...},
   "newName": "newUser",
   "options": {
@@ -512,14 +512,15 @@ pub struct ToolHandlerContext {
 }
 ```
 
-**Current Handlers**:
-- **SystemHandler** (3 tools): health_check, web_fetch, ping
-- **LifecycleHandler** (3 tools): file open/save/close notifications
-- **NavigationHandler** (10 tools): Symbol navigation, references, definitions
-- **EditingHandler** (9 tools): Formatting, code actions, diagnostics
-- **RefactoringHandler** (5 tools): Unified refactoring with dryRun
-- **FileOpsHandler** (6 tools): File read/write/delete operations
-- **WorkspaceHandler** (6 tools): Workspace-wide operations and file management
+**Current Handlers** (Magnificent Seven API):
+- **CodeHandler** (2 public tools): `inspect_code`, `search_code`
+- **RefactorHandler** (4 public tools): `rename_all`, `relocate`, `prune`, `refactor`
+- **WorkspaceHandler** (1 public tool): `workspace`
+
+**Internal Handlers**:
+- **SystemHandler**: health_check (use `workspace` with `action: "verify_project"` for public API)
+- **LifecycleHandler**: file open/save/close notifications
+- **FileOpsHandler**: internal file operations
 
 ---
 
@@ -566,8 +567,8 @@ pub fn build_language_plugin_registry() -> Arc<PluginRegistry> {
 3. **Lexicographic Order**: Deterministic fallback for ties
 
 **Tool Scope System**:
-- **File-scoped**: Requires file_path + method match (e.g., `find_definition`, `rename`)
-- **Workspace-scoped**: Only method match needed (e.g., `search_workspace_symbols`, `list_files`)
+- **File-scoped**: Requires file_path + operation match (e.g., `inspect_code` with file_path, `rename_all`)
+- **Workspace-scoped**: Only operation match needed (e.g., `search_code`, `workspace`)
 
 ---
 

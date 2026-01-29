@@ -78,9 +78,9 @@ jobs:
           mill status
           mill doctor
 
-          echo "Running get_diagnostics..."
+          echo "Running inspect_code to get diagnostics..."
           # This command will test if the LSP server is working via mill
-          mill tool get_diagnostics --file-path "src/main.ts"
+          mill tool inspect_code '{"filePath": "src/main.ts", "include": ["diagnostics"]}'
 ```
 ### Workflow Breakdown
 
@@ -91,7 +91,7 @@ jobs:
 5.  **Install Language Servers**: The `typescript-language-server` is installed globally using `npm`. `rust-analyzer` is installed as a rustup component.
 6.  **Configure TypeMill**: A configuration file is created programmatically at `.typemill/config.json`. This avoids any interactive setup prompts.
 7.  **Create a Test File**: A dummy `src/main.ts` file is created to have a target for the TypeMill tool commands.
-8.  **Verify Installation**: The workflow runs `mill status`, `mill doctor`, and `mill tool get_diagnostics` to confirm that the installation is successful and the language servers are operational.
+8.  **Verify Installation**: The workflow runs `mill status`, `mill doctor`, and `mill tool inspect_code` (with diagnostics include) to confirm that the installation is successful and the language servers are operational.
 
 ## Other CI/CD Environments
 

@@ -47,10 +47,11 @@ async fn test_lsp_crash_resilience() {
         "id": "resilience-2",
         "method": "tools/call",
         "params": {
-            "name": "find_definition",
+            "name": "inspect_code",
             "arguments": {
                 "filePath": "/workspace/tests/fixtures/src/test-file.ts",
-                "symbol_name": "TestProcessor"
+                "symbolName": "TestProcessor",
+                "include": ["definition"]
             }
         }
     });
@@ -108,10 +109,11 @@ async fn test_lsp_crash_resilience() {
         "id": "resilience-3",
         "method": "tools/call",
         "params": {
-            "name": "find_definition",
+            "name": "inspect_code",
             "arguments": {
                 "filePath": "/workspace/tests/fixtures/src/test-file.ts",
-                "symbol_name": "AnotherSymbol"
+                "symbolName": "AnotherSymbol",
+                "include": ["definition"]
             }
         }
     });
@@ -178,10 +180,11 @@ async fn test_invalid_request_handling() {
         "id": "invalid-1",
         "method": "tools/call",
         "params": {
-            "name": "find_definition",
+            "name": "inspect_code",
             "arguments": {
-                // Missing required file_path
-                "symbol_name": "TestSymbol"
+                // Missing required filePath
+                "symbolName": "TestSymbol",
+                "include": ["definition"]
             }
         }
     });

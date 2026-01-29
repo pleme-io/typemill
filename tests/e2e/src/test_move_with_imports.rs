@@ -40,11 +40,11 @@ async fn test_move_file_updates_imports_from_fixtures() {
         let mut client = TestClient::new(workspace.path());
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
-        // 2. Generate and apply move plan
+        // 2. Generate and apply relocate plan
         let plan_response = client
-            .call_tool("move", params.clone())
+            .call_tool("relocate", params.clone())
             .await
-            .expect("move should succeed");
+            .expect("relocate should succeed");
         let plan = plan_response
             .get("result")
             .and_then(|r| r.get("content"))
@@ -54,18 +54,18 @@ async fn test_move_file_updates_imports_from_fixtures() {
         let mut params_exec = params;
         params_exec["options"] = json!({"dryRun": false, "validateChecksums": true});
 
-        let apply_result = client.call_tool("move", params_exec).await;
+        let apply_result = client.call_tool("relocate", params_exec).await;
 
         if case.expect_success {
-            let apply_response = apply_result.expect("Move should succeed");
+            let apply_response = apply_result.expect("Relocate should succeed");
             let result = apply_response
                 .get("result")
                 .and_then(|r| r.get("content"))
                 .expect("Apply should have result.content");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Apply should succeed for test case: {}",
                 case.test_name
             );
@@ -153,11 +153,11 @@ async fn test_rust_move_file_updates_imports_from_fixtures() {
         let mut client = TestClient::new(workspace.path());
         let params = build_move_params(&workspace, case.old_file_path, case.new_file_path, "file");
 
-        // 2. Generate and apply move plan
+        // 2. Generate and apply relocate plan
         let plan_response = client
-            .call_tool("move", params.clone())
+            .call_tool("relocate", params.clone())
             .await
-            .expect("move should succeed");
+            .expect("relocate should succeed");
         let plan = plan_response
             .get("result")
             .and_then(|r| r.get("content"))
@@ -167,18 +167,18 @@ async fn test_rust_move_file_updates_imports_from_fixtures() {
         let mut params_exec = params;
         params_exec["options"] = json!({"dryRun": false, "validateChecksums": true});
 
-        let apply_result = client.call_tool("move", params_exec).await;
+        let apply_result = client.call_tool("relocate", params_exec).await;
 
         if case.expect_success {
-            let apply_response = apply_result.expect("Move should succeed");
+            let apply_response = apply_result.expect("Relocate should succeed");
             let result = apply_response
                 .get("result")
                 .and_then(|r| r.get("content"))
                 .expect("Apply should have result.content");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Apply should succeed for test case: {}",
                 case.test_name
             );

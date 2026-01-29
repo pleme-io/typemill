@@ -47,11 +47,11 @@ old = { path = "src/old.rs" }
     // Rename with "code" scope
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
@@ -108,11 +108,11 @@ Check out `src/old.rs` for the source code.
     // Rename with "standard" scope (default)
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
@@ -174,11 +174,11 @@ pub fn use_old() {
     // Rename with "comments" scope
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
@@ -239,11 +239,11 @@ use old;
     // Rename with "everything" scope
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
@@ -290,11 +290,11 @@ async fn test_deprecated_code_only_alias_still_works() {
     // Use deprecated "code-only" name
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
@@ -336,11 +336,11 @@ Source: `src/old.rs`
     // Use deprecated "all" name
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {
@@ -381,11 +381,11 @@ async fn test_default_scope_is_standard() {
     // Don't specify scope - should default to "standard"
     client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "file",
-                    "path": workspace.absolute_path("src/old.rs").to_string_lossy()
+                    "filePath": workspace.absolute_path("src/old.rs").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("src/new.rs").to_string_lossy(),
                 "options": {

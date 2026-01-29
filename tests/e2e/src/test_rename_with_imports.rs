@@ -32,18 +32,18 @@ async fn test_rename_file_updates_imports_from_fixtures() {
             params_exec["options"] = json!({"dryRun": false, "validateChecksums": true});
         }
 
-        let apply_result = client.call_tool("rename", params_exec).await;
+        let apply_result = client.call_tool("rename_all", params_exec).await;
 
         if case.expect_success {
-            let response = apply_result.expect("rename should succeed");
+            let response = apply_result.expect("rename_all should succeed");
             let result = response
                 .get("result")
                 .and_then(|r| r.get("content"))
                 .expect("Apply should have result.content");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Apply should succeed for test case: {}",
                 case.test_name
             );
@@ -103,7 +103,7 @@ async fn test_rename_file_updates_parent_directory_importer() {
     }
 
     client
-        .call_tool("rename", params)
+        .call_tool("rename_all", params)
         .await
         .expect("Apply should succeed");
 
@@ -144,7 +144,7 @@ async fn test_rename_file_updates_sibling_directory_importer() {
     }
 
     client
-        .call_tool("rename", params)
+        .call_tool("rename_all", params)
         .await
         .expect("Apply should succeed");
 
@@ -177,7 +177,7 @@ async fn test_directory_rename_updates_all_imports() {
     }
 
     client
-        .call_tool("rename", params)
+        .call_tool("rename_all", params)
         .await
         .expect("Apply should succeed");
 
@@ -209,9 +209,9 @@ async fn test_markdown_file_rename_updates_links() {
         }
 
         client
-            .call_tool("rename", params)
+            .call_tool("rename_all", params)
             .await
-            .expect("rename should succeed");
+            .expect("rename_all should succeed");
 
         for (file_path, expected_substring) in case.expected_import_updates {
             let content = workspace.read_file(file_path);
@@ -256,7 +256,7 @@ Check [GitHub](https://github.com/user/repo) repo.
     }
 
     client
-        .call_tool("rename", params)
+        .call_tool("rename_all", params)
         .await
         .expect("Apply should succeed");
 

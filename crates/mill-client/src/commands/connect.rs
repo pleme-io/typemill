@@ -420,8 +420,8 @@ impl ConnectCommand {
         println!();
         ctx.display_info("Examples:");
         println!("  ping");
-        println!("  find_definition {{\"file_path\": \"src/main.rs\", \"symbol_name\": \"main\"}}");
-        println!("  get_document_symbols {{\"file_path\": \"src/lib.rs\"}}");
+        println!("  inspect_code {{\"filePath\": \"src/main.rs\", \"line\": 10, \"character\": 5}}");
+        println!("  search_code {{\"query\": \"MyFunction\", \"limit\": 10}}");
         println!();
 
         Ok(())

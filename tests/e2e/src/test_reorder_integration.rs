@@ -94,8 +94,8 @@ pub fn test() {}
                 .expect("Apply result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Reorder should succeed"
             );
         }
@@ -171,8 +171,8 @@ pub fn test() {
                 .expect("Dry run result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Dry run should succeed"
             );
 

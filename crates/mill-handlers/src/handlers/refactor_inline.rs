@@ -1,0 +1,391 @@
+#![allow(
+    dead_code,
+    unused_variables,
+    clippy::mutable_key_type,
+    clippy::needless_range_loop,
+    clippy::ptr_arg,
+    clippy::manual_clamp
+)]
+
+//! Inline planning service for refactor operations
+//!
+//! Supports inlining variables, functions, and constants by replacing references
+//! with their definitions. This service reuses existing AST refactoring logic.
+
+use lsp_types::{Position, Range, WorkspaceEdit};
+use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
+use mill_foundation::protocol::{EditPlan, InlinePlan, PlanMetadata, PlanSummary};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::Path;
+use tracing::{debug, error};
+
+pub struct RefactorInlinePlanner;
+
+impl RefactorInlinePlanner {
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Build inline plan from validated parameters
+    pub(crate) async fn build_inline_plan(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        params: &InlinePlanParams,
+    ) -> ServerResult<InlinePlan> {
+        debug!(
+            kind = %params.kind,
+            file_path = %params.target.file_path,
+            line = params.target.position.line,
+            character = params.target.position.character,
+            "Planning inline operation"
+        );
+
+        // Validate kind
+        match params.kind.as_str() {
+            "variable" | "function" | "constant" => {}
+            other => {
+                return Err(ServerError::invalid_request(format!(
+                    "Unsupported inline kind: {}. Must be one of: variable, function, constant",
+                    other
+                )))
+            }
+        }
+
+        match params.kind.as_str() {
+            "variable" => self
+                .plan_inline_variable(context, &params.target, &params.options)
+                .await,
+            "function" => self
+                .plan_inline_function(context, &params.target, &params.options)
+                .await,
+            "constant" => self
+                .plan_inline_constant(context, &params.target, &params.options)
+                .await,
+            _ => unreachable!("Already validated kind"),
+        }
+    }
+
+    /// Plan inline variable operation
+    async fn plan_inline_variable(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        target: &InlineTarget,
+        options: &InlineOptions,
+    ) -> ServerResult<InlinePlan> {
+        // Read file content
+        let file_path = Path::new(&target.file_path);
+        let file_content = context
+            .app_state
+            .file_service
+            .read_file(file_path)
+            .await
+            .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
+
+        // Call AST refactoring function directly without LSP service
+        // Note: LSP integration removed as DirectLspAdapter doesn't implement LspRefactoringService
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context
+            .app_state
+            .language_plugins
+            .inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
+        let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
+            &file_content,
+            target.position.line,
+            target.position.character,
+            &target.file_path,
+            None,                   // No LSP service - use AST-only approach
+            Some(plugin_discovery), // Pass plugin registry
+        )
+        .await
+        .map_err(|e| ServerError::internal(format!("Inline variable failed: {}", e)))?;
+
+        // Convert EditPlan to InlinePlan
+        self.convert_edit_plan_to_inline_plan(
+            edit_plan,
+            &target.file_path,
+            "variable",
+            context,
+            options,
+        )
+        .await
+    }
+
+    /// Plan inline function operation
+    async fn plan_inline_function(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        target: &InlineTarget,
+        options: &InlineOptions,
+    ) -> ServerResult<InlinePlan> {
+        // Function inlining uses similar logic to variable inlining
+        // Language plugins can provide more specialized implementations (AST-only approach)
+        let file_path = Path::new(&target.file_path);
+        let file_content = context
+            .app_state
+            .file_service
+            .read_file(file_path)
+            .await
+            .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
+
+        // Try AST-based inline for functions
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context
+            .app_state
+            .language_plugins
+            .inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
+        let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
+            &file_content,
+            target.position.line,
+            target.position.character,
+            &target.file_path,
+            None,                   // No LSP service - use AST-only approach
+            Some(plugin_discovery), // Pass plugin registry
+        )
+        .await
+        .map_err(|e| ServerError::internal(format!("Inline function failed: {}", e)))?;
+
+        self.convert_edit_plan_to_inline_plan(
+            edit_plan,
+            &target.file_path,
+            "function",
+            context,
+            options,
+        )
+        .await
+    }
+
+    /// Plan inline constant operation
+    async fn plan_inline_constant(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        target: &InlineTarget,
+        options: &InlineOptions,
+    ) -> ServerResult<InlinePlan> {
+        // Constants use similar logic to variables (AST-only approach)
+        let file_path = Path::new(&target.file_path);
+        let file_content = context
+            .app_state
+            .file_service
+            .read_file(file_path)
+            .await
+            .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
+
+        // Use AST-only approach for inlining constants
+
+        // Get PluginDiscovery from language_plugins by downcasting
+        let plugin_discovery = context
+            .app_state
+            .language_plugins
+            .inner()
+            .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+            .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
+
+        let edit_plan = mill_ast::refactoring::inline_variable::plan_inline_variable(
+            &file_content,
+            target.position.line,
+            target.position.character,
+            &target.file_path,
+            None,                   // No LSP service - use AST-only approach
+            Some(plugin_discovery), // Pass plugin registry
+        )
+        .await
+        .map_err(|e| ServerError::internal(format!("Inline constant failed: {}", e)))?;
+
+        self.convert_edit_plan_to_inline_plan(
+            edit_plan,
+            &target.file_path,
+            "constant",
+            context,
+            options,
+        )
+        .await
+    }
+
+    /// Convert EditPlan (from AST) to InlinePlan (protocol type)
+    async fn convert_edit_plan_to_inline_plan(
+        &self,
+        edit_plan: EditPlan,
+        file_path: &str,
+        kind: &str,
+        context: &mill_handler_api::ToolHandlerContext,
+        _options: &InlineOptions,
+    ) -> ServerResult<InlinePlan> {
+        // Convert EditPlan edits to LSP WorkspaceEdit
+        let workspace_edit = self.convert_to_workspace_edit(&edit_plan)?;
+
+        // Collect all affected files
+        let mut affected_files = std::collections::HashSet::new();
+        affected_files.insert(file_path.to_string());
+
+        // Add any additional files from the edits
+        for edit in &edit_plan.edits {
+            if let Some(ref path) = edit.file_path {
+                affected_files.insert(path.clone());
+            }
+        }
+
+        // Count created/deleted files (inline operations don't create or delete files)
+        let created_files = 0;
+        let deleted_files = 0;
+
+        let summary = PlanSummary {
+            affected_files: affected_files.len(),
+            created_files,
+            deleted_files,
+        };
+
+        // Generate warnings if needed
+        let warnings = Vec::new();
+
+        // Generate metadata
+        let language = crate::handlers::common::detect_language(file_path);
+        let estimated_impact = if affected_files.len() <= 1 {
+            "low"
+        } else if affected_files.len() <= 3 {
+            "medium"
+        } else {
+            "high"
+        };
+
+        let metadata = PlanMetadata {
+            plan_version: "1.0".to_string(),
+            kind: "inline".to_string(),
+            language: language.to_string(),
+            estimated_impact: estimated_impact.to_string(),
+            created_at: chrono::Utc::now().to_rfc3339(),
+        };
+
+        // Generate file checksums
+        let file_checksums = self
+            .generate_file_checksums(context, &affected_files)
+            .await?;
+
+        Ok(InlinePlan {
+            edits: workspace_edit,
+            summary,
+            warnings,
+            metadata,
+            file_checksums,
+        })
+    }
+
+    /// Convert EditPlan edits to LSP WorkspaceEdit
+    fn convert_to_workspace_edit(&self, edit_plan: &EditPlan) -> ServerResult<WorkspaceEdit> {
+        let mut changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
+
+        for edit in &edit_plan.edits {
+            let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
+
+            // Convert file path to file:// URI
+            let uri = url::Url::from_file_path(file_path)
+                .map_err(|_| ServerError::internal(format!("Invalid file path: {}", file_path)))?
+                .to_string()
+                .parse::<lsp_types::Uri>()
+                .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+
+            let lsp_edit = lsp_types::TextEdit {
+                range: Range {
+                    start: Position {
+                        line: edit.location.start_line,
+                        character: edit.location.start_column,
+                    },
+                    end: Position {
+                        line: edit.location.end_line,
+                        character: edit.location.end_column,
+                    },
+                },
+                new_text: edit.new_text.clone(),
+            };
+
+            changes.entry(uri).or_default().push(lsp_edit);
+        }
+
+        Ok(WorkspaceEdit {
+            changes: Some(changes),
+            document_changes: None,
+            change_annotations: None,
+        })
+    }
+
+    /// Generate SHA-256 checksums for all affected files
+    async fn generate_file_checksums(
+        &self,
+        context: &mill_handler_api::ToolHandlerContext,
+        file_paths: &std::collections::HashSet<String>,
+    ) -> ServerResult<HashMap<String, String>> {
+        use crate::handlers::common::calculate_checksum;
+
+        let mut checksums = HashMap::new();
+
+        for file_path in file_paths {
+            let path = Path::new(file_path);
+            match context.app_state.file_service.read_file(path).await {
+                Ok(content) => {
+                    checksums.insert(file_path.clone(), calculate_checksum(&content));
+                }
+                Err(e) => {
+                    error!(
+                        file_path = %file_path,
+                        error = %e,
+                        "Failed to read file for checksum"
+                    );
+                    // Continue with other files, don't fail the entire operation
+                }
+            }
+        }
+
+        Ok(checksums)
+    }
+}
+
+impl Default for RefactorInlinePlanner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// Parameter structures
+
+#[derive(Debug, Deserialize, Serialize)]
+pub(crate) struct InlinePlanParams {
+    pub(crate) kind: String,
+    pub(crate) target: InlineTarget,
+    #[serde(default)]
+    pub(crate) options: InlineOptions,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct InlineTarget {
+    #[serde(alias = "file_path")]
+    pub(crate) file_path: String,
+    pub(crate) position: Position, // lsp_types::Position
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct InlineOptions {
+    /// Preview mode - don't actually apply changes (default: true for safety)
+    #[serde(default = "crate::default_true")]
+    pub(crate) dry_run: bool,
+    #[serde(default)]
+    pub(crate) inline_all: Option<bool>, // Default: false - inline all usages vs current only
+}
+
+impl Default for InlineOptions {
+    fn default() -> Self {
+        Self {
+            dry_run: true, // Safe default: preview mode
+            inline_all: None,
+        }
+    }
+}

@@ -3,8 +3,7 @@
 //! These tests verify end-to-end LSP functionality by spawning real LSP servers
 //! and testing the complete integration stack (Handler → PluginManager → LSP Plugin → LSP Server).
 //!
-//! Note: These tests use internal APIs like `get_document_symbols` which is not exposed
-//! to public MCP clients but is used internally for LSP integration testing.
+//! Note: These tests use internal LSP APIs that are not exposed to public MCP clients.
 //!
 //! Run with: cargo nextest run --workspace --features lsp-tests
 
@@ -60,15 +59,16 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
     // Use extended timeout for first LSP call after indexing to allow for slow initialization
     let response = client
         .call_tool_with_timeout(
-            "get_symbol_info",
+            "inspect_code",
             json!(
-                { "filePath" : file_path.to_string_lossy(), "line" : 1, "character" : 20
+                { "filePath" : file_path.to_string_lossy(), "line" : 1, "character" : 20,
+                  "include": ["typeInfo"]
                 }
             ),
             std::time::Duration::from_secs(60),
         )
         .await
-        .expect("get_hover should succeed");
+        .expect("inspect_code should succeed");
     let result = response
         .get("result")
         .expect("Response should have result field");
@@ -97,14 +97,15 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
     );
     let response = client
         .call_tool(
-            "find_definition",
+            "inspect_code",
             json!(
-                { "filePath" : file_path.to_string_lossy(), "line" : 5, "character" : 45
+                { "filePath" : file_path.to_string_lossy(), "line" : 5, "character" : 45,
+                  "include": ["definition"]
                 }
             ),
         )
         .await
-        .expect("find_definition should succeed");
+        .expect("inspect_code should succeed");
     let result = response
         .get("result")
         .expect("Response should have result field");
@@ -122,26 +123,22 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
     );
     let response = client
         .call_tool(
-            "get_document_symbols",
-            json!({ "filePath" : file_path.to_string_lossy() }),
+            "search_code",
+            json!({ "query": "DataProcessor", "limit": 10 }),
         )
         .await
-        .expect("get_document_symbols should succeed");
+        .expect("search_code should succeed");
     let result = response
         .get("result")
         .expect("Response should have result field");
-    let content_field = result
-        .get("content")
-        .expect("Result should have content field");
-    let symbols = content_field
-        .get("symbols")
-        .expect("Content should have symbols field")
+    let symbols = result
+        .get("results")
+        .expect("Result should have results field")
         .as_array()
         .unwrap();
     assert!(
-        symbols.len() >= 4,
-        "Should find at least 4 symbols (interface, 2 classes, function), found {}",
-        symbols.len()
+        !symbols.is_empty(),
+        "Should find at least one DataProcessor symbol"
     );
 }
 
@@ -224,9 +221,10 @@ export function formatResponse(data) {
     println!("DEBUG: Both files indexed, testing hover on Config interface...");
     let hover_response = client
         .call_tool(
-            "get_symbol_info",
+            "inspect_code",
             json!(
-                { "filePath" : ts_file.to_string_lossy(), "line" : 2, "character" : 10 }
+                { "filePath" : ts_file.to_string_lossy(), "line" : 2, "character" : 10,
+                  "include": ["typeInfo"] }
             ),
         )
         .await;
@@ -241,10 +239,7 @@ export function formatResponse(data) {
     }
     println!("DEBUG: Testing document symbols...");
     let response = client
-        .call_tool(
-            "get_document_symbols",
-            json!({ "filePath" : ts_file.to_string_lossy() }),
-        )
+        .call_tool("search_code", json!({ "query": "Config", "limit": 10 }))
         .await
         .expect("TypeScript LSP call should succeed");
     if let Some(error) = response.get("error") {
@@ -257,13 +252,9 @@ export function formatResponse(data) {
         "DEBUG: TypeScript response: {}",
         serde_json::to_string_pretty(&response).unwrap()
     );
-    let ts_symbols = if let Some(symbols) = response["symbols"].as_array() {
-        symbols
-    } else {
-        response["result"]["content"]["symbols"]
-            .as_array()
-            .expect("TypeScript LSP should return symbols array")
-    };
+    let ts_symbols = response["result"]["results"]
+        .as_array()
+        .expect("TypeScript search_code should return results array");
     assert!(
         !ts_symbols.is_empty(),
         "TypeScript file should have detectable symbols"
@@ -278,10 +269,7 @@ export function formatResponse(data) {
         "Should find Config interface in TypeScript symbols"
     );
     let response = client
-        .call_tool(
-            "get_document_symbols",
-            json!({ "filePath" : js_file.to_string_lossy() }),
-        )
+        .call_tool("search_code", json!({ "query": "validateUserInput", "limit": 10 }))
         .await
         .expect("JavaScript LSP call should succeed");
     if let Some(error) = response.get("error") {
@@ -290,9 +278,9 @@ export function formatResponse(data) {
             error.get("message").unwrap_or(&json!("unknown error"))
         );
     }
-    let js_symbols = response["result"]["content"]["symbols"]
+    let js_symbols = response["result"]["results"]
         .as_array()
-        .expect("JavaScript LSP should return symbols array");
+        .expect("JavaScript search_code should return results array");
     assert!(
         !js_symbols.is_empty(),
         "JavaScript file should have detectable symbols"
@@ -300,8 +288,8 @@ export function formatResponse(data) {
     // Use extended timeout for workspace symbol search (60s) as it may require indexing
     let response = client
         .call_tool_with_timeout(
-            "search_symbols",
-            json!({ "query" : "validate" }),
+            "search_code",
+            json!({ "query": "validate", "limit": 50 }),
             std::time::Duration::from_secs(60),
         )
         .await
@@ -312,9 +300,9 @@ export function formatResponse(data) {
             error.get("message").unwrap_or(&json!("unknown error"))
         );
     }
-    let workspace_symbols = response["result"]["content"]
+    let workspace_symbols = response["result"]["results"]
         .as_array()
-        .expect("Workspace symbol search should return symbols array");
+        .expect("Workspace symbol search should return results array");
     assert!(
         !workspace_symbols.is_empty(),
         "Should find validate symbols across languages"
@@ -339,12 +327,12 @@ export function formatResponse(data) {
 }
 
 #[tokio::test]
-async fn test_search_symbols_rust_workspace() {
+async fn test_search_code_rust_workspace() {
     use mill_test_support::harness::LspSetupHelper;
 
     // Check if rust-analyzer is available
     if !LspSetupHelper::is_command_available("rust-analyzer") {
-        println!("Skipping test_search_symbols_rust_workspace: rust-analyzer not found.");
+        println!("Skipping test_search_code_rust_workspace: rust-analyzer not found.");
         return;
     }
 
@@ -370,24 +358,24 @@ async fn test_search_symbols_rust_workspace() {
     // initial workspace scan can be slow in resource-constrained test environments.
     let response = client
         .call_tool_with_timeout(
-            "search_symbols",
-            json!({ "query": "main" }),
+            "search_code",
+            json!({ "query": "main", "limit": 50 }),
             std::time::Duration::from_secs(60), // 60-second timeout for workspace scan
         )
         .await
-        .expect("search_symbols should not time out");
+        .expect("search_code should not time out");
 
     // Check for errors in the response
     if let Some(error) = response.get("error") {
         panic!(
-            "search_symbols returned an error: {}",
+            "search_code returned an error: {}",
             serde_json::to_string_pretty(error).unwrap()
         );
     }
 
-    let symbols = response["result"]["content"]
+    let symbols = response["result"]["results"]
         .as_array()
-        .expect("search_symbols should return an array of symbols");
+        .expect("search_code should return an array of symbols");
 
     // SKIP: This test is skipped because rust-analyzer does not provide workspace symbols
     // for small projects like this test fixture.
@@ -426,14 +414,16 @@ async fn test_search_symbols_rust_workspace() {
 }
 
 #[tokio::test]
-async fn test_get_diagnostics_typescript() {
+async fn test_inspect_code_diagnostics_typescript() {
     use mill_test_support::harness::LspSetupHelper;
 
     let workspace = TestWorkspace::new();
 
     // Check if typescript-language-server is available
     if !LspSetupHelper::is_command_available("typescript-language-server") {
-        println!("Skipping test_get_diagnostics_typescript: typescript-language-server not found.");
+        println!(
+            "Skipping test_inspect_code_diagnostics_typescript: typescript-language-server not found."
+        );
         return;
     }
 
@@ -485,16 +475,17 @@ export function getErrorId(): string {
     println!("DEBUG: Waiting for TypeScript LSP to start...");
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    // Call find_definition first to ensure file is opened
+    // Call inspect_code first to ensure file is opened
     // (this triggers diagnostics to be published via textDocument/publishDiagnostics)
-    println!("DEBUG: Calling find_definition to open the file...");
+    println!("DEBUG: Calling inspect_code to open the file...");
     let _ = client
         .call_tool(
-            "find_definition",
+            "inspect_code",
             json!({
-                "file_path": ts_file.to_string_lossy(),
+                "filePath": ts_file.to_string_lossy(),
                 "line": 10,
-                "character": 5
+                "character": 5,
+                "include": ["definition"]
             }),
         )
         .await;
@@ -503,24 +494,27 @@ export function getErrorId(): string {
     println!("DEBUG: Waiting for diagnostics to be published...");
     tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
 
-    // Now call get_diagnostics
-    println!("DEBUG: Calling get_diagnostics...");
+    // Now call inspect_code with diagnostics
+    println!("DEBUG: Calling inspect_code with diagnostics...");
     let response = client
         .call_tool(
-            "get_diagnostics",
+            "inspect_code",
             json!({
-                "file_path": ts_file.to_string_lossy()
+                "filePath": ts_file.to_string_lossy(),
+                "line": 10,
+                "character": 5,
+                "include": ["diagnostics"]
             }),
         )
         .await
-        .expect("get_diagnostics should succeed");
+        .expect("inspect_code should succeed");
 
-    println!("DEBUG: get_diagnostics response: {:#?}", response);
+    println!("DEBUG: inspect_code response: {:#?}", response);
 
     // Check for errors
     if let Some(error) = response.get("error") {
         panic!(
-            "get_diagnostics returned an error: {}",
+            "inspect_code returned an error: {}",
             serde_json::to_string_pretty(error).unwrap()
         );
     }
@@ -528,7 +522,7 @@ export function getErrorId(): string {
     // Extract diagnostics from response
     let diagnostics = response["result"]["content"]["diagnostics"]
         .as_array()
-        .expect("get_diagnostics should return diagnostics array");
+        .expect("inspect_code should return diagnostics array");
 
     println!("DEBUG: Found {} diagnostics", diagnostics.len());
     for (i, diag) in diagnostics.iter().enumerate() {
@@ -560,7 +554,7 @@ export function getErrorId(): string {
         "Should have diagnostic about undefined variable"
     );
 
-    println!("✅ get_diagnostics test passed!");
+    println!("✅ inspect_code diagnostics test passed!");
     println!(
         "  - Found {} diagnostics in errors-file.ts",
         diagnostics.len()

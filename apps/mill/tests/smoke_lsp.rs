@@ -78,21 +78,22 @@ const goodbye = farewell("World");
         .await
         .expect("LSP should index TypeScript file within 10s");
 
-    // Test 1: find_definition (tests LSP textDocument/definition)
+    // Test 1: inspect_code.definition (tests LSP textDocument/definition)
     let response = client
         .call_tool(
-            "find_definition",
+            "inspect_code",
             json!({
                 "filePath": ts_file.to_string_lossy(),
-                "line": 9,
-                "character": 22
+                "line": 10,
+                "character": 17,
+                "include": ["definition"]
             }),
         )
         .await;
 
     assert!(
         response.is_ok(),
-        "LSP find_definition should succeed: {:?}",
+        "LSP inspect_code (definition) should succeed: {:?}",
         response.err()
     );
 
@@ -102,21 +103,22 @@ const goodbye = farewell("World");
         "Response should have result or error field"
     );
 
-    // Test 2: find_references (tests LSP textDocument/references)
+    // Test 2: inspect_code.references (tests LSP textDocument/references)
     let response = client
         .call_tool(
-            "find_references",
+            "inspect_code",
             json!({
                 "filePath": ts_file.to_string_lossy(),
                 "line": 1,
-                "character": 17
+                "character": 16,
+                "include": ["references"]
             }),
         )
         .await;
 
     assert!(
         response.is_ok(),
-        "LSP find_references should succeed: {:?}",
+        "LSP inspect_code (references) should succeed: {:?}",
         response.err()
     );
 
@@ -130,11 +132,12 @@ const goodbye = farewell("World");
     for i in 0..3 {
         let response = client
             .call_tool(
-                "find_definition",
+                "inspect_code",
                 json!({
                     "filePath": ts_file.to_string_lossy(),
                     "line": 1,
-                    "character": 17
+                    "character": 16,
+                    "include": ["definition"]
                 }),
             )
             .await;
@@ -208,11 +211,12 @@ edition = "2021"
     // Test TypeScript LSP
     let ts_response = client
         .call_tool(
-            "find_definition",
+            "inspect_code",
             json!({
                 "filePath": ts_file.to_string_lossy(),
                 "line": 1,
-                "character": 17
+                "character": 16,
+                "include": ["definition"]
             }),
         )
         .await;
@@ -226,11 +230,12 @@ edition = "2021"
     // Test Rust LSP
     let rs_response = client
         .call_tool(
-            "find_definition",
+            "inspect_code",
             json!({
                 "filePath": rs_file.to_string_lossy(),
                 "line": 1,
-                "character": 8
+                "character": 7,
+                "include": ["definition"]
             }),
         )
         .await;

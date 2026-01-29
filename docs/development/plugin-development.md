@@ -625,7 +625,7 @@ All tools support the same `options.dryRun` parameter:
 ```json
 // Step 1: Preview (default dryRun: true)
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": {
     "target": {
       "kind": "symbol",
@@ -648,7 +648,7 @@ All tools support the same `options.dryRun` parameter:
 
 // Step 2: Execute (explicit dryRun: false)
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": {
     "target": {
       "kind": "symbol",

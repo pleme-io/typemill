@@ -1,4 +1,4 @@
-use super::{RenameHandler, RenameOptions, RenameTarget};
+use super::{RenameService, RenameOptions, RenameTarget};
 use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::errors::MillResult as ServerResult;
@@ -6,7 +6,7 @@ use mill_foundation::planning::{PlanMetadata, PlanSummary, PlanWarning, RenamePl
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
 
-impl RenameHandler {
+impl RenameService {
     /// Helper to find the crate root (parent of src/) for a path
     async fn find_target_crate_root(path: &Path) -> Option<PathBuf> {
         for p in path.ancestors() {
@@ -316,11 +316,11 @@ mod tests {
         // Case 1: True consolidation
         let old_path = src_crate.clone();
         let new_path = target_src.join("module_name");
-        assert!(RenameHandler::is_consolidation_move(&old_path, &new_path).await);
+        assert!(RenameService::is_consolidation_move(&old_path, &new_path).await);
 
         // Case 2: Not consolidation (no cargo.toml in source)
         let other_dir = root.join("other_dir");
         fs::create_dir(&other_dir).unwrap();
-        assert!(!RenameHandler::is_consolidation_move(&other_dir, &new_path).await);
+        assert!(!RenameService::is_consolidation_move(&other_dir, &new_path).await);
     }
 }

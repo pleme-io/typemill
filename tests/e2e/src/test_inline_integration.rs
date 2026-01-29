@@ -20,10 +20,13 @@ fn build_inline_params(
     character: u32,
 ) -> serde_json::Value {
     json!({
-        "kind": kind,
-        "target": {
-            "filePath": workspace.absolute_path(file_path).to_string_lossy(),
-            "position": {"line": line, "character": character}
+        "action": "inline",
+        "params": {
+            "kind": kind,
+            "target": {
+                "filePath": workspace.absolute_path(file_path).to_string_lossy(),
+                "position": {"line": line, "character": character}
+            }
         }
     })
 }
@@ -47,7 +50,7 @@ async fn test_inline_variable_plan_and_apply() {
 
     let params = build_inline_params(&workspace, "inline_var.rs", "variable", 1, 8);
 
-    let plan_result = client.call_tool("inline", params).await;
+    let plan_result = client.call_tool("refactor", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -71,7 +74,7 @@ async fn test_inline_variable_plan_and_apply() {
             });
 
             let apply_result = client
-                .call_tool("inline", params_exec)
+                .call_tool("refactor", params_exec)
                 .await
                 .expect("Apply should succeed");
 
@@ -81,8 +84,8 @@ async fn test_inline_variable_plan_and_apply() {
                 .expect("Apply result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Inline should succeed"
             );
         }
@@ -113,7 +116,7 @@ pub fn test() -> i32 {
 
     let params = build_inline_params(&workspace, "inline_fn.rs", "function", 0, 3);
 
-    let plan_result = client.call_tool("inline", params).await;
+    let plan_result = client.call_tool("refactor", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -141,7 +144,7 @@ pub fn test() -> i32 {
             params_exec["options"] = json!({"dryRun": true});
 
             let apply_result = client
-                .call_tool("inline", params_exec)
+                .call_tool("refactor", params_exec)
                 .await
                 .expect("Dry run should succeed");
 
@@ -151,8 +154,8 @@ pub fn test() -> i32 {
                 .expect("Dry run result should exist");
 
             assert_eq!(
-                result.get("success").and_then(|v| v.as_bool()),
-                Some(true),
+                result.get("status").and_then(|v| v.as_str()),
+                Some("success"),
                 "Dry run should succeed"
             );
 
@@ -189,7 +192,7 @@ pub fn get_buffer() -> Vec<u8> {
 
     let params = build_inline_params(&workspace, "inline_const.rs", "constant", 0, 6);
 
-    let plan_result = client.call_tool("inline", params).await;
+    let plan_result = client.call_tool("refactor", params).await;
 
     match plan_result {
         Ok(response) => {
@@ -217,7 +220,7 @@ pub fn get_buffer() -> Vec<u8> {
                 "dryRun": false
             });
 
-            let apply_result = client.call_tool("inline", params_exec).await;
+            let apply_result = client.call_tool("refactor", params_exec).await;
 
             // Should fail due to checksum mismatch
             assert!(
@@ -256,7 +259,7 @@ pub fn use_twice() -> i32 {
 
     let params = build_inline_params(&workspace, "warnings.rs", "function", 0, 7);
 
-    let plan_result = client.call_tool("inline", params).await;
+    let plan_result = client.call_tool("refactor", params).await;
 
     match plan_result {
         Ok(response) => {

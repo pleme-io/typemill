@@ -2,13 +2,16 @@
 
 Health monitoring and server diagnostics for production observability.
 
-**Tool count:** 1 tool
-**Related categories:** None (standalone monitoring)
+> **Note**: The legacy `health_check` tool is now available via `workspace` with `action: "verify_project"`.
+
+**Tool count:** Part of the `workspace` tool (Magnificent Seven API)
+**Related categories:** Workspace operations
 
 ## Table of Contents
 
 - [Tools](#tools)
-  - [health_check](#health_check)
+  - [workspace (verify_project action)](#workspace-verify_project-action)
+  - [Legacy: health_check](#legacy-health_check)
 - [Common Patterns](#common-patterns)
   - [Production Health Monitoring](#production-health-monitoring)
   - [Debugging Server State](#debugging-server-state)
@@ -19,7 +22,7 @@ Health monitoring and server diagnostics for production observability.
 
 ## Tools
 
-### health_check
+### workspace (verify_project action)
 
 **Purpose:** Get comprehensive server health status including uptime, plugin counts, workflow states, and system metrics.
 
@@ -27,7 +30,7 @@ Health monitoring and server diagnostics for production observability.
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| (none) | - | - | No parameters required |
+| action | string | Yes | Must be "verify_project" |
 
 **Returns:**
 
@@ -57,8 +60,10 @@ JSON object with server health information:
   "id": "health-1",
   "method": "tools/call",
   "params": {
-    "name": "health_check",
-    "arguments": {}
+    "name": "workspace",
+    "arguments": {
+      "action": "verify_project"
+    }
   }
 }
 
@@ -88,6 +93,7 @@ JSON object with server health information:
   }
 }
 ```
+
 **Notes:**
 
 - **No LSP dependency**: Works independently of language servers
@@ -100,11 +106,80 @@ JSON object with server health information:
 
 ---
 
+### Legacy: health_check
+
+**Purpose:** Get comprehensive server health status including uptime, plugin counts, workflow states, and system metrics.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| (none) | - | - | No parameters required |
+
+**Returns:**
+
+JSON object with server health information:
+
+- `status` (string): Health status - always "healthy" if server is responding
+- `uptime` (object): Server uptime information
+  - `seconds` (number): Total uptime in seconds
+  - `minutes` (number): Total uptime in minutes
+  - `hours` (number): Total uptime in hours
+  - `formatted` (string): Human-readable uptime (e.g., "2h 15m 30s")
+- `plugins` (object): Plugin system status
+  - `loaded` (number): Count of loaded language plugins
+- `workflows` (object): Workflow executor state
+  - `paused` (number): Count of paused workflows awaiting continuation
+- `system_status` (object): System operational status
+  - `status` (string): System status - "ok" when operational
+  - `uptime_seconds` (number): System uptime in seconds
+  - `message` (string): Status message
+
+**Purpose:** (Legacy) Get comprehensive server health status.
+
+> **Note**: This tool is now **internal-only**. Use `workspace` with `action: "verify_project"` instead.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| (none) | - | - | No parameters required |
+
+**Example:**
+
+```json
+// Legacy MCP request (internal-only)
+{
+  "jsonrpc": "2.0",
+  "id": "health-1",
+  "method": "tools/call",
+  "params": {
+    "name": "health_check",
+    "arguments": {}
+  }
+}
+
+// Use this instead (public API):
+{
+  "jsonrpc": "2.0",
+  "id": "health-1",
+  "method": "tools/call",
+  "params": {
+    "name": "workspace",
+    "arguments": {
+      "action": "verify_project"
+    }
+  }
+}
+```
+
+---
+
 ## Common Patterns
 
 ### Production Health Monitoring
 
-Use `health_check` in production monitoring systems:
+Use `workspace` with `action: "verify_project"` in production monitoring systems:
 
 ```bash
 # Kubernetes liveness probe
@@ -115,8 +190,10 @@ curl -X POST http://localhost:3000/rpc \
     "id": "k8s-liveness",
     "method": "tools/call",
     "params": {
-      "name": "health_check",
-      "arguments": {}
+      "name": "workspace",
+      "arguments": {
+        "action": "verify_project"
+      }
     }
   }'
 
@@ -129,7 +206,9 @@ Check server state during troubleshooting:
 ```javascript
 // WebSocket client monitoring
 async function monitorServerHealth() {
-  const response = await client.callTool("health_check", {});
+  const response = await client.callTool("workspace", {
+    action: "verify_project"
+  });
 
   console.log(`Server uptime: ${response.uptime.formatted}`);
   console.log(`Plugins loaded: ${response.plugins.loaded}`);
@@ -148,7 +227,9 @@ Track server availability over time:
 ```javascript
 // Periodic health check with alerting
 setInterval(async () => {
-  const response = await client.callTool("health_check", {});
+  const response = await client.callTool("workspace", {
+    action: "verify_project"
+  });
 
   // Alert if uptime is too short (recent restart)
   if (response.uptime.hours < 1) {
@@ -169,7 +250,9 @@ Verify expected plugins are loaded:
 
 ```javascript
 // Verify language support is available
-const health = await client.callTool("health_check", {});
+const health = await client.callTool("workspace", {
+  action: "verify_project"
+});
 
 const expectedPlugins = 2; // TypeScript + Rust
 if (health.plugins.loaded < expectedPlugins) {

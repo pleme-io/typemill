@@ -66,15 +66,15 @@ Ask your AI assistant:
 ## 🛠️ CLI Usage
 ```bash
 # File operations (no position needed)
-mill tool rename --target file:src/old.rs --new-name src/new.rs
-mill tool rename --target directory:old-dir --new-name new-dir
+mill tool rename_all --target file:src/old.rs --new-name src/new.rs
+mill tool rename_all --target directory:old-dir --new-name new-dir
 
-# Code operations (requires line:char position)
-mill tool move --source src/app.rs:10:5 --destination src/utils.rs
-mill tool extract --kind function --source src/app.rs:10:5 --name handleLogin
+# Code operations (requires 0-based line:char position)
+mill tool relocate --source src/app.rs:9:5 --destination src/utils.rs
+mill tool refactor '{"action": "extract", "params": {"kind": "function", "filePath": "src/app.rs", "range": {"startLine": 9, "startCharacter": 0, "endLine": 14, "endCharacter": 0}, "name": "handleLogin"}}'
 
 # Workspace operations
-mill tool workspace.find_replace '{"pattern": "oldName", "replacement": "newName", "scope": "workspace"}'
+mill tool workspace '{"action": "find_replace", "pattern": "oldName", "replacement": "newName", "scope": "workspace"}'
 ```
 **Key Distinction:**
 - Use `rename_all` for file/directory/symbol rename operations

@@ -282,7 +282,7 @@ fn main() {
     fn test_handles_nested_paths() {
         let source = r#"
 fn main() {
-    let deep = "src/handlers/tools/navigation.rs";
+    let deep = "src/handlers/inspect_handler.rs";
     let shallow = "src/lib.rs";
 }
 "#;
@@ -292,7 +292,7 @@ fn main() {
         let (result, count) = rewrite_string_literals(source, old_path, new_path).unwrap();
 
         assert_eq!(count, 1);
-        assert!(result.contains("\"src/components/tools/navigation.rs\""));
+        assert!(result.contains("\"src/components/inspect_handler.rs\""));
         assert!(result.contains("\"src/lib.rs\""));
     }
 

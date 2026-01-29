@@ -45,16 +45,16 @@ Fast reference for test organization, execution, and best practices.
 | Document Symbols | TS, Py, Go, Rust | ✅ | ✅ (#[ignore]) |
 | Workspace Symbols | TS, Py, Go, Rust | ✅ | ✅ (#[ignore]) |
 | Completion | TS, Py, Go, Rust | ✅ | ✅ (#[ignore]) |
-| Rename | TS, Py, Go, Rust | ✅ | ✅ (#[ignore]) |
+| Rename (rename_all) | TS, Py, Go, Rust | ✅ | ✅ (#[ignore]) |
 
 ### E2E Features
 
 | Category | Tests | Coverage |
 |----------|-------|----------|
 | Workflow Execution | 10 | simple, complex, failure, dry-run, rollback, batch |
-| File Operations | 6 | create, read, write, delete, rename, list |
+| File Operations | 6 | create, read, write, prune, rename_all, list |
 | Refactoring | 8 | Cross-language, imports, symbols |
-| Workspace Operations | 7 | Directory rename, consolidation, dependencies |
+| Workspace Operations | 7 | Directory rename_all, consolidation, dependencies |
 | Error Scenarios | 5 | Resilience, recovery, validation |
 | Performance | 3 | Load testing, stress testing |
 | Server Lifecycle | 10 | LSP management, restart, crash recovery |
@@ -107,7 +107,7 @@ Fast reference for test organization, execution, and best practices.
 | Helper | Purpose | Example Usage |
 |--------|---------|---------------|
 | `TestWorkspace` | Isolated temp workspace | `TestWorkspace::new()` |
-| `TestClient` | MCP tool invocation | `client.call_tool("rename", args)` |
+| `TestClient` | MCP tool invocation | `client.call_tool("rename_all", args)` |
 | `test_fixtures.rs` | Language-specific test data | See data-driven architecture |
 
 ## Test Organization

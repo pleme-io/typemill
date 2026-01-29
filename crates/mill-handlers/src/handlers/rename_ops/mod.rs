@@ -1,37 +1,34 @@
-//! Rename handler for Unified Refactoring API
+//! Rename planning service for Unified Refactoring API
 //!
-//! Implements `rename` command with dryRun option for:
+//! Provides rename planning for:
 //! - Symbol renaming (via LSP)
 //! - File renaming (via MoveService)
 //! - Directory renaming (via MoveService)
 
-mod directory_rename;
-mod file_rename;
+pub(crate) mod directory_rename;
+pub(crate) mod file_rename;
 mod plan_converter;
-mod symbol_rename;
+pub(crate) mod symbol_rename;
 mod utils;
 
-use crate::handlers::tools::{extensions::get_concrete_app_state, ToolHandler};
-use async_trait::async_trait;
+use crate::handlers::tools::extensions::get_concrete_app_state;
 use lsp_types::{Position, WorkspaceEdit};
-use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
-use mill_foundation::planning::{PlanSummary, PlanWarning, RefactorPlan, RenamePlan};
+use mill_foundation::planning::{PlanSummary, PlanWarning, RenamePlan};
 use serde::Deserialize;
-use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use tracing::{debug, info};
 
-/// Handler for rename operations (unified API with dryRun option)
-pub struct RenameHandler;
+/// Planning service for rename operations
+pub struct RenameService;
 
-impl RenameHandler {
+impl RenameService {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for RenameHandler {
+impl Default for RenameService {
     fn default() -> Self {
         Self::new()
     }
@@ -149,141 +146,7 @@ impl RenameOptions {
     }
 }
 
-#[async_trait]
-impl ToolHandler for RenameHandler {
-    fn tool_names(&self) -> &[&str] {
-        &["rename"]
-    }
-
-    fn is_internal(&self) -> bool {
-        // Legacy - use rename_all instead
-        true
-    }
-
-    async fn handle_tool_call(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        info!(tool_name = %tool_call.name, "Handling rename");
-
-        // Parse parameters
-        let args = tool_call
-            .arguments
-            .clone()
-            .ok_or_else(|| ServerError::invalid_request("Missing arguments for rename"))?;
-
-        let params: RenamePlanParams = serde_json::from_value(args).map_err(|e| {
-            ServerError::invalid_request(format!("Invalid rename parameters: {}", e))
-        })?;
-
-        // Validate parameters: must have either target or targets, but not both
-        let plan = match (&params.target, &params.targets) {
-            (Some(target), None) => {
-                // Single target mode (existing API)
-                let new_name = params.new_name.as_ref().ok_or_else(|| {
-                    ServerError::invalid_request("new_name is required for single target mode")
-                })?;
-
-                debug!(
-                    kind = %target.kind,
-                    path = %target.path,
-                    new_name = %new_name,
-                    "Generating single rename plan"
-                );
-
-                match target.kind.as_str() {
-                    "symbol" => {
-                        self.plan_symbol_rename(target, new_name, &params.options, context)
-                            .await?
-                    }
-                    "file" => {
-                        self.plan_file_rename(target, new_name, &params.options, context)
-                            .await?
-                    }
-                    "directory" => {
-                        self.plan_directory_rename(target, new_name, &params.options, context)
-                            .await?
-                    }
-                    kind => {
-                        return Err(ServerError::invalid_request(format!(
-                            "Unsupported rename kind: {}. Must be one of: symbol, file, directory",
-                            kind
-                        )));
-                    }
-                }
-            }
-            (None, Some(targets)) => {
-                // Batch mode (new API)
-                debug!(
-                    targets_count = targets.len(),
-                    "Generating batch rename plan"
-                );
-
-                self.plan_batch_rename(targets, &params.options, context)
-                    .await?
-            }
-            (Some(_), Some(_)) => {
-                return Err(ServerError::invalid_request(
-                    "Cannot specify both 'target' and 'targets'. Use 'target' for single rename or 'targets' for batch."
-                ));
-            }
-            (None, None) => {
-                return Err(ServerError::invalid_request(
-                    "Must specify either 'target' (for single rename) or 'targets' (for batch).",
-                ));
-            }
-        };
-
-        // Wrap in RefactorPlan enum for discriminant
-        let refactor_plan = RefactorPlan::RenamePlan(plan);
-
-        // Check if we should execute or just return plan
-        if params.options.dry_run {
-            // Return plan only (existing behavior - preview mode)
-            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize rename plan: {}", e))
-            })?;
-
-            info!(
-                operation = "rename",
-                dry_run = true,
-                "Returning rename plan (preview mode)"
-            );
-
-            Ok(json!({
-                "content": plan_json
-            }))
-        } else {
-            // NEW: Execute the plan
-            info!(
-                operation = "rename",
-                dry_run = false,
-                "Executing rename plan"
-            );
-
-            let result =
-                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
-
-            let result_json = serde_json::to_value(&result).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize execution result: {}", e))
-            })?;
-
-            info!(
-                operation = "rename",
-                success = result.success,
-                applied_files = result.applied_files.len(),
-                "Rename execution completed"
-            );
-
-            Ok(json!({
-                "content": result_json
-            }))
-        }
-    }
-}
-
-impl RenameHandler {
+impl RenameService {
     /// Deduplicate document changes by merging text edits for the same file
     ///
     /// When multiple targets in a batch rename modify the same file (e.g., root Cargo.toml),

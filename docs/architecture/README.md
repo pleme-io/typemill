@@ -53,19 +53,18 @@ Support        → Testing, tooling
 
 ### Tool Organization
 
-**Public MCP Tools:**
-- **Navigation** (8) - find_definition, find_references, search_symbols, etc.
-- **Refactoring** (5) - rename, extract, inline, move, delete
-- **Workspace** (3) - create_package, extract_dependencies, find_replace
-- **System** (1) - health_check
+**Public MCP Tools** (Magnificent Seven API):
+- **Code Intelligence** (2) - `inspect_code`, `search_code`
+- **Refactoring** (4) - `rename_all`, `relocate`, `prune`, `refactor`
+- **Workspace** (1) - `workspace` (with various actions)
 
-**Internal Tools** - Backend plumbing and LSP integration
+**Legacy/Internal Tools** - Former public tools now internal, backend plumbing and LSP integration
 
 See [specifications.md#tools-visibility](specifications.md#tools-visibility-specification) for complete lists.
 
 ### Code Primitives Framework
 
-TypeMill is built on **refactoring primitives**: atomic code transformations (rename, extract, inline, move, etc.).
+TypeMill is built on **refactoring primitives**: atomic code transformations (rename_all, refactor actions, relocate, prune, etc.).
 
 See [core-concepts.md#code-primitives](core-concepts.md#code-primitives-framework) for details.
 

@@ -1,6 +1,6 @@
 # Workspace Tools - TypeScript
 
-Language-specific details for `workspace.create_package` with TypeScript/npm projects.
+Language-specific details for `workspace` with `action: "create_package"` in TypeScript/npm projects.
 
 **See [workspace.md](workspace.md) for shared API documentation.**
 
@@ -111,9 +111,12 @@ When `addToWorkspace: true`:
 
 ```bash
 # Create library package
-mill tool workspace.create_package '{
-  "packagePath": "packages/utils",
-  "package_type": "library",
+mill tool workspace '{
+  "action": "create_package",
+  "params": {
+    "packagePath": "packages/utils",
+    "packageType": "library"
+  },
   "options": {
     "template": "minimal",
     "addToWorkspace": true
@@ -129,9 +132,12 @@ mill tool workspace.create_package '{
 # - packages/utils/tests/index.test.ts
 
 # Create CLI with full template
-mill tool workspace.create_package '{
-  "packagePath": "packages/my-cli",
-  "package_type": "binary",
+mill tool workspace '{
+  "action": "create_package",
+  "params": {
+    "packagePath": "packages/my-cli",
+    "packageType": "binary"
+  },
   "options": {
     "template": "full"
   }

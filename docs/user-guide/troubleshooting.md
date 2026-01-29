@@ -41,7 +41,7 @@ A: Set a different port: `export TYPEMILL__SERVER__PORT=3050` then `mill serve`.
 **Q: Tool returns "file not found"?**
 A: Use absolute paths or paths relative to workspace root. Check current directory with `pwd`.
 
-**Q: Rename didn't update all imports?**
+**Q: rename_all didn't update all imports?**
 A: Ensure LSP server is running (`mill status`). Check file extensions match LSP config (`.typemill/config.json`).
 
 **Q: dryRun mode - how do I actually execute changes?**
@@ -251,23 +251,26 @@ pip install python-lsp-server
 
 **Problem:**
 ```bash
-$ mill tool find_definition --target file:src/app.rs:10:5
-Error: Tool 'find_definition' does not support flag-based arguments
+$ mill tool inspect_code --target file:src/app.rs:10:5
+Error: Tool 'inspect_code' does not support flag-based arguments
 ```
 **Explanation:**
-Navigation tools require JSON arguments, not flags.
+Code intelligence tools require JSON arguments, not flags.
 
 **Solution:**
 ```bash
 # Use JSON arguments
-mill tool find_definition '{
-  "file_path": "src/app.rs",
+mill tool inspect_code '{
+  "filePath": "src/app.rs",
   "line": 10,
-  "character": 5
+  "character": 5,
+  "include": ["definition"]
 }'
 ```
 **Which tools need JSON:**
-- Navigation: `find_definition`, `find_references`, `search_symbols`, `get_diagnostics`
+- Code intelligence: `inspect_code`, `search_code`
+- Refactoring: `rename_all`, `refactor`, `relocate`, `prune`
+- Workspace: `workspace`
 - Use `mill tools` to see all tools and their argument types
 
 ---
@@ -276,12 +279,15 @@ mill tool find_definition '{
 
 **Problem:**
 ```bash
-$ mill tool health_check
+$ mill tool workspace
 Error: required arguments were not provided: <ARGS>
 ```
 **Solution:**
 ```bash
-# health_check takes an empty JSON object
+# workspace requires an action parameter
+mill tool workspace '{"action": "verify_project"}'
+
+# Legacy (internal-only)
 mill tool health_check '{}'
 ```
 ---
@@ -290,7 +296,7 @@ mill tool health_check '{}'
 
 **Problem:**
 ```bash
-$ mill tool search_symbols {"query":"test"}
+$ mill tool search_code {"query":"test"}
 Error: Invalid JSON arguments: expected value at line 1 column 2
 ```
 **Cause:** Shell is interpreting the JSON.
@@ -298,14 +304,14 @@ Error: Invalid JSON arguments: expected value at line 1 column 2
 **Solution:** Use single quotes around JSON:
 ```bash
 # ✅ Correct
-mill tool search_symbols '{"query":"test","limit":10}'
+mill tool search_code '{"query":"test","limit":10}'
 
 # ❌ Wrong (shell interprets {})
-mill tool search_symbols {"query":"test"}
+mill tool search_code {"query":"test"}
 
 # Alternative: Use a file
 echo '{"query":"test","limit":10}' > args.json
-mill tool search_symbols --input-file args.json
+mill tool search_code --input-file args.json
 ```
 ---
 

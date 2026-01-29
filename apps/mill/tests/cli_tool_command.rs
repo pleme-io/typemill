@@ -83,7 +83,7 @@ fn test_tool_unknown_tool_name() {
     cmd.assert()
         .failure()
         .code(1)
-        .stderr(predicate::str::contains("No handler for tool"));
+        .stderr(predicate::str::contains("Unknown tool"));
 }
 
 #[test]

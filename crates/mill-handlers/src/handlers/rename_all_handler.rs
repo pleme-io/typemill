@@ -3,10 +3,10 @@
 //! Implements the `rename_all` tool which provides a unified interface for
 //! renaming symbols, files, and directories with automatic reference updates.
 //!
-//! This handler wraps the existing RenameHandler functionality but exposes it
-//! through the new Magnificent Seven API with the WriteResponse envelope.
+//! This handler uses the rename planning service and exposes it through the
+//! Magnificent Seven API with the WriteResponse envelope.
 
-use super::rename_handler::{RenameHandler, RenameOptions, RenameTarget, SymbolSelector};
+use super::rename_ops::{RenameOptions, RenameService, RenameTarget, SymbolSelector};
 use super::tool_definitions::WriteResponse;
 use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
@@ -21,13 +21,13 @@ use tracing::{debug, info};
 
 /// Handler for the `rename_all` tool (Magnificent Seven API)
 pub struct RenameAllHandler {
-    rename_handler: RenameHandler,
+    rename_service: RenameService,
 }
 
 impl RenameAllHandler {
     pub fn new() -> Self {
         Self {
-            rename_handler: RenameHandler::new(),
+            rename_service: RenameService::new(),
         }
     }
 }
@@ -59,7 +59,7 @@ struct RenameAllTarget {
     kind: String,
     /// Path to the file/directory, or file containing the symbol
     file_path: String,
-    /// Line number for symbol rename (1-based)
+    /// Line number for symbol rename (0-based)
     #[serde(default)]
     line: Option<u32>,
     /// Character offset for symbol rename (0-based)
@@ -77,6 +77,12 @@ struct RenameAllOptions {
     /// Scope configuration: "code", "standard", "comments", "everything"
     #[serde(default)]
     scope: Option<String>,
+    /// Consolidate source package into target (for directory renames only)
+    /// When true, merges Cargo.toml dependencies and updates all imports.
+    /// When false, disables consolidation even if auto-detection would enable it.
+    /// When None, auto-detects based on path patterns (moving crate into another crate's src/).
+    #[serde(default)]
+    consolidate: Option<bool>,
 }
 
 impl Default for RenameAllOptions {
@@ -84,6 +90,7 @@ impl Default for RenameAllOptions {
         Self {
             dry_run: true, // Safe default - preview mode
             scope: None,
+            consolidate: None,
         }
     }
 }
@@ -124,7 +131,7 @@ impl RenameAllHandler {
             validate_scope: None,
             update_imports: None,
             custom_scope: None,
-            consolidate: None,
+            consolidate: options.consolidate,
         }
     }
 
@@ -132,24 +139,36 @@ impl RenameAllHandler {
     fn convert_to_write_response(content: Value, dry_run: bool) -> ServerResult<WriteResponse> {
         if dry_run {
             // Preview mode - extract plan details
-            let plan = content
-                .get("RenamePlan")
-                .or_else(|| content.get("content").and_then(|c| c.get("RenamePlan")))
+            // RefactorPlan uses internally tagged serialization: {"planType": "renamePlan", ...}
+            // So fields are directly on content, not nested under "RenamePlan"
+            let plan_type = content
+                .get("planType")
+                .and_then(|v| v.as_str())
                 .ok_or_else(|| {
-                    ServerError::internal("Expected RenamePlan in preview mode".to_string())
+                    ServerError::internal("Expected planType in preview mode".to_string())
                 })?;
 
-            let summary_obj = plan.get("summary").ok_or_else(|| {
+            // Verify it's a rename plan (camelCase due to serde rename_all)
+            if plan_type != "renamePlan" {
+                return Err(ServerError::internal(format!(
+                    "Expected renamePlan, got: {}",
+                    plan_type
+                )));
+            }
+
+            // Access summary directly on content (not nested)
+            let summary_obj = content.get("summary").ok_or_else(|| {
                 ServerError::internal("Missing summary in RenamePlan".to_string())
             })?;
 
+            // Field is camelCase: affectedFiles
             let affected_files = summary_obj
-                .get("affected_files")
+                .get("affectedFiles")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0);
 
             // Extract list of affected file paths from edits
-            let files_changed = Self::extract_affected_files(plan);
+            let files_changed = Self::extract_affected_files(&content);
 
             let summary_text = format!(
                 "Preview: {} file(s) will be affected by this rename",
@@ -158,7 +177,7 @@ impl RenameAllHandler {
 
             // Extract warnings
             let diagnostics =
-                if let Some(warnings_arr) = plan.get("warnings").and_then(|w| w.as_array()) {
+                if let Some(warnings_arr) = content.get("warnings").and_then(|w| w.as_array()) {
                     warnings_arr
                         .iter()
                         .filter_map(|w| {
@@ -180,7 +199,7 @@ impl RenameAllHandler {
                 summary: summary_text,
                 files_changed,
                 diagnostics,
-                changes: Some(plan.clone()),
+                changes: Some(content.clone()),
             })
         } else {
             // Execution mode - extract result details
@@ -336,10 +355,6 @@ impl ToolHandler for RenameAllHandler {
         &["rename_all"]
     }
 
-    fn is_internal(&self) -> bool {
-        false // Public Magnificent Seven tool
-    }
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -380,17 +395,17 @@ impl ToolHandler for RenameAllHandler {
         // Call the appropriate rename handler method based on target kind
         let plan = match params.target.kind.as_str() {
             "symbol" => {
-                self.rename_handler
+                self.rename_service
                     .plan_symbol_rename(&rename_target, &params.new_name, &rename_options, context)
                     .await?
             }
             "file" => {
-                self.rename_handler
+                self.rename_service
                     .plan_file_rename(&rename_target, &params.new_name, &rename_options, context)
                     .await?
             }
             "directory" => {
-                self.rename_handler
+                self.rename_service
                     .plan_directory_rename(
                         &rename_target,
                         &params.new_name,
@@ -464,7 +479,6 @@ mod tests {
     fn test_handler_tool_names() {
         let handler = RenameAllHandler::new();
         assert_eq!(handler.tool_names(), &["rename_all"]);
-        assert!(!handler.is_internal());
     }
 
     #[test]

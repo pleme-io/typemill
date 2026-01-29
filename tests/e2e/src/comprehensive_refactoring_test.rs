@@ -98,15 +98,15 @@ const STANDARD_REPO_FILES: &[(&str, &str)] = &[
 async fn test_rename_symbol_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "rename",
+        "rename_all",
         |ws| {
+            // rename_all expects line/character directly on target, not nested in selector
             json!({
                 "target": {
                     "kind": "symbol",
-                    "path": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
-                    "selector": {
-                        "position": { "line": 5, "character": 13 } // "Helper" class definition
-                    }
+                    "filePath": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
+                    "line": 5,
+                    "character": 13 // "Helper" class definition
                 },
                 "newName": "Service"
             })
@@ -144,7 +144,7 @@ async fn test_rename_symbol_integration() {
 async fn test_rename_file_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "src/models/User.ts", "src/models/Person.ts", "file"),
         |ws| {
             assert!(ws.file_exists("src/models/Person.ts"));
@@ -180,7 +180,7 @@ async fn test_rename_file_integration() {
 async fn test_rename_directory_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "rename",
+        "rename_all",
         |ws| build_rename_params(ws, "src/models", "src/entities", "directory"),
         |ws| {
             assert!(ws.file_exists("src/entities/User.ts"));
@@ -206,7 +206,7 @@ async fn test_rename_directory_integration() {
 async fn test_move_file_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "move",
+        "relocate",
         |ws| build_move_params(ws, "src/utils.ts", "src/common/utils.ts", "file"),
         |ws| {
             assert!(ws.file_exists("src/common/utils.ts"));
@@ -241,7 +241,7 @@ async fn test_move_file_integration() {
 async fn test_move_directory_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "move",
+        "relocate",
         |ws| {
             let mut params =
                 build_move_params(ws, "src/components", "src/ui/components", "directory");
@@ -328,12 +328,15 @@ async fn test_extract_function_integration() {
     let file_path = workspace.absolute_path("src/index.ts");
 
     let params = json!({
-        "kind": "function",
-        "source": {
+        "action": "extract",
+        "params": {
+            "kind": "function",
             "filePath": file_path.to_string_lossy(),
             "range": {
-                "start": {"line": 14, "character": 4},
-                "end": {"line": 16, "character": 23}
+                "startLine": 14,
+                "startCharacter": 4,
+                "endLine": 16,
+                "endCharacter": 23
             },
             "name": "extractedCalculation"
         },
@@ -342,7 +345,7 @@ async fn test_extract_function_integration() {
         }
     });
 
-    let result = client.call_tool("extract", params).await;
+    let result = client.call_tool("refactor", params).await;
 
     match result {
         Ok(_) => {
@@ -374,21 +377,24 @@ async fn test_extract_variable_integration() {
     let file_path = workspace.absolute_path("src/index.ts");
 
     let params = json!({
-        "kind": "variable",
-        "source": {
-            "filePath": file_path.to_string_lossy(),
-            "range": {
-                "start": {"line": 16, "character": 16}, // start of "x + y"
-                "end": {"line": 16, "character": 21}   // end of "x + y"
-            },
-            "name": "sum"
+        "action": "extract",
+        "params": {
+            "kind": "variable",
+            "source": {
+                "filePath": file_path.to_string_lossy(),
+                "range": {
+                    "start": {"line": 16, "character": 16}, // start of "x + y"
+                    "end": {"line": 16, "character": 21}   // end of "x + y"
+                },
+                "name": "sum"
+            }
         },
         "options": {
             "dryRun": false
         }
     });
 
-    let result = client.call_tool("extract", params).await;
+    let result = client.call_tool("refactor", params).await;
 
     match result {
         Ok(_) => {
@@ -434,17 +440,20 @@ async fn test_inline_variable_integration() {
     let usage_line = lines.len() - 2; // last line is empty because of newline
 
     let params = json!({
-        "kind": "variable", // or constant
-        "target": {
-            "file_path": file_path.to_string_lossy(),
-            "position": {"line": usage_line, "character": 13} // start of TO_INLINE usage
+        "action": "inline",
+        "params": {
+            "kind": "variable", // or constant
+            "target": {
+                "file_path": file_path.to_string_lossy(),
+                "position": {"line": usage_line, "character": 13} // start of TO_INLINE usage
+            }
         },
         "options": {
             "dryRun": false
         }
     });
 
-    let result = client.call_tool("inline", params).await;
+    let result = client.call_tool("refactor", params).await;
 
     match result {
         Ok(_) => {
@@ -466,17 +475,15 @@ async fn test_inline_variable_integration() {
 async fn test_delete_symbol_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "delete",
+        "prune",
         |ws| {
+            // prune handler expects line/character directly on target, not nested in selector
             json!({
                 "target": {
                     "kind": "symbol",
-                    "path": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
-                    "selector": {
-                        "line": 3,
-                        "character": 13,
-                        "symbol_name": "SOME_CONSTANT"
-                    }
+                    "filePath": ws.absolute_path("src/utils.ts").to_string_lossy().to_string(),
+                    "line": 3,
+                    "character": 13
                 },
                 "options": {
                     "cleanupImports": true
@@ -491,7 +498,7 @@ async fn test_delete_symbol_integration() {
             );
 
             // Verify import cleanup (if implemented for delete symbol)
-            // Note: DeleteHandler implementation for symbol delete currently creates edits for the file,
+            // Note: prune planning for symbol delete currently creates edits for the file,
             // but might NOT automatically clean up references in other files unless explicitly handled.
             // The current implementation of `plan_symbol_delete` only returns edits for the target file.
             // So we only check the definition is gone.
@@ -507,7 +514,7 @@ async fn test_delete_symbol_integration() {
 async fn test_delete_file_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "delete",
+        "prune",
         |ws| {
             let mut params = build_delete_params(ws, "src/components/Button.ts", "file");
             if let Some(obj) = params.as_object_mut() {
@@ -524,14 +531,14 @@ async fn test_delete_file_integration() {
 
             // Check for import cleanup
             let index_content = ws.read_file("src/index.ts");
-            // Note: The DeleteHandler `plan_file_delete` generates warnings about imports but doesn't auto-remove them
+            // Note: prune planning `plan_file_delete` generates warnings about imports but doesn't auto-remove them
             // unless `cleanup_imports` triggers a separate mechanism (which it warns about).
-            // Actually, `DeleteHandler` returns `warnings` if `cleanup_imports` is true.
+            // Actually, prune planning returns `warnings` if `cleanup_imports` is true.
             // It doesn't seem to generate edits for other files in the *plan* returned by `plan_file_delete`.
             // Wait, looking at `plan_file_delete`:
             // `warnings.push(PlanWarning { code: "IMPORT_CLEANUP_REQUIRED"... })`
             // So it seems it does NOT automatically clean up imports yet?
-            // The memory says "DeleteHandler ... performs directory deletion planning ...".
+            // The memory says "prune planning performs directory deletion planning ...".
             // Let's rely on checking the file is gone.
 
             Ok(())
@@ -545,7 +552,7 @@ async fn test_delete_file_integration() {
 async fn test_delete_directory_integration() {
     run_tool_test(
         STANDARD_REPO_FILES,
-        "delete",
+        "prune",
         |ws| build_delete_params(ws, "src/components", "directory"),
         |ws| {
             assert!(!ws.file_exists("src/components/Button.ts"));

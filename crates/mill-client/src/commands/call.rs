@@ -210,29 +210,29 @@ impl CallCommand {
 
         let examples = vec![
             (
-                "Find definition of a symbol",
-                "find_definition",
-                r#"{"filePath": "src/main.rs", "symbol_name": "main"}"#,
+                "Inspect code at position (definition + type info)",
+                "inspect_code",
+                r#"{"filePath": "src/main.rs", "line": 9, "character": 5, "include": ["definition", "typeInfo"]}"#,
             ),
             (
-                "Find references to a symbol",
-                "find_references",
-                r#"{"filePath": "src/lib.rs", "symbol_name": "MyFunction"}"#,
+                "Deep inspect with all information",
+                "inspect_code",
+                r#"{"filePath": "src/lib.rs", "line": 14, "character": 0, "detailLevel": "deep"}"#,
             ),
             (
-                "Get document symbols",
-                "get_document_symbols",
-                r#"{"filePath": "src/types.rs"}"#,
+                "Search for symbols",
+                "search_code",
+                r#"{"query": "MyFunction", "limit": 10}"#,
             ),
             (
-                "Format a document",
-                "format_document",
-                r#"{"filePath": "src/main.rs"}"#,
+                "Rename a symbol",
+                "rename_all",
+                r#"{"target": {"kind": "symbol", "filePath": "src/main.rs", "line": 9, "character": 5}, "newName": "newName"}"#,
             ),
             (
-                "Get diagnostics",
-                "get_diagnostics",
-                r#"{"filePath": "src/lib.rs"}"#,
+                "Find and replace across workspace",
+                "workspace",
+                r#"{"action": "find_replace", "params": {"pattern": "oldName", "replacement": "newName", "mode": "literal"}}"#,
             ),
         ];
 
@@ -260,35 +260,47 @@ impl CallCommand {
             Some("Let's build the parameters step by step"),
         )?;
 
-        // Tool-specific parameter helpers
+        // Tool-specific parameter helpers for Magnificent Seven
         match self.tool.as_str() {
-            "find_definition" | "find_references" => self.build_symbol_params(ctx).await,
-            "get_document_symbols" | "format_document" | "get_diagnostics" => {
-                self.build_file_params(ctx).await
+            "inspect_code" => self.build_inspect_params(ctx).await,
+            "search_code" => self.build_search_params(ctx).await,
+            "rename_all" | "relocate" | "prune" | "refactor" | "workspace" => {
+                self.build_generic_params(ctx).await
             }
             _ => self.build_generic_params(ctx).await,
         }
     }
 
-    /// Build parameters for symbol-based tools
-    async fn build_symbol_params(&self, ctx: &CommandContext) -> ClientResult<Option<Value>> {
+    /// Build parameters for inspect_code tool
+    async fn build_inspect_params(&self, ctx: &CommandContext) -> ClientResult<Option<Value>> {
         let file_path = ctx.interactive.required_input("File path", None)?;
-        let symbol_name = ctx.interactive.required_input("Symbol name", None)?;
+        let line: u32 = ctx
+            .interactive
+            .required_input("Line number (0-based)", None)?
+            .parse()
+            .map_err(|_| ClientError::request("Invalid line number"))?;
+        let character: u32 = ctx
+            .interactive
+            .required_input("Character offset (0-based)", None)?
+            .parse()
+            .map_err(|_| ClientError::request("Invalid character offset"))?;
 
         let params = serde_json::json!({
             "filePath": file_path,
-            "symbol_name": symbol_name
+            "line": line,
+            "character": character
         });
 
         Ok(Some(params))
     }
 
-    /// Build parameters for file-based tools
-    async fn build_file_params(&self, ctx: &CommandContext) -> ClientResult<Option<Value>> {
-        let file_path = ctx.interactive.required_input("File path", None)?;
+    /// Build parameters for search_code tool
+    async fn build_search_params(&self, ctx: &CommandContext) -> ClientResult<Option<Value>> {
+        let query = ctx.interactive.required_input("Search query", None)?;
 
         let params = serde_json::json!({
-            "filePath": file_path
+            "query": query,
+            "limit": 20
         });
 
         Ok(Some(params))
@@ -399,8 +411,8 @@ mod tests {
 
     #[test]
     fn test_call_command_creation() {
-        let cmd = CallCommand::new("find_definition".to_string(), None);
-        assert_eq!(cmd.tool, "find_definition");
+        let cmd = CallCommand::new("inspect_code".to_string(), None);
+        assert_eq!(cmd.tool, "inspect_code");
         assert!(cmd.params.is_none());
         assert_eq!(cmd.format, OutputFormat::Pretty);
     }

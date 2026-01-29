@@ -448,10 +448,11 @@ mod tests {
     fn test_mcp_request_serialization() {
         let request = MCPRequest {
             id: "test_id".to_string(),
-            method: "find_definition".to_string(),
+            method: "inspect_code".to_string(),
             params: Some(serde_json::json!({
                 "filePath": "src/main.rs",
-                "symbol_name": "main"
+                "symbolName": "main",
+                "include": ["definition"]
             })),
         };
 

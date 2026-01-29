@@ -1,13 +1,8 @@
-//! Workspace dependency extraction tool handler
+//! Workspace dependency extraction service
 //!
-//! Handles: workspace.extract_dependencies
-//!
-//! This tool extracts specific dependencies from one Cargo.toml and adds them to another,
+//! This service extracts specific dependencies from one Cargo.toml and adds them to another,
 //! supporting the crate extraction workflow (Proposal 50).
 
-use super::ToolHandler;
-use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -16,40 +11,12 @@ use std::path::Path;
 use toml_edit::{DocumentMut, Item, Value as TomlValue};
 use tracing::{debug, error, warn};
 
-/// Handler for workspace dependency extraction operations
-pub struct WorkspaceExtractDepsHandler;
+/// Service for workspace dependency extraction operations
+pub struct WorkspaceExtractService;
 
-impl WorkspaceExtractDepsHandler {
+impl WorkspaceExtractService {
     pub fn new() -> Self {
         Self
-    }
-}
-
-#[async_trait]
-impl ToolHandler for WorkspaceExtractDepsHandler {
-    fn tool_names(&self) -> &[&str] {
-        &["workspace.extract_dependencies"]
-    }
-
-    fn is_internal(&self) -> bool {
-        // Legacy - use workspace action:extract_dependencies instead
-        true
-    }
-
-    async fn handle_tool_call(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        match tool_call.name.as_str() {
-            "workspace.extract_dependencies" => {
-                handle_extract_dependencies(context, tool_call).await
-            }
-            _ => Err(ServerError::invalid_request(format!(
-                "Unknown workspace extract deps tool: {}",
-                tool_call.name
-            ))),
-        }
     }
 }
 
@@ -137,21 +104,15 @@ pub(crate) struct DependencyInfo {
 
 // Handler implementation
 
-async fn handle_extract_dependencies(
+pub async fn handle_extract_dependencies(
     context: &mill_handler_api::ToolHandlerContext,
-    tool_call: &ToolCall,
+    args: Value,
 ) -> ServerResult<Value> {
-    debug!("Handling workspace.extract_dependencies");
+    debug!("Handling workspace extract_dependencies action");
 
     // Parse parameters
-    let params: ExtractDependenciesParams = serde_json::from_value(
-        tool_call
-            .arguments
-            .as_ref()
-            .ok_or_else(|| ServerError::invalid_request("Missing arguments"))?
-            .clone(),
-    )
-    .map_err(|e| ServerError::invalid_request(format!("Invalid arguments: {}", e)))?;
+    let params: ExtractDependenciesParams = serde_json::from_value(args)
+        .map_err(|e| ServerError::invalid_request(format!("Invalid arguments: {}", e)))?;
 
     debug!(
         source_manifest = %params.source_manifest,

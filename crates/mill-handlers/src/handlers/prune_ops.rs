@@ -1,80 +1,74 @@
-//! Delete handler for Unified Refactoring API
+//! Prune planning service for Unified Refactoring API
 //!
-//! Implements `delete` command with dryRun option for:
+//! Provides delete planning for:
 //! - Symbol deletion (AST-based - placeholder)
 //! - File deletion (via FileService)
 //! - Directory deletion (via FileService)
 
 use crate::handlers::common::calculate_checksum;
-use crate::handlers::tools::ToolHandler;
-use async_trait::async_trait;
 use futures::stream::StreamExt;
-use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
-use mill_foundation::planning::{
-    DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning, RefactorPlan,
-};
+use mill_foundation::planning::{DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning};
 use serde::Deserialize;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info};
 
-/// Handler for delete operations
-pub struct DeleteHandler;
+/// Planning service for prune operations
+pub struct PrunePlanner;
 
-impl DeleteHandler {
+impl PrunePlanner {
     pub fn new() -> Self {
         Self
     }
 }
 
-impl Default for DeleteHandler {
+impl Default for PrunePlanner {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(Debug, Deserialize)]
-struct DeletePlanParams {
-    target: DeleteTarget,
+pub(crate) struct PrunePlanParams {
+    pub target: PruneTarget,
     #[serde(default)]
-    options: DeleteOptions,
+    pub options: PruneOptions,
 }
 
 #[derive(Debug, Deserialize)]
-struct DeleteTarget {
-    kind: String, // "symbol" | "file" | "directory"
-    path: String,
+pub(crate) struct PruneTarget {
+    pub kind: String, // "symbol" | "file" | "directory"
+    pub path: String,
     #[serde(default)]
-    selector: Option<DeleteSelector>,
+    pub selector: Option<PruneSelector>,
 }
 
 #[derive(Debug, Deserialize)]
 #[allow(dead_code)] // Reserved for future symbol deletion implementation
-struct DeleteSelector {
-    line: u32,
-    character: u32,
+pub(crate) struct PruneSelector {
+    pub line: u32,
+    pub character: u32,
     #[serde(default)]
-    symbol_name: Option<String>,
+    pub symbol_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct DeleteOptions {
+pub(crate) struct PruneOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "crate::default_true")]
-    dry_run: bool,
+    pub dry_run: bool,
     #[serde(default)]
-    cleanup_imports: Option<bool>,
+    pub cleanup_imports: Option<bool>,
     #[serde(default)]
     #[allow(dead_code)] // Reserved for future test cleanup implementation
-    remove_tests: Option<bool>,
+    pub remove_tests: Option<bool>,
     #[serde(default)]
-    force: Option<bool>,
+    pub force: Option<bool>,
 }
 
-impl Default for DeleteOptions {
+impl Default for PruneOptions {
     fn default() -> Self {
         Self {
             dry_run: true, // Safe default: preview mode
@@ -85,98 +79,7 @@ impl Default for DeleteOptions {
     }
 }
 
-#[async_trait]
-impl ToolHandler for DeleteHandler {
-    fn tool_names(&self) -> &[&str] {
-        &["delete"]
-    }
-
-    fn is_internal(&self) -> bool {
-        // Legacy - use prune instead
-        true
-    }
-
-    async fn handle_tool_call(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        info!(tool_name = %tool_call.name, "Handling delete");
-
-        // Parse parameters
-        let args = tool_call
-            .arguments
-            .clone()
-            .ok_or_else(|| ServerError::invalid_request("Missing arguments for delete"))?;
-
-        let params: DeletePlanParams = serde_json::from_value(args).map_err(|e| {
-            ServerError::invalid_request(format!("Invalid delete parameters: {}", e))
-        })?;
-
-        debug!(
-            kind = %params.target.kind,
-            path = %params.target.path,
-            "Generating delete plan"
-        );
-
-        // Dispatch based on target kind
-        let plan = match params.target.kind.as_str() {
-            "symbol" => self.plan_symbol_delete(&params, context).await?,
-            "file" => self.plan_file_delete(&params, context).await?,
-            "directory" => self.plan_directory_delete(&params, context).await?,
-            kind => {
-                return Err(ServerError::invalid_request(format!(
-                    "Unsupported delete kind: {}. Must be one of: symbol, file, directory",
-                    kind
-                )));
-            }
-        };
-
-        // Wrap in RefactorPlan enum for discriminant
-        let refactor_plan = RefactorPlan::DeletePlan(plan);
-
-        // Check if we should execute or just return plan
-        if params.options.dry_run {
-            // Return plan only (preview mode)
-            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize delete plan: {}", e))
-            })?;
-
-            info!(
-                operation = "delete",
-                dry_run = true,
-                "Returning delete plan (preview mode)"
-            );
-
-            Ok(serde_json::json!({"content": plan_json}))
-        } else {
-            // Execute the plan
-            info!(
-                operation = "delete",
-                dry_run = false,
-                "Executing delete plan"
-            );
-
-            let result =
-                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
-
-            let result_json = serde_json::to_value(&result).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize execution result: {}", e))
-            })?;
-
-            info!(
-                operation = "delete",
-                success = result.success,
-                applied_files = result.applied_files.len(),
-                "Delete execution completed"
-            );
-
-            Ok(serde_json::json!({"content": result_json}))
-        }
-    }
-}
-
-impl DeleteHandler {
+impl PrunePlanner {
     /// Helper to remove a specific identifier from an import statement
     /// Returns Some(new_line) if we can keep the import with other identifiers
     /// Returns None if the entire line should be deleted
@@ -219,9 +122,9 @@ impl DeleteHandler {
     }
 
     /// Generate plan for symbol deletion using AST-based analysis
-    async fn plan_symbol_delete(
+    pub(crate) async fn plan_symbol_delete(
         &self,
-        params: &DeletePlanParams,
+        params: &PrunePlanParams,
         context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         debug!(path = %params.target.path, "Planning symbol delete");
@@ -319,7 +222,9 @@ impl DeleteHandler {
 
         // Convert EditPlan to WorkspaceEdit using the converter utility from move module
         let workspace_edit =
-            crate::handlers::r#move::converter::convert_edit_plan_to_workspace_edit(&edit_plan)?;
+            crate::handlers::relocate_ops::converter::convert_edit_plan_to_workspace_edit(
+                &edit_plan,
+            )?;
 
         // Calculate file checksums
         let mut file_checksums = HashMap::new();
@@ -364,9 +269,9 @@ impl DeleteHandler {
     }
 
     /// Generate plan for file deletion using FileService
-    async fn plan_file_delete(
+    pub(crate) async fn plan_file_delete(
         &self,
-        params: &DeletePlanParams,
+        params: &PrunePlanParams,
         context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         debug!(
@@ -471,9 +376,9 @@ impl DeleteHandler {
     }
 
     /// Generate plan for directory deletion using FileService
-    async fn plan_directory_delete(
+    pub(crate) async fn plan_directory_delete(
         &self,
-        params: &DeletePlanParams,
+        params: &PrunePlanParams,
         context: &mill_handler_api::ToolHandlerContext,
     ) -> ServerResult<DeletePlan> {
         debug!(

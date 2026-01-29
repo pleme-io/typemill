@@ -537,7 +537,7 @@ impl TestClient {
         results
     }
 
-    /// Wait for LSP to finish indexing a file by polling document_symbols.
+    /// Wait for LSP to finish indexing a file by polling diagnostics.
     /// This is much faster than arbitrary sleeps and more reliable.
     ///
     /// # Arguments
@@ -559,27 +559,28 @@ impl TestClient {
         let max_duration = Duration::from_millis(max_wait_ms);
 
         loop {
-            // Poll for symbols - when they appear, LSP has indexed the file
-            if let Ok(response) = self
-                .call_tool(
-                    "get_document_symbols",
-                    serde_json::json!({
-                        "filePath": file_path.to_string_lossy()
-                    }),
-                )
-                .await
+        // Poll for diagnostics - when they appear, LSP has indexed the file
+        if let Ok(response) = self
+            .call_tool(
+                "inspect_code",
+                serde_json::json!({
+                    "filePath": file_path.to_string_lossy(),
+                    "line": 0,
+                    "character": 0,
+                    "include": ["diagnostics"]
+                }),
+            )
+            .await
+        {
+            if response
+                .get("result")
+                .and_then(|r| r.get("content"))
+                .and_then(|c| c.get("diagnostics"))
+                .is_some()
             {
-                if let Some(symbols) = response
-                    .get("result")
-                    .and_then(|r| r.get("content"))
-                    .and_then(|c| c.get("symbols"))
-                    .and_then(|s| s.as_array())
-                {
-                    if !symbols.is_empty() {
-                        return Ok(()); // LSP is ready!
-                    }
-                }
+                return Ok(()); // LSP is ready!
             }
+        }
 
             if start.elapsed() > max_duration {
                 return Err(format!(

@@ -472,11 +472,19 @@ async fn handle_initialize(
         session_id: session.id.clone(),
         capabilities: ServerCapabilities {
             tools: vec![
-                "find_definition".to_string(),
-                "find_references".to_string(),
-                "get_completions".to_string(),
-                "get_diagnostics".to_string(),
-                "format_document".to_string(),
+                // Magnificent Seven
+                "inspect_code".to_string(),
+                "search_code".to_string(),
+                "rename_all".to_string(),
+                "relocate".to_string(),
+                "prune".to_string(),
+                "refactor".to_string(),
+                "workspace".to_string(),
+                // System tools
+                "health_check".to_string(),
+                "notify_file_opened".to_string(),
+                "notify_file_saved".to_string(),
+                "notify_file_closed".to_string(),
             ],
         },
     };

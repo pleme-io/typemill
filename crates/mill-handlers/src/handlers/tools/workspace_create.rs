@@ -1,50 +1,19 @@
-//! Workspace package creation tool handler
+//! Workspace package creation service
 //!
-//! Handles: workspace.create_package
-//!
-//! This is a thin handler that delegates to language plugins for package creation.
+//! This is a thin service that delegates to language plugins for package creation.
 
-use super::ToolHandler;
-use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_plugin_api::{CreatePackageConfig, PackageType, Template};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::{debug, error};
 
-/// Handler for workspace package creation operations
-pub struct WorkspaceCreateHandler;
+/// Service for workspace package creation operations
+pub struct WorkspaceCreateService;
 
-impl WorkspaceCreateHandler {
+impl WorkspaceCreateService {
     pub fn new() -> Self {
         Self
-    }
-}
-
-#[async_trait]
-impl ToolHandler for WorkspaceCreateHandler {
-    fn tool_names(&self) -> &[&str] {
-        &["workspace.create_package"]
-    }
-
-    fn is_internal(&self) -> bool {
-        // Legacy - use workspace action:create_package instead
-        true
-    }
-
-    async fn handle_tool_call(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        match tool_call.name.as_str() {
-            "workspace.create_package" => handle_create_package(context, tool_call).await,
-            _ => Err(ServerError::invalid_request(format!(
-                "Unknown workspace create tool: {}",
-                tool_call.name
-            ))),
-        }
     }
 }
 
@@ -105,20 +74,14 @@ pub(crate) struct PackageInfo {
 
 // Handler implementation
 
-async fn handle_create_package(
+pub async fn handle_create_package(
     context: &mill_handler_api::ToolHandlerContext,
-    tool_call: &ToolCall,
+    args: Value,
 ) -> ServerResult<Value> {
-    debug!("Handling workspace.create_package");
+    debug!("Handling workspace create_package action");
 
     // Parse parameters
-    let params: CreatePackageParams = serde_json::from_value(
-        tool_call
-            .arguments
-            .as_ref()
-            .ok_or_else(|| ServerError::invalid_request("Missing arguments".to_string()))?
-            .clone(),
-    )
+    let params: CreatePackageParams = serde_json::from_value(args)
     .map_err(|e| ServerError::invalid_request(format!("Invalid arguments: {}", e)))?;
 
     debug!(
@@ -131,7 +94,7 @@ async fn handle_create_package(
     // Dry-run mode not yet supported - requires non-mutable plugin operations
     if params.options.dry_run {
         return Err(ServerError::invalid_request(
-            "dry_run mode not yet supported for workspace.create_package".to_string(),
+            "dry_run mode not yet supported for workspace create_package action".to_string(),
         ));
     }
 

@@ -1,6 +1,6 @@
 # Workspace Tool
 
-> **NEW:** The workspace tool is now a unified action-based tool. Legacy workspace sub-tools (`workspace.create_package`, `workspace.extract_dependencies`, `workspace.find_replace`) are now actions within the single `workspace` tool.
+> The workspace tool is a unified action-based tool. Use the `action` field to select an operation.
 
 Package management and workspace operations for multi-language workspaces. Create packages, extract dependencies, perform workspace-wide text operations, and verify project health.
 
@@ -74,7 +74,7 @@ The `workspace` tool provides a unified interface for workspace-level operations
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
 | package_path | string | Yes | Absolute or workspace-relative path for new package (e.g., "crates/my-lib", "packages/utils") |
-| package_type | string | No | Package type: "library" or "binary" (default: "library") |
+| packageType | string | No | Package type: "library" or "binary" (default: "library") |
 | options | object | No | Creation options |
 | options.dryRun | boolean | No | Preview operation (not yet supported - returns error) |
 | options.add_to_workspace | boolean | No | Add to workspace members list (default: true) |
@@ -106,7 +106,7 @@ Object with creation details:
       "action": "create_package",
       "params": {
         "packagePath": "packages/my-util",
-        "package_type": "library"
+        "packageType": "library"
       },
       "options": {
         "template": "minimal",
@@ -129,7 +129,7 @@ Object with creation details:
       "action": "create_package",
       "params": {
         "packagePath": "packages/my-cli",
-        "package_type": "binary"
+        "packageType": "binary"
       },
       "options": {
         "template": "full"
@@ -151,7 +151,7 @@ Object with creation details:
 
 ---
 
-### workspace.extract_dependencies
+### extract_dependencies
 
 **Purpose:** Extract specific dependencies from source Cargo.toml and add them to target Cargo.toml (used in crate extraction workflow).
 
@@ -307,7 +307,7 @@ Object with extraction results:
 
 ---
 
-### workspace.find_replace
+### find_replace
 
 **Purpose:** Find and replace text across the workspace with support for literal/regex patterns, case preservation, and file scope filtering.
 
@@ -575,7 +575,7 @@ mill tool workspace '{
   "action": "create_package",
   "params": {
     "packagePath": "crates/mill-core",
-    "package_type": "library"
+    "packageType": "library"
   },
   "options": {
     "addToWorkspace": true,
@@ -626,7 +626,7 @@ mill tool workspace '{
   "action": "create_package",
   "params": {
     "packagePath": "crates/new-service",
-    "package_type": "binary"
+    "packageType": "binary"
   }
 }'
 

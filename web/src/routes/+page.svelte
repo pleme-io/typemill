@@ -88,24 +88,19 @@ mill status</code></pre>
 		</thead>
 		<tbody>
 			<tr>
-				<td><span class="badge">Navigation</span></td>
-				<td>8 tools</td>
-				<td>find_definition, find_references, search_symbols, and more</td>
+				<td><span class="badge">Inspect &amp; Search</span></td>
+				<td>2 tools</td>
+				<td>inspect_code, search_code</td>
 			</tr>
 			<tr>
-				<td><span class="badge">Refactoring</span></td>
-				<td>7 tools</td>
-				<td>rename, extract, inline, move, reorder, transform, delete</td>
-			</tr>
-			<tr>
-				<td><span class="badge">Analysis</span></td>
-				<td>8 tools</td>
-				<td>Quality, dead code, dependencies with actionable suggestions</td>
+				<td><span class="badge">Change</span></td>
+				<td>4 tools</td>
+				<td>rename_all, relocate, prune, refactor</td>
 			</tr>
 			<tr>
 				<td><span class="badge">Workspace</span></td>
-				<td>4 tools</td>
-				<td>Package creation, dependency extraction, find & replace</td>
+				<td>1 tool</td>
+				<td>workspace (actions: create_package, extract_dependencies, update_members, find_replace, verify_project)</td>
 			</tr>
 			<tr>
 				<td><span class="badge-success">System</span></td>

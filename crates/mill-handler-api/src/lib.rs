@@ -148,15 +148,13 @@ pub type ToolContext = ToolHandlerContext;
 ///
 /// This is the single, canonical trait that all handlers must implement.
 /// It provides direct access to the shared context and handles tool calls uniformly.
+///
+/// Only the Magnificent Seven tools implement this trait:
+/// - inspect_code, search_code, rename_all, relocate, prune, refactor, workspace
 #[async_trait]
 pub trait ToolHandler: Send + Sync {
     /// Returns a slice of tool names this handler is responsible for.
     fn tool_names(&self) -> &[&str];
-
-    /// Indicates whether this handler's tools are internal (backend-only).
-    fn is_internal(&self) -> bool {
-        false
-    }
 
     /// Handles an incoming tool call.
     async fn handle_tool_call(

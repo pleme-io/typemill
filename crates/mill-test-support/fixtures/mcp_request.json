@@ -2,11 +2,11 @@
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "find_definition",
+    "name": "inspect_code",
     "arguments": {
-      "file_path": "src/main.ts",
-      "symbol_name": "AppConfig",
-      "symbol_kind": "class"
+      "filePath": "src/main.ts",
+      "symbolName": "AppConfig",
+      "include": ["definition"]
     }
   }
 }

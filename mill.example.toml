@@ -38,7 +38,7 @@ maxBackups = 5
 
 # Import Graph Cache Configuration
 # The cache significantly improves performance for dependency-heavy operations
-# like rename_directory, find_references, and import analysis
+# like rename_all, relocate, and import analysis
 [cache]
 # Enable or disable the import graph cache
 enabled = true

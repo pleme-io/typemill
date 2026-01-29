@@ -257,7 +257,7 @@ TYPEMILL_DISABLE_CACHE=1 cargo test
 **Debugging:**
 ```bash
 # Isolate cache-related issues
-TYPEMILL_DISABLE_AST_CACHE=1 mill tool rename ...
+TYPEMILL_DISABLE_AST_CACHE=1 mill tool rename_all ...
 ```
 ---
 
@@ -624,7 +624,7 @@ cat .typemill/config.json
 mill status
 
 # Test with a tool call
-mill tool health_check '{}'
+mill tool workspace '{"action": "verify_project"}'
 ```
 ---
 

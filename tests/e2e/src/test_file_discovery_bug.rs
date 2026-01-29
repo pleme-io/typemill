@@ -117,11 +117,11 @@ Configuration: `crates/my-crate/Cargo.toml`
     // Generate rename plan (dry run to inspect changes)
     let plan_result = client
         .call_tool(
-            "rename",
+            "rename_all",
             json!({
                 "target": {
                     "kind": "directory",
-                    "path": workspace.absolute_path("crates/my-crate").to_string_lossy()
+                    "filePath": workspace.absolute_path("crates/my-crate").to_string_lossy()
                 },
                 "newName": workspace.absolute_path("crates/renamed-crate").to_string_lossy(),
                 "options": {
@@ -132,10 +132,15 @@ Configuration: `crates/my-crate/Cargo.toml`
         .await
         .expect("rename should succeed");
 
-    let plan = plan_result
+    // M7 WriteResponse wraps the plan in: result.content.changes
+    let response = plan_result
         .get("result")
         .and_then(|r| r.get("content"))
-        .expect("Plan should exist");
+        .expect("Response should exist");
+
+    let plan = response
+        .get("changes")
+        .expect("Plan should exist in changes field");
 
     // Extract all files that will be updated
     let files_in_plan: Vec<String> = plan

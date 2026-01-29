@@ -7,7 +7,7 @@
 
 **Complete documentation for TypeMill - Pure Rust MCP server for AI-powered code intelligence**
 
-> **💡 Viewing from CLI?** All links work with `mill docs <topic>`. For example: `mill docs quickstart` or `mill docs tools/refactoring`
+> **💡 Viewing from CLI?** All links work with `mill docs <topic>`. For example: `mill docs quickstart` or `mill docs tools/refactor`
 
 ---
 
@@ -38,8 +38,9 @@
 5. **[tools/README.md](tools/README.md)** - Complete tool catalog (see **[architecture/specifications.md](architecture/specifications.md#tools-visibility-specification)** for full specification)
 
 **Tool categories:**
-- **[Navigation Tools](tools/navigation.md)** - Find definitions, references, symbols (8 tools)
-- **[Refactoring Tools](tools/refactoring.md)** - Rename, extract, move, inline (7 tools)
+- **[inspect_code](tools/inspect_code.md)** - Aggregate code intelligence (definition, references, types, diagnostics)
+- **[search_code](tools/search_code.md)** - Search workspace symbols
+- **[refactor](tools/refactor.md)** - Extract/inline/transform operations
 - **[Workspace Tools](tools/workspace.md)** - Package management, find-replace (4 tools)
 - **[System Tools](tools/system.md)** - Health checks, server status (1 tool)
 
@@ -99,8 +100,9 @@
 ### Tool Reference
 - **[tools/README.md](tools/README.md)** - Complete tool catalog
   _For authoritative specification including internal tools, see **[architecture/specifications.md](architecture/specifications.md#tools-visibility-specification)**_
-- **[tools/navigation.md](tools/navigation.md)** - Navigation & intelligence (8 tools)
-- **[tools/refactoring.md](tools/refactoring.md)** - Editing & refactoring (7 tools)
+- **[tools/inspect_code.md](tools/inspect_code.md)** - Code intelligence
+- **[tools/search_code.md](tools/search_code.md)** - Symbol search
+- **[tools/refactor.md](tools/refactor.md)** - Refactoring operations
 - **[tools/workspace.md](tools/workspace.md)** - Workspace operations (4 tools)
 - **[tools/workspace-rust.md](tools/workspace-rust.md)** - Rust-specific workspace tools
 - **[tools/workspace-typescript.md](tools/workspace-typescript.md)** - TypeScript-specific workspace tools
@@ -135,7 +137,7 @@
 ```bash
 mill docs                              # List all topics
 mill docs quickstart                   # View quickstart guide
-mill docs tools/refactoring            # View refactoring tools
+mill docs tools/refactor               # View refactor tool
 mill docs README                       # View this file
 mill docs --search "setup"             # Search all documentation
 mill docs <topic> --raw                # View raw markdown

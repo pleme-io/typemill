@@ -29,7 +29,7 @@ This guide ensures consistency, clarity, and professionalism across all TypeMill
 **mill** (lowercase, in backticks)
 - CLI command in code examples
 - Used when showing actual commands
-- Examples: "`mill setup`", "`mill tool rename`"
+- Examples: "`mill setup`", "`mill tool rename_all`"
 
 **Never**: Mill, typemill, type-mill, Mill/mill mixed randomly
 
@@ -125,18 +125,18 @@ Use emojis that add meaning, not decoration.
 ### Tools vs Commands vs Handlers
 
 **Tool**: Public MCP tool that users/AI call
-- "The `rename` tool supports files and directories"
-- "`find_definition` is a navigation tool"
+- "The `rename_all` tool supports files and directories"
+- "`inspect_code` is a navigation tool"
 
 **Command**: CLI subcommand
 - "The `mill setup` command detects languages"
 - "Run the `mill start` command"
 
 **Handler**: Internal implementation (rare in user docs)
-- "The `RenameHandler` processes rename requests"
+- "The `RenameAllHandler` processes rename requests"
 - Use only in architecture/development docs
 
-### Tool Counts
+**Tool Counts
 
 **In user-facing docs**: Use "public MCP tools" and link to the catalog
 - README.md (project overview)
@@ -148,6 +148,8 @@ Use emojis that add meaning, not decoration.
 - Link to the catalog instead of repeating counts
 
 **Rationale**: Tool counts change. Keeping them in 2 places prevents drift.
+
+**Note**: TypeMill uses a simplified API with 7 primary tools: `inspect_code`, `search_code`, `rename_all`, `relocate`, `prune`, `refactor`, and `workspace`.
 
 ### Configuration Terms
 
@@ -213,7 +215,7 @@ Always include expected output or result when helpful.
 - `[GitHub](https://github.com/goobits/typemill)`
 
 **Cross-references**: Link to related docs when helpful
-- "See [refactoring tools](tools/refactoring.md) for examples"
+- "See [refactor tool](tools/refactor.md) for examples"
 
 ---
 
@@ -245,13 +247,13 @@ Always include expected output or result when helpful.
 ```markdown
 Rename a file from old.rs to new.rs:
 ` ` `bash
-mill tool rename --target file:src/old.rs --new-name src/new.rs
+mill tool rename_all --target file:src/old.rs --new-name src/new.rs
 ` ` `
 ```
 
 ❌ **Insufficient:**
 ```markdown
-Use the rename tool to rename files.
+Use the rename_all tool to rename files.
 ```
 
 **Include both request and response** for tool examples:
@@ -259,7 +261,7 @@ Use the rename tool to rename files.
 **Request:**
 ` ` `json
 {
-  "name": "rename",
+  "name": "rename_all",
   "arguments": { ... }
 }
 ` ` `
@@ -313,7 +315,7 @@ docs/
 │   └── troubleshooting.md
 ├── tools/                    (tool reference docs)
 │   ├── README.md            (catalog)
-│   ├── refactoring.md
+│   ├── refactor.md
 │   └── navigation.md
 ├── architecture/             (system design)
 │   ├── overview.md
@@ -398,7 +400,7 @@ CI will eventually enforce:
 
 Mill provides a lot of great tools that you can use. There are 36 tools in total. You should probably start by running the setup command which will help you get things configured.
 
-The rename tool can be used to rename files.
+The rename_all tool can be used to rename files.
 ```
 
 **After** (follows guidelines):
@@ -409,9 +411,9 @@ TypeMill provides comprehensive tools for code intelligence. See [tools/README.m
 
 **Start here:**
 1. Run `mill setup` to detect languages and configure LSP servers
-2. Use `mill tool rename --target file:old.rs --new-name new.rs` to rename files
+2. Use `mill tool rename_all --target file:old.rs --new-name new.rs` to rename files
 
-The rename tool supports files, directories, and code symbols.
+The rename_all tool supports files, directories, and code symbols.
 ```
 
 **Changes:**

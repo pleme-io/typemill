@@ -1,4 +1,4 @@
-//! Find and replace tool handler for workspace-wide search and replace operations
+//! Find and replace service for workspace-wide search and replace operations
 //!
 //! This module provides a comprehensive find-replace tool that supports:
 //! - Literal string matching with optional whole-word boundaries
@@ -7,10 +7,7 @@
 //! - Configurable file scope (include/exclude patterns)
 //! - Dry-run mode for safe previewing
 
-use crate::handlers::tools::ToolHandler;
 use crate::handlers::workspace::{case_preserving, literal_matcher, regex_matcher};
-use async_trait::async_trait;
-use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::protocol::{EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit};
 use regex;
@@ -19,21 +16,6 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info};
-
-/// Main handler for find/replace operations
-pub struct FindReplaceHandler;
-
-impl FindReplaceHandler {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for FindReplaceHandler {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// Parameters for find/replace operations
 #[derive(Debug, Deserialize)]
@@ -50,7 +32,7 @@ pub struct FindReplaceParams {
     pub mode: SearchMode,
 
     /// For literal mode: match whole words only
-    #[serde(default)]
+    #[serde(default, alias = "wholeWord")]
     pub whole_word: bool,
 
     /// Preserve case style when replacing
@@ -124,23 +106,11 @@ pub struct ApplyResult {
     pub matches_replaced: usize,
 }
 
-#[async_trait]
-impl ToolHandler for FindReplaceHandler {
-    fn tool_names(&self) -> &[&str] {
-        &["workspace.find_replace"]
-    }
-
-    fn is_internal(&self) -> bool {
-        // Legacy - use workspace action:find_replace instead
-        true
-    }
-
-    async fn handle_tool_call(
-        &self,
-        context: &mill_handler_api::ToolHandlerContext,
-        tool_call: &ToolCall,
-    ) -> ServerResult<Value> {
-        let args = tool_call.arguments.clone().unwrap_or_default();
+/// Execute a workspace find/replace operation.
+pub async fn handle_find_replace(
+    context: &mill_handler_api::ToolHandlerContext,
+    args: Value,
+) -> ServerResult<Value> {
         let params: FindReplaceParams = serde_json::from_value(args).map_err(|e| {
             ServerError::invalid_request(format!("Failed to parse find_replace params: {}", e))
         })?;
@@ -206,28 +176,27 @@ impl ToolHandler for FindReplaceHandler {
         let plan = create_edit_plan(all_edits, &params);
 
         // 4. Return plan (for dry-run) or apply (for execution)
-        if params.dry_run {
-            info!("Dry-run mode: returning plan without applying changes");
-            Ok(serde_json::to_value(plan)?)
-        } else {
-            info!("Executing find/replace (applying changes)");
-            let files_modified = apply_plan(&plan, context).await?;
+    if params.dry_run {
+        info!("Dry-run mode: returning plan without applying changes");
+        Ok(serde_json::to_value(plan)?)
+    } else {
+        info!("Executing find/replace (applying changes)");
+        let files_modified = apply_plan(&plan, context).await?;
 
-            let result = ApplyResult {
-                success: true,
-                files_modified: files_modified.clone(),
-                matches_found: total_matches,
-                matches_replaced: total_matches,
-            };
+        let result = ApplyResult {
+            success: true,
+            files_modified: files_modified.clone(),
+            matches_found: total_matches,
+            matches_replaced: total_matches,
+        };
 
-            info!(
-                files_modified = files_modified.len(),
-                matches_replaced = total_matches,
-                "Find/replace operation completed"
-            );
+        info!(
+            files_modified = files_modified.len(),
+            matches_replaced = total_matches,
+            "Find/replace operation completed"
+        );
 
-            Ok(serde_json::to_value(result)?)
-        }
+        Ok(serde_json::to_value(result)?)
     }
 }
 
@@ -291,14 +260,19 @@ async fn discover_files(
             continue;
         }
 
+        // Get relative path for glob matching (globs work on relative paths)
+        let relative_path = path
+            .strip_prefix(workspace_root)
+            .unwrap_or(path);
+
         // Check exclude patterns
-        if exclude_matcher.is_match(path) {
+        if exclude_matcher.is_match(relative_path) {
             continue;
         }
 
         // Check include patterns (if specified)
         if let Some(ref matcher) = include_matcher {
-            if !matcher.is_match(path) {
+            if !matcher.is_match(relative_path) {
                 continue;
             }
         }

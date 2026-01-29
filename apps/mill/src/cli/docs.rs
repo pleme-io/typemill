@@ -39,7 +39,7 @@ fn list_docs() {
     println!("  mill docs <topic> --raw     # Show raw markdown");
     println!("\nExamples:");
     println!("  mill docs getting-started");
-    println!("  mill docs tools/refactoring");
+    println!("  mill docs tools/refactor");
     println!("  mill docs --search 'LSP setup'");
 }
 

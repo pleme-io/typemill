@@ -107,7 +107,7 @@ Always use structured key-value logging:
 ```rust
 // ✅ Good - structured logging
 debug!(tool_name = %tool_call.name, file_path = %path, "Processing tool call");
-error!(error = %e, tool = "get_diagnostics", "Tool execution failed");
+error!(error = %e, tool = "inspect_code", "Tool execution failed");
 
 // ❌ Bad - string interpolation
 debug!("Processing tool call {} for file {}", tool_call.name, path);
@@ -331,9 +331,9 @@ To add new tools and handlers to the system:
   - Best practices for naming, logging, error handling, testing
 
 **Handler organization:**
-- Navigation tools → `crates/mill-handlers/src/handlers/tools/navigation.rs`
-- Refactoring tools → `crates/mill-handlers/src/handlers/<operation>_handler.rs`
-- System tools → `crates/mill-handlers/src/handlers/tools/system.rs`
+- Code intelligence tools → `crates/mill-handlers/src/handlers/code_handler.rs`
+- Refactoring tools → `crates/mill-handlers/src/handlers/refactor_handler.rs`
+- Workspace tools → `crates/mill-handlers/src/handlers/workspace_handler.rs`
 
 ### Testing Guide
 
@@ -398,7 +398,7 @@ View all documentation offline:
 ```bash
 mill docs                          # List all topics
 mill docs development/overview     # View contributor guide
-mill docs tools/refactoring        # View refactoring tools
+mill docs tools/refactor           # View refactor tool
 mill docs --search "plugin"        # Search all documentation
 ```
 ### Getting Help

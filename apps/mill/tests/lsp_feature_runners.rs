@@ -98,8 +98,8 @@ pub async fn run_go_to_definition_test(case: &GoToDefinitionTestCase, use_real_l
     }
 }
 
-/// Run a "find references" test with the given test case
-pub async fn run_find_references_test(case: &FindReferencesTestCase, use_real_lsp: bool) {
+/// Run a "references" test with the given test case
+pub async fn run_references_test(case: &FindReferencesTestCase, use_real_lsp: bool) {
     let mut builder = LspTestBuilder::new(case.language_id);
     if use_real_lsp {
         builder = builder.with_real_lsp();

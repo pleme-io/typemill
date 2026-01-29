@@ -41,7 +41,7 @@ export function generateNavigation(): NavItem[] {
 				},
 				{
 					label: 'Refactoring',
-					href: '/tools/refactoring'
+					href: '/tools/refactor'
 				},
 				{
 					label: 'Analysis',

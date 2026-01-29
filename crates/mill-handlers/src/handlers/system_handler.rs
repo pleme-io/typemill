@@ -1,7 +1,6 @@
 //! System operations tool handler
 //!
-//! Handles: health_check, notify_file_opened, notify_file_saved,
-//!          notify_file_closed
+//! Handles: health_check, notify_file_opened, notify_file_saved, notify_file_closed
 //!
 //! Note: Import optimization available via optimize_imports
 
@@ -18,15 +17,11 @@ use tracing::{debug, info, warn};
 // SystemHandler - Public Interface
 // ============================================================================
 
-pub struct SystemHandler {
-    dependency_handler: super::dependency_handler::DependencyHandler,
-}
+pub struct SystemHandler;
 
 impl SystemHandler {
     pub fn new() -> Self {
-        Self {
-            dependency_handler: super::dependency_handler::DependencyHandler::new(),
-        }
+        Self
     }
 }
 
@@ -44,7 +39,6 @@ impl ToolHandler for SystemHandler {
             "notify_file_opened",
             "notify_file_saved",
             "notify_file_closed",
-            "update_dependencies",
         ]
     }
 
@@ -67,13 +61,6 @@ impl ToolHandler for SystemHandler {
             }
             "notify_file_closed" => {
                 self.handle_notify_file_closed(tool_call.clone(), context)
-                    .await
-            }
-
-            // Delegate to DependencyHandler
-            "update_dependencies" => {
-                self.dependency_handler
-                    .handle_tool_call(context, tool_call)
                     .await
             }
 

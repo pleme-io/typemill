@@ -165,7 +165,7 @@ cargo nextest run -p mill-lang-python
 cargo nextest run -p mill-handlers
 
 # Run tests matching a pattern
-cargo nextest run -E 'test(rename)'
+cargo nextest run -E 'test(rename_all)'
 
 # Run with output
 cargo nextest run --no-capture
@@ -222,7 +222,7 @@ tracing::info!("Processing file: {}", path);
 ### Running with Logs
 ```bash
 RUST_LOG=debug cargo run -- start
-RUST_LOG=mill_handlers=trace cargo run -- tool find_definition '{...}'
+RUST_LOG=mill_handlers=trace cargo run -- tool inspect_code '{...}'
 ```
 ### Test Debugging
 ```bash

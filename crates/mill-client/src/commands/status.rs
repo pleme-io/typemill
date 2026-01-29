@@ -282,12 +282,15 @@ impl StatusCommand {
     ) -> ClientResult<()> {
         ctx.display_info("🔧 Testing Tool Availability");
 
+        // Magnificent Seven - the complete public API
         let common_tools = vec![
-            "find_definition",
-            "find_references",
-            "get_document_symbols",
-            "format_document",
-            "get_diagnostics",
+            "inspect_code",
+            "search_code",
+            "rename_all",
+            "relocate",
+            "prune",
+            "refactor",
+            "workspace",
         ];
 
         let mut successful_tools = 0;

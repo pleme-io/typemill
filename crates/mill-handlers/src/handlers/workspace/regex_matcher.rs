@@ -1,4 +1,4 @@
-//! Regex matching engine for workspace.find_replace tool
+//! Regex matching engine for workspace find_replace action
 //!
 //! Provides regex pattern matching with capture group extraction and template expansion.
 

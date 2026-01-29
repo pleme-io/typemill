@@ -633,7 +633,7 @@ pub(crate) fn analyze_extract_constant(
 /// Edit plan with constant declaration and all literal replacements
 ///
 /// # Called By
-/// This function is invoked by the extract_handler via dynamic dispatch when a user
+/// This function is invoked by the refactor extract planner via dynamic dispatch when a user
 /// requests constant extraction through the MCP interface.
 #[allow(dead_code)]
 pub(crate) fn plan_extract_constant(

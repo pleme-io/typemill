@@ -9,14 +9,14 @@
 
 //! Refactor operation handler - unified handler for extract, inline, and transform operations
 //!
-//! This handler implements the `refactor` tool which dispatches to existing
-//! ExtractHandler and InlineHandler based on the action type. The transform
+//! This handler implements the `refactor` tool which dispatches to internal
+//! extract/inline planners based on the action type. The transform
 //! action is reserved for future use.
 //!
 //! ## Supported Actions
 //!
-//! - **extract**: Extract functions, variables, constants, or modules (delegates to ExtractHandler)
-//! - **inline**: Inline variables, functions, or constants (delegates to InlineHandler)
+//! - **extract**: Extract functions, variables, constants, or modules
+//! - **inline**: Inline variables, functions, or constants
 //! - **transform**: Code transformations (placeholder for future implementation)
 //!
 //! ## Response Format
@@ -25,8 +25,8 @@
 //! - `dryRun: true` (default) - Returns preview with status="preview"
 //! - `dryRun: false` - Executes changes and returns status="success" or "error"
 
-use crate::handlers::extract_handler::ExtractHandler;
-use crate::handlers::inline_handler::InlineHandler;
+use crate::handlers::refactor_extract::RefactorExtractPlanner;
+use crate::handlers::refactor_inline::RefactorInlinePlanner;
 use crate::handlers::tool_definitions::{
     Diagnostic, DiagnosticSeverity, WriteResponse, WriteStatus,
 };
@@ -39,15 +39,15 @@ use serde_json::{json, Value};
 use tracing::{debug, info};
 
 pub struct RefactorHandler {
-    extract_handler: ExtractHandler,
-    inline_handler: InlineHandler,
+    extract_planner: RefactorExtractPlanner,
+    inline_planner: RefactorInlinePlanner,
 }
 
 impl RefactorHandler {
     pub fn new() -> Self {
         Self {
-            extract_handler: ExtractHandler::new(),
-            inline_handler: InlineHandler::new(),
+            extract_planner: RefactorExtractPlanner::new(),
+            inline_planner: RefactorInlinePlanner::new(),
         }
     }
 
@@ -82,7 +82,7 @@ impl RefactorHandler {
         }
     }
 
-    /// Handle extract action by delegating to ExtractHandler
+    /// Handle extract action using extract planner
     async fn handle_extract(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -97,51 +97,62 @@ impl RefactorHandler {
             ServerError::invalid_request("Extract action requires 'name' parameter")
         })?;
 
-        // Convert RefactorParams to ExtractHandler's expected format
-        let extract_args = json!({
-            "kind": params.params.kind,
-            "source": {
-                "filePath": params.params.file_path,
-                "range": {
-                    "start": {
-                        "line": range.start_line,
-                        "character": range.start_character
+        let extract_params = crate::handlers::refactor_extract::ExtractPlanParams {
+            kind: params.params.kind.clone(),
+            source: crate::handlers::refactor_extract::SourceRange {
+                file_path: params.params.file_path.clone(),
+                range: lsp_types::Range {
+                    start: lsp_types::Position {
+                        line: range.start_line,
+                        character: range.start_character,
                     },
-                    "end": {
-                        "line": range.end_line,
-                        "character": range.end_character
-                    }
+                    end: lsp_types::Position {
+                        line: range.end_line,
+                        character: range.end_character,
+                    },
                 },
-                "name": name,
-                "destination": params.params.destination
+                name: name.clone(),
+                destination: params.params.destination.clone(),
             },
-            "options": {
-                "dryRun": params.options.dry_run
-            }
-        });
-
-        let extract_call = ToolCall {
-            name: "extract".to_string(),
-            arguments: Some(extract_args),
+            options: crate::handlers::refactor_extract::ExtractOptions {
+                dry_run: params.options.dry_run,
+                visibility: None,
+                destination_path: None,
+            },
         };
 
         info!(
             operation = "extract",
             kind = %params.params.kind,
             dry_run = params.options.dry_run,
-            "Delegating to ExtractHandler"
+            "Building extract plan"
         );
 
-        // Call ExtractHandler and convert response to WriteResponse
-        let result = self
-            .extract_handler
-            .handle_tool_call(context, &extract_call)
+        let plan = self
+            .extract_planner
+            .build_extract_plan(context, &extract_params)
             .await?;
 
-        self.convert_to_write_response(result, params.options.dry_run, "extract")
+        let refactor_plan = mill_foundation::protocol::RefactorPlan::ExtractPlan(plan);
+
+        if params.options.dry_run {
+            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
+                ServerError::internal(format!("Failed to serialize plan: {}", e))
+            })?;
+            let response = self.parse_plan_response(&plan_json, "extract")?;
+            Ok(json!({ "content": response }))
+        } else {
+            let result =
+                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
+            let result_json = serde_json::to_value(&result).map_err(|e| {
+                ServerError::internal(format!("Failed to serialize execution result: {}", e))
+            })?;
+            let response = self.parse_execution_response(&result_json, "extract")?;
+            Ok(json!({ "content": response }))
+        }
     }
 
-    /// Handle inline action by delegating to InlineHandler
+    /// Handle inline action using inline planner
     async fn handle_inline(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -156,40 +167,47 @@ impl RefactorHandler {
             ServerError::invalid_request("Inline action requires 'character' parameter")
         })?;
 
-        // Convert RefactorParams to InlineHandler's expected format
-        let inline_args = json!({
-            "kind": params.params.kind,
-            "target": {
-                "filePath": params.params.file_path,
-                "position": {
-                    "line": line,
-                    "character": character
-                }
+        let inline_params = crate::handlers::refactor_inline::InlinePlanParams {
+            kind: params.params.kind.clone(),
+            target: crate::handlers::refactor_inline::InlineTarget {
+                file_path: params.params.file_path.clone(),
+                position: lsp_types::Position { line, character },
             },
-            "options": {
-                "dryRun": params.options.dry_run
-            }
-        });
-
-        let inline_call = ToolCall {
-            name: "inline".to_string(),
-            arguments: Some(inline_args),
+            options: crate::handlers::refactor_inline::InlineOptions {
+                dry_run: params.options.dry_run,
+                inline_all: params.options.inline_all,
+            },
         };
 
         info!(
             operation = "inline",
             kind = %params.params.kind,
             dry_run = params.options.dry_run,
-            "Delegating to InlineHandler"
+            "Building inline plan"
         );
 
-        // Call InlineHandler and convert response to WriteResponse
-        let result = self
-            .inline_handler
-            .handle_tool_call(context, &inline_call)
+        let plan = self
+            .inline_planner
+            .build_inline_plan(context, &inline_params)
             .await?;
 
-        self.convert_to_write_response(result, params.options.dry_run, "inline")
+        let refactor_plan = mill_foundation::protocol::RefactorPlan::InlinePlan(plan);
+
+        if params.options.dry_run {
+            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
+                ServerError::internal(format!("Failed to serialize plan: {}", e))
+            })?;
+            let response = self.parse_plan_response(&plan_json, "inline")?;
+            Ok(json!({ "content": response }))
+        } else {
+            let result =
+                crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
+            let result_json = serde_json::to_value(&result).map_err(|e| {
+                ServerError::internal(format!("Failed to serialize execution result: {}", e))
+            })?;
+            let response = self.parse_execution_response(&result_json, "inline")?;
+            Ok(json!({ "content": response }))
+        }
     }
 
     /// Handle transform action (placeholder for future implementation)
@@ -214,30 +232,6 @@ impl RefactorHandler {
                 line: None,
             }],
         );
-
-        Ok(json!({ "content": response }))
-    }
-
-    /// Convert handler response to WriteResponse envelope
-    fn convert_to_write_response(
-        &self,
-        result: Value,
-        dry_run: bool,
-        operation: &str,
-    ) -> ServerResult<Value> {
-        // Extract the content field if it exists
-        let content = result
-            .get("content")
-            .ok_or_else(|| ServerError::internal("Handler response missing 'content' field"))?;
-
-        // Check if it's already a RefactorPlan or ExecutionResult
-        let response = if dry_run {
-            // Parse the RefactorPlan to extract metadata
-            self.parse_plan_response(content, operation)?
-        } else {
-            // Parse the ExecutionResult
-            self.parse_execution_response(content, operation)?
-        };
 
         Ok(json!({ "content": response }))
     }
@@ -414,10 +408,6 @@ impl ToolHandler for RefactorHandler {
         &["refactor"]
     }
 
-    fn is_internal(&self) -> bool {
-        false // Public tool
-    }
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
@@ -459,10 +449,10 @@ struct RefactorActionParams {
     /// Code range (for extract)
     #[serde(default)]
     range: Option<RefactorRange>,
-    /// Line number (for inline)
+    /// Line number (0-based, for inline)
     #[serde(default)]
     line: Option<u32>,
-    /// Character offset (for inline)
+    /// Character offset (0-based, for inline)
     #[serde(default)]
     character: Option<u32>,
     /// Name for extracted element (for extract)
@@ -476,11 +466,11 @@ struct RefactorActionParams {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct RefactorRange {
-    /// 1-based start line
+    /// 0-based start line
     start_line: u32,
     /// 0-based start character
     start_character: u32,
-    /// 1-based end line
+    /// 0-based end line
     end_line: u32,
     /// 0-based end character
     end_character: u32,
@@ -492,11 +482,17 @@ struct RefactorOptions {
     /// Preview mode - don't actually apply changes (default: true for safety)
     #[serde(default = "crate::default_true")]
     dry_run: bool,
+    /// Inline all usages vs current only (inline action only)
+    #[serde(default)]
+    inline_all: Option<bool>,
 }
 
 impl Default for RefactorOptions {
     fn default() -> Self {
-        Self { dry_run: true }
+        Self {
+            dry_run: true,
+            inline_all: None,
+        }
     }
 }
 
