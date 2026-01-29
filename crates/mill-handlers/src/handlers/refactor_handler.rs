@@ -136,9 +136,8 @@ impl RefactorHandler {
         let refactor_plan = mill_foundation::protocol::RefactorPlan::ExtractPlan(plan);
 
         if params.options.dry_run {
-            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize plan: {}", e))
-            })?;
+            let plan_json = serde_json::to_value(&refactor_plan)
+                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
             let response = self.parse_plan_response(&plan_json, "extract")?;
             Ok(json!({ "content": response }))
         } else {
@@ -194,9 +193,8 @@ impl RefactorHandler {
         let refactor_plan = mill_foundation::protocol::RefactorPlan::InlinePlan(plan);
 
         if params.options.dry_run {
-            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize plan: {}", e))
-            })?;
+            let plan_json = serde_json::to_value(&refactor_plan)
+                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
             let response = self.parse_plan_response(&plan_json, "inline")?;
             Ok(json!({ "content": response }))
         } else {

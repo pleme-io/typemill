@@ -559,28 +559,28 @@ impl TestClient {
         let max_duration = Duration::from_millis(max_wait_ms);
 
         loop {
-        // Poll for diagnostics - when they appear, LSP has indexed the file
-        if let Ok(response) = self
-            .call_tool(
-                "inspect_code",
-                serde_json::json!({
-                    "filePath": file_path.to_string_lossy(),
-                    "line": 0,
-                    "character": 0,
-                    "include": ["diagnostics"]
-                }),
-            )
-            .await
-        {
-            if response
-                .get("result")
-                .and_then(|r| r.get("content"))
-                .and_then(|c| c.get("diagnostics"))
-                .is_some()
+            // Poll for diagnostics - when they appear, LSP has indexed the file
+            if let Ok(response) = self
+                .call_tool(
+                    "inspect_code",
+                    serde_json::json!({
+                        "filePath": file_path.to_string_lossy(),
+                        "line": 0,
+                        "character": 0,
+                        "include": ["diagnostics"]
+                    }),
+                )
+                .await
             {
-                return Ok(()); // LSP is ready!
+                if response
+                    .get("result")
+                    .and_then(|r| r.get("content"))
+                    .and_then(|c| c.get("diagnostics"))
+                    .is_some()
+                {
+                    return Ok(()); // LSP is ready!
+                }
             }
-        }
 
             if start.elapsed() > max_duration {
                 return Err(format!(

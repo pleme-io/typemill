@@ -51,7 +51,6 @@ impl ToolHandler for EditingToolsHandler {
         &["edit_file", "insert_after_symbol"]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

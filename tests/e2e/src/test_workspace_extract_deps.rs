@@ -216,10 +216,7 @@ serde = "0.9"
     let changes = content.get("changes").expect("Changes should exist");
 
     // Verify warnings
-    let warnings = changes
-        .get("warnings")
-        .and_then(|v| v.as_array())
-        .unwrap();
+    let warnings = changes.get("warnings").and_then(|v| v.as_array()).unwrap();
     assert!(warnings
         .iter()
         .any(|w| w.as_str().unwrap().contains("serde")
@@ -399,10 +396,7 @@ tokio = "1.0"
         Some(0)
     );
 
-    let warnings = changes
-        .get("warnings")
-        .and_then(|v| v.as_array())
-        .unwrap();
+    let warnings = changes.get("warnings").and_then(|v| v.as_array()).unwrap();
     assert!(warnings
         .iter()
         .any(|w| w.as_str().unwrap().contains("nonexistent")
@@ -451,10 +445,7 @@ tokio = "1.0"
     );
     let changes = content.get("changes").expect("Changes should exist");
 
-    assert_eq!(
-        changes.get("dryRun").and_then(|v| v.as_bool()),
-        Some(true)
-    );
+    assert_eq!(changes.get("dryRun").and_then(|v| v.as_bool()), Some(true));
     assert_eq!(
         changes
             .get("targetManifestUpdated")

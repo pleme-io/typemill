@@ -1,4 +1,4 @@
-use super::{RenameService, RenameOptions, RenameTarget};
+use super::{RenameOptions, RenameService, RenameTarget};
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::{PlanMetadata, PlanSummary, RenamePlan};

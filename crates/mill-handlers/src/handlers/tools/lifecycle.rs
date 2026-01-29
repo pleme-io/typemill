@@ -31,7 +31,6 @@ impl ToolHandler for LifecycleHandler {
         ]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

@@ -172,7 +172,9 @@ async fn test_consolidation_flag_explicit() {
         "Dry run should return preview status"
     );
 
-    let plan = response.get("changes").expect("Plan should exist in changes field");
+    let plan = response
+        .get("changes")
+        .expect("Plan should exist in changes field");
 
     // Validate consolidation metadata
     validate_consolidation_metadata(plan, true).unwrap();
@@ -217,7 +219,9 @@ async fn test_consolidation_auto_detection() {
         "Dry run should return preview status"
     );
 
-    let plan = response.get("changes").expect("Plan should exist in changes field");
+    let plan = response
+        .get("changes")
+        .expect("Plan should exist in changes field");
 
     // Verify is_consolidation was auto-detected
     validate_consolidation_metadata(plan, true).unwrap();
@@ -261,7 +265,9 @@ async fn test_consolidation_override_auto_detection() {
         "Dry run should return preview status"
     );
 
-    let plan = response.get("changes").expect("Plan should exist in changes field");
+    let plan = response
+        .get("changes")
+        .expect("Plan should exist in changes field");
 
     // Verify is_consolidation is false (override worked)
     validate_consolidation_metadata(plan, false).unwrap();
@@ -409,7 +415,9 @@ fn main() {
         "Dry run should return preview status"
     );
 
-    let plan = response.get("changes").expect("Plan should exist in changes field");
+    let plan = response
+        .get("changes")
+        .expect("Plan should exist in changes field");
 
     // Debug: print the plan metadata
     if let Some(metadata) = plan.get("metadata") {

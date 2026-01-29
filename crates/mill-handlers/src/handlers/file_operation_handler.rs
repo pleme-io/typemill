@@ -42,7 +42,6 @@ impl ToolHandler for FileOperationHandler {
         ]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

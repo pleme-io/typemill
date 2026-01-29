@@ -149,7 +149,6 @@ impl ToolHandler for InternalWorkspaceHandler {
         &["apply_workspace_edit"]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

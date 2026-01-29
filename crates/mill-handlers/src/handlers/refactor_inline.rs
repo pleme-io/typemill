@@ -53,15 +53,18 @@ impl RefactorInlinePlanner {
         }
 
         match params.kind.as_str() {
-            "variable" => self
-                .plan_inline_variable(context, &params.target, &params.options)
-                .await,
-            "function" => self
-                .plan_inline_function(context, &params.target, &params.options)
-                .await,
-            "constant" => self
-                .plan_inline_constant(context, &params.target, &params.options)
-                .await,
+            "variable" => {
+                self.plan_inline_variable(context, &params.target, &params.options)
+                    .await
+            }
+            "function" => {
+                self.plan_inline_function(context, &params.target, &params.options)
+                    .await
+            }
+            "constant" => {
+                self.plan_inline_constant(context, &params.target, &params.options)
+                    .await
+            }
             _ => unreachable!("Already validated kind"),
         }
     }

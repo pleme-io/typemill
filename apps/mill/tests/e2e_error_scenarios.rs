@@ -204,7 +204,10 @@ export class Class{} implements Interface{} {{
                 .and_then(|s| s.as_array());
             // Just verify the response structure is correct (has results field)
             // Empty results are acceptable in test environments
-            assert!(symbols.is_some() || resp.get("result").is_some(), "Response should have result");
+            assert!(
+                symbols.is_some() || resp.get("result").is_some(),
+                "Response should have result"
+            );
         }
         Err(_) => {
             // Timeout or failure is acceptable for very large files

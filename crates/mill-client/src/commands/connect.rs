@@ -420,7 +420,9 @@ impl ConnectCommand {
         println!();
         ctx.display_info("Examples:");
         println!("  ping");
-        println!("  inspect_code {{\"filePath\": \"src/main.rs\", \"line\": 10, \"character\": 5}}");
+        println!(
+            "  inspect_code {{\"filePath\": \"src/main.rs\", \"line\": 10, \"character\": 5}}"
+        );
         println!("  search_code {{\"query\": \"MyFunction\", \"limit\": 10}}");
         println!();
 

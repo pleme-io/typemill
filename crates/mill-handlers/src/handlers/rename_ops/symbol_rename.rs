@@ -1,4 +1,4 @@
-use super::{RenameService, RenameOptions, RenameTarget};
+use super::{RenameOptions, RenameService, RenameTarget};
 use crate::handlers::tools::cross_file_references;
 use lsp_types::WorkspaceEdit;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};

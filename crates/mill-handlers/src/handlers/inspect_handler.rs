@@ -254,7 +254,6 @@ impl ToolHandler for InspectHandler {
         &["inspect_code"]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

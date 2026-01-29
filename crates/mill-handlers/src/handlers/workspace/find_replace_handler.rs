@@ -111,71 +111,70 @@ pub async fn handle_find_replace(
     context: &mill_handler_api::ToolHandlerContext,
     args: Value,
 ) -> ServerResult<Value> {
-        let params: FindReplaceParams = serde_json::from_value(args).map_err(|e| {
-            ServerError::invalid_request(format!("Failed to parse find_replace params: {}", e))
-        })?;
+    let params: FindReplaceParams = serde_json::from_value(args).map_err(|e| {
+        ServerError::invalid_request(format!("Failed to parse find_replace params: {}", e))
+    })?;
 
-        // Validate parameters
-        if params.pattern.is_empty() {
-            return Err(ServerError::invalid_request(
-                "Pattern cannot be empty".to_string(),
-            ));
-        }
+    // Validate parameters
+    if params.pattern.is_empty() {
+        return Err(ServerError::invalid_request(
+            "Pattern cannot be empty".to_string(),
+        ));
+    }
 
-        // Validate regex pattern early (before processing any files)
-        if params.mode == SearchMode::Regex {
-            regex::Regex::new(&params.pattern).map_err(|e| {
-                ServerError::invalid_request(format!("Invalid regex pattern: {}", e))
-            })?;
-        }
+    // Validate regex pattern early (before processing any files)
+    if params.mode == SearchMode::Regex {
+        regex::Regex::new(&params.pattern)
+            .map_err(|e| ServerError::invalid_request(format!("Invalid regex pattern: {}", e)))?;
+    }
 
-        info!(
-            pattern = %params.pattern,
-            mode = ?params.mode,
-            dry_run = params.dry_run,
-            "Starting find/replace operation"
-        );
+    info!(
+        pattern = %params.pattern,
+        mode = ?params.mode,
+        dry_run = params.dry_run,
+        "Starting find/replace operation"
+    );
 
-        // Get workspace root from app_state
-        let workspace_root = &context.app_state.project_root;
+    // Get workspace root from app_state
+    let workspace_root = &context.app_state.project_root;
 
-        // 1. Discover files matching scope
-        let files = discover_files(workspace_root, &params.scope).await?;
-        debug!(files_count = files.len(), "Discovered files to search");
+    // 1. Discover files matching scope
+    let files = discover_files(workspace_root, &params.scope).await?;
+    debug!(files_count = files.len(), "Discovered files to search");
 
-        // 2. Process each file
-        let mut all_edits: Vec<FileEdits> = Vec::new();
-        let mut total_matches = 0;
+    // 2. Process each file
+    let mut all_edits: Vec<FileEdits> = Vec::new();
+    let mut total_matches = 0;
 
-        for file_path in files {
-            match process_file(&file_path, &params, context).await {
-                Ok(file_edits) => {
-                    if !file_edits.edits.is_empty() {
-                        total_matches += file_edits.edits.len();
-                        all_edits.push(file_edits);
-                    }
-                }
-                Err(e) => {
-                    error!(
-                        file_path = %file_path.display(),
-                        error = %e,
-                        "Failed to process file"
-                    );
-                    // Continue processing other files
+    for file_path in files {
+        match process_file(&file_path, &params, context).await {
+            Ok(file_edits) => {
+                if !file_edits.edits.is_empty() {
+                    total_matches += file_edits.edits.len();
+                    all_edits.push(file_edits);
                 }
             }
+            Err(e) => {
+                error!(
+                    file_path = %file_path.display(),
+                    error = %e,
+                    "Failed to process file"
+                );
+                // Continue processing other files
+            }
         }
+    }
 
-        info!(
-            files_with_matches = all_edits.len(),
-            total_matches = total_matches,
-            "Find/replace scan complete"
-        );
+    info!(
+        files_with_matches = all_edits.len(),
+        total_matches = total_matches,
+        "Find/replace scan complete"
+    );
 
-        // 3. Convert to EditPlan
-        let plan = create_edit_plan(all_edits, &params);
+    // 3. Convert to EditPlan
+    let plan = create_edit_plan(all_edits, &params);
 
-        // 4. Return plan (for dry-run) or apply (for execution)
+    // 4. Return plan (for dry-run) or apply (for execution)
     if params.dry_run {
         info!("Dry-run mode: returning plan without applying changes");
         Ok(serde_json::to_value(plan)?)
@@ -261,9 +260,7 @@ async fn discover_files(
         }
 
         // Get relative path for glob matching (globs work on relative paths)
-        let relative_path = path
-            .strip_prefix(workspace_root)
-            .unwrap_or(path);
+        let relative_path = path.strip_prefix(workspace_root).unwrap_or(path);
 
         // Check exclude patterns
         if exclude_matcher.is_match(relative_path) {

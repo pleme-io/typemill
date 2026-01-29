@@ -4,12 +4,12 @@ pub mod common;
 pub mod file_operation_handler;
 pub mod lsp_adapter;
 pub mod macros;
+pub mod plugin_dispatcher;
 pub mod prune_ops;
 pub mod refactor_extract;
 pub mod refactor_inline;
 #[path = "relocate_ops/mod.rs"]
 pub mod relocate_ops;
-pub mod plugin_dispatcher;
 pub mod rename_ops;
 pub mod system_handler;
 pub mod tool_definitions;
@@ -34,8 +34,7 @@ pub use system_handler::SystemHandler;
 pub use tool_definitions::{get_all_tool_definitions, is_public_tool, PUBLIC_TOOLS};
 pub use tool_registry::ToolRegistry;
 pub use tools::{
-    AdvancedToolsHandler, FileToolsHandler, LifecycleHandler,
-    ToolHandler, ToolHandlerContext,
+    AdvancedToolsHandler, FileToolsHandler, LifecycleHandler, ToolHandler, ToolHandlerContext,
 };
 pub use workflow_handler::WorkflowHandler;
 

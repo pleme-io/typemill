@@ -384,7 +384,10 @@ mod tests {
         // Check extract step (unified API with dryRun: false)
         let step = &workflow.steps[0];
         assert_eq!(step.tool, "refactor");
-        assert_eq!(step.params.get("action").unwrap().as_str().unwrap(), "extract");
+        assert_eq!(
+            step.params.get("action").unwrap().as_str().unwrap(),
+            "extract"
+        );
         assert!(step.params.get("kind").is_some());
         assert!(step.params.get("source").is_some());
         assert_eq!(step.requires_confirmation, Some(true));

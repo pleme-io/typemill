@@ -14,7 +14,10 @@ async fn test_workspace_verify_project_basic() {
     let result = response["result"]
         .as_object()
         .expect("Should have result field");
-    assert!(result.get("status").is_some(), "Response should have status field");
+    assert!(
+        result.get("status").is_some(),
+        "Response should have status field"
+    );
     let status = result["status"].as_str().unwrap();
     assert!(
         status == "success" || status == "preview" || status == "error",
@@ -22,7 +25,10 @@ async fn test_workspace_verify_project_basic() {
         status
     );
     // Should also have summary and changes
-    assert!(result.get("summary").is_some(), "Response should have summary");
+    assert!(
+        result.get("summary").is_some(),
+        "Response should have summary"
+    );
 }
 /// Test workspace.verify_project with active LSP server
 #[tokio::test]
@@ -66,7 +72,10 @@ const test: Test = { id: 1 };
         status
     );
     // Should have summary and changes fields (from WriteResponse)
-    assert!(result.get("summary").is_some(), "Response should have summary");
+    assert!(
+        result.get("summary").is_some(),
+        "Response should have summary"
+    );
 }
 /// Test workspace.verify_project with detailed information
 #[tokio::test]
@@ -90,7 +99,10 @@ async fn test_workspace_verify_project_detailed() {
     if let Some(changes) = result.get("changes") {
         // Check for plugins info in changes
         if let Some(plugins) = changes.get("plugins") {
-            assert!(plugins.get("loaded").is_some(), "Should have loaded plugins count");
+            assert!(
+                plugins.get("loaded").is_some(),
+                "Should have loaded plugins count"
+            );
         }
         // Check for metrics in changes
         if let Some(metrics) = changes.get("metrics") {

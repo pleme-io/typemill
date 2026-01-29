@@ -66,7 +66,6 @@ impl ToolHandler for InternalIntelligenceHandler {
         &["get_completions", "get_signature_help"]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

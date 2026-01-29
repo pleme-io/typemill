@@ -82,7 +82,7 @@ pub async fn handle_create_package(
 
     // Parse parameters
     let params: CreatePackageParams = serde_json::from_value(args)
-    .map_err(|e| ServerError::invalid_request(format!("Invalid arguments: {}", e)))?;
+        .map_err(|e| ServerError::invalid_request(format!("Invalid arguments: {}", e)))?;
 
     debug!(
         package_path = %params.package_path,

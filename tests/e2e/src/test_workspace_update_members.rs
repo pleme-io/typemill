@@ -83,7 +83,9 @@ async fn test_add_members_basic() {
         Some(2)
     );
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(true)
     );
 
@@ -151,7 +153,9 @@ async fn test_remove_members_basic() {
         Some(1)
     );
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(true)
     );
 
@@ -213,7 +217,9 @@ async fn test_list_members() {
         Some(0)
     );
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(false)
     );
 
@@ -278,7 +284,9 @@ async fn test_add_duplicate_member() {
         Some(0)
     );
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(false)
     );
 
@@ -330,7 +338,9 @@ async fn test_dry_run_mode() {
         Some(true)
     );
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(false)
     );
 
@@ -397,7 +407,9 @@ edition = "2021"
     let action_result = content.get("result").expect("Result should exist");
 
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(true)
     );
     assert_eq!(
@@ -524,7 +536,9 @@ async fn test_remove_nonexistent_member() {
         Some(0)
     );
     assert_eq!(
-        action_result.get("workspaceUpdated").and_then(|v| v.as_bool()),
+        action_result
+            .get("workspaceUpdated")
+            .and_then(|v| v.as_bool()),
         Some(false)
     );
 }

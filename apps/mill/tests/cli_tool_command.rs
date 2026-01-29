@@ -44,7 +44,13 @@ fn test_tool_workspace_verify_project_success() {
 #[test]
 fn test_tool_workspace_verify_project_pretty_format() {
     let mut cmd = mill_cmd();
-    cmd.args(["tool", "workspace", r#"{"action":"verify_project"}"#, "--format", "pretty"]);
+    cmd.args([
+        "tool",
+        "workspace",
+        r#"{"action":"verify_project"}"#,
+        "--format",
+        "pretty",
+    ]);
 
     cmd.assert()
         .success()
@@ -55,7 +61,13 @@ fn test_tool_workspace_verify_project_pretty_format() {
 #[test]
 fn test_tool_workspace_verify_project_compact_format() {
     let mut cmd = mill_cmd();
-    cmd.args(["tool", "workspace", r#"{"action":"verify_project"}"#, "--format", "compact"]);
+    cmd.args([
+        "tool",
+        "workspace",
+        r#"{"action":"verify_project"}"#,
+        "--format",
+        "compact",
+    ]);
 
     let output = cmd.assert().success();
     let stdout = String::from_utf8_lossy(&output.get_output().stdout);
@@ -89,7 +101,13 @@ fn test_tool_unknown_tool_name() {
 #[test]
 fn test_tool_output_is_valid_json() {
     let mut cmd = mill_cmd();
-    cmd.args(["tool", "workspace", r#"{"action":"verify_project"}"#, "--format", "compact"]);
+    cmd.args([
+        "tool",
+        "workspace",
+        r#"{"action":"verify_project"}"#,
+        "--format",
+        "compact",
+    ]);
 
     let output = cmd.assert().success();
     let stdout = String::from_utf8_lossy(&output.get_output().stdout);

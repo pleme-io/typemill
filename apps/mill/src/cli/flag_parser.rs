@@ -233,7 +233,11 @@ mod tests {
             match result.unwrap_err() {
                 FlagParseError::JsonOnly { tool: t, example } => {
                     assert_eq!(t, tool);
-                    assert!(!example.is_empty(), "Example should not be empty for {}", tool);
+                    assert!(
+                        !example.is_empty(),
+                        "Example should not be empty for {}",
+                        tool
+                    );
                 }
                 _ => panic!("Expected JsonOnly error for {}", tool),
             }

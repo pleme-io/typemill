@@ -33,7 +33,6 @@ impl ToolHandler for FileToolsHandler {
         &["read_file", "write_file", "list_files"]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,

@@ -86,10 +86,7 @@ async fn test_large_file_performance() {
 
     match response {
         Ok(resp) => {
-            println!(
-                "LSP search_code on large file took: {:?}",
-                lsp_duration
-            );
+            println!("LSP search_code on large file took: {:?}", lsp_duration);
             let result = resp
                 .get("result")
                 .expect("Response should have result field");
@@ -931,9 +928,9 @@ export class UserService{} {{
     } else if let Some(result) = response.get("result") {
         if let Some(content) = result.get("content") {
             if let Some(references) = content.get("references") {
-                let refs = references.as_array().or_else(|| {
-                    references.get("locations").and_then(|v| v.as_array())
-                });
+                let refs = references
+                    .as_array()
+                    .or_else(|| references.get("locations").and_then(|v| v.as_array()));
                 if let Some(refs_array) = refs {
                     println!(
                         "Found {} references in: {:?}",

@@ -104,9 +104,10 @@ impl ToolHandler for RelocateHandler {
         );
 
         // Parse parameters
-        let args = tool_call.arguments.clone().ok_or_else(|| {
-            ServerError::invalid_request("Missing arguments for relocate")
-        })?;
+        let args = tool_call
+            .arguments
+            .clone()
+            .ok_or_else(|| ServerError::invalid_request("Missing arguments for relocate"))?;
 
         let params: RelocateParams = serde_json::from_value(args).map_err(|e| {
             ServerError::invalid_request(format!("Invalid relocate parameters: {}", e))
@@ -126,13 +127,21 @@ impl ToolHandler for RelocateHandler {
             "file" => {
                 let old_path = Path::new(&params.target.file_path);
                 let new_path = Path::new(&params.destination);
-                let move_plan = file_move::plan_file_move(old_path, new_path, context, &operation_id).await?;
+                let move_plan =
+                    file_move::plan_file_move(old_path, new_path, context, &operation_id).await?;
                 RefactorPlan::MovePlan(move_plan)
             }
             "directory" => {
                 let old_path = Path::new(&params.target.file_path);
                 let new_path = Path::new(&params.destination);
-                let move_plan = directory_move::plan_directory_move(old_path, new_path, None, context, &operation_id).await?;
+                let move_plan = directory_move::plan_directory_move(
+                    old_path,
+                    new_path,
+                    None,
+                    context,
+                    &operation_id,
+                )
+                .await?;
                 RefactorPlan::MovePlan(move_plan)
             }
             "symbol" => {
@@ -149,7 +158,8 @@ impl ToolHandler for RelocateHandler {
                     position,
                     context,
                     &operation_id,
-                ).await?;
+                )
+                .await?;
                 RefactorPlan::MovePlan(move_plan)
             }
             _ => {
@@ -164,7 +174,8 @@ impl ToolHandler for RelocateHandler {
         if params.options.dry_run {
             self.build_preview_response(&plan, &params, &operation_id)
         } else {
-            self.execute_and_build_response(context, plan, &params, &operation_id).await
+            self.execute_and_build_response(context, plan, &params, &operation_id)
+                .await
         }
     }
 }
@@ -182,7 +193,9 @@ impl RelocateHandler {
         let (affected_files, warnings) = match plan {
             RefactorPlan::MovePlan(move_plan) => {
                 let files = Self::extract_files_from_workspace_edit(&move_plan.edits);
-                let warnings: Vec<String> = move_plan.warnings.iter()
+                let warnings: Vec<String> = move_plan
+                    .warnings
+                    .iter()
                     .map(|w| w.message.clone())
                     .collect();
                 (files, warnings)
@@ -198,9 +211,8 @@ impl RelocateHandler {
             affected_files.len()
         );
 
-        let plan_json = serde_json::to_value(plan).map_err(|e| {
-            ServerError::internal(format!("Failed to serialize plan: {}", e))
-        })?;
+        let plan_json = serde_json::to_value(plan)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
 
         let mut response = WriteResponse::preview(summary, affected_files, plan_json);
         for warning in warnings {

@@ -269,7 +269,10 @@ export function formatResponse(data) {
         "Should find Config interface in TypeScript symbols"
     );
     let response = client
-        .call_tool("search_code", json!({ "query": "validateUserInput", "limit": 10 }))
+        .call_tool(
+            "search_code",
+            json!({ "query": "validateUserInput", "limit": 10 }),
+        )
         .await
         .expect("JavaScript LSP call should succeed");
     if let Some(error) = response.get("error") {

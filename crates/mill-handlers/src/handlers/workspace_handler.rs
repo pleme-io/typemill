@@ -221,8 +221,7 @@ impl WorkspaceHandler {
         }
 
         // Delegate to service
-        let result =
-            super::workspace::handle_find_replace(context, find_replace_args).await?;
+        let result = super::workspace::handle_find_replace(context, find_replace_args).await?;
 
         // Convert to WriteResponse format
         self.convert_find_replace_response(result, &options).await
@@ -541,7 +540,9 @@ impl WorkspaceHandler {
         let sub_action = params
             .get("action")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ServerError::invalid_request("Missing 'action' in params (add/remove/list)"))?;
+            .ok_or_else(|| {
+                ServerError::invalid_request("Missing 'action' in params (add/remove/list)")
+            })?;
 
         // Get workspace manifest path
         let manifest_path = params
@@ -568,10 +569,7 @@ impl WorkspaceHandler {
         })?;
 
         let mut doc = cargo_content.parse::<DocumentMut>().map_err(|e| {
-            ServerError::invalid_request(format!(
-                "Failed to parse workspace manifest: {}",
-                e
-            ))
+            ServerError::invalid_request(format!("Failed to parse workspace manifest: {}", e))
         })?;
 
         // Check if workspace section exists
@@ -586,7 +584,10 @@ impl WorkspaceHandler {
         // Create workspace section if needed and allowed
         if !has_workspace_section && create_if_missing {
             let mut workspace_table = toml_edit::Table::new();
-            workspace_table.insert("members", Item::Value(toml_edit::Value::Array(toml_edit::Array::new())));
+            workspace_table.insert(
+                "members",
+                Item::Value(toml_edit::Value::Array(toml_edit::Array::new())),
+            );
             doc.insert("workspace", Item::Table(workspace_table));
         }
 
@@ -609,10 +610,12 @@ impl WorkspaceHandler {
                     .and_then(|v| v.as_array())
                     .map(|arr| {
                         arr.iter()
-                            .filter_map(|v| v.as_str().map(|s| {
-                                // Normalize path separators (backslash to forward slash)
-                                s.replace('\\', "/")
-                            }))
+                            .filter_map(|v| {
+                                v.as_str().map(|s| {
+                                    // Normalize path separators (backslash to forward slash)
+                                    s.replace('\\', "/")
+                                })
+                            })
                             .collect()
                     })
                     .unwrap_or_default();
@@ -687,9 +690,7 @@ impl WorkspaceHandler {
 
                 (members_after, removed, removed > 0)
             }
-            "list" => {
-                (members_before.clone(), 0, false)
-            }
+            "list" => (members_before.clone(), 0, false),
             _ => {
                 return Err(ServerError::invalid_request(format!(
                     "Invalid update_members action: {}. Valid: add, remove, list",

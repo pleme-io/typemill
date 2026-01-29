@@ -27,7 +27,6 @@ impl ToolHandler for AdvancedToolsHandler {
         &["execute_edits", "execute_batch"]
     }
 
-
     async fn handle_tool_call(
         &self,
         context: &mill_handler_api::ToolHandlerContext,
