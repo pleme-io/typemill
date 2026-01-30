@@ -762,7 +762,8 @@ async fn handle_doctor() {
                         .iter()
                         .map(|s| s.as_str())
                         .collect::<Vec<_>>(),
-                );
+                )
+                .await;
 
                 if works {
                     // Show version info

@@ -24,9 +24,11 @@ impl FileService {
         let abs_path = self.to_absolute_path_checked(path)?;
         let content = content.unwrap_or("").to_string();
 
+        let exists = fs::try_exists(&abs_path).await.unwrap_or(false);
+
         if dry_run {
             // Preview mode - just return what would happen
-            if abs_path.exists() && !overwrite {
+            if exists && !overwrite {
                 return Err(ServerError::invalid_request(format!(
                     "Resource already exists: File already exists: {:?}",
                     abs_path
@@ -44,7 +46,7 @@ impl FileService {
             ))
         } else {
             // Execution mode - queue the operation
-            if abs_path.exists() && !overwrite {
+            if exists && !overwrite {
                 return Err(ServerError::invalid_request(format!(
                     "Resource already exists: File already exists: {:?}",
                     abs_path
@@ -55,7 +57,8 @@ impl FileService {
             let mut transaction = OperationTransaction::new(self.operation_queue.clone());
 
             if let Some(parent) = abs_path.parent() {
-                if !parent.exists() {
+                let parent_exists = fs::try_exists(parent).await.unwrap_or(false);
+                if !parent_exists {
                     transaction.add_operation(FileOperation::new(
                         "system".to_string(),
                         OperationType::CreateDir,
@@ -83,7 +86,8 @@ impl FileService {
             self.operation_queue.wait_until_idle().await;
 
             // Verify the file was created
-            if !abs_path.exists() {
+            let created = fs::try_exists(&abs_path).await.unwrap_or(false);
+            if !created {
                 return Err(ServerError::internal(format!(
                     "File creation failed: {:?}",
                     abs_path
@@ -108,10 +112,11 @@ impl FileService {
         dry_run: bool,
     ) -> ServerResult<DryRunnable<Value>> {
         let abs_path = self.to_absolute_path_checked(path)?;
+        let exists = fs::try_exists(&abs_path).await.unwrap_or(false);
 
         if dry_run {
             // Preview mode - just return what would happen
-            if !abs_path.exists() {
+            if !exists {
                 if force {
                     return Ok(DryRunnable::new(
                         true,
@@ -159,7 +164,7 @@ impl FileService {
             ))
         } else {
             // Execution mode - queue the operation
-            if !abs_path.exists() {
+            if !exists {
                 if force {
                     return Ok(DryRunnable::new(
                         false,
@@ -216,7 +221,8 @@ impl FileService {
             self.operation_queue.wait_until_idle().await;
 
             // Verify the file was deleted
-            if abs_path.exists() {
+            let still_exists = fs::try_exists(&abs_path).await.unwrap_or(false);
+            if still_exists {
                 return Err(ServerError::internal(format!(
                     "File deletion failed: {:?}",
                     abs_path
@@ -237,7 +243,7 @@ impl FileService {
     pub async fn read_file(&self, path: &Path) -> ServerResult<String> {
         let abs_path = self.to_absolute_path_checked(path)?;
 
-        if !abs_path.exists() {
+        if !fs::try_exists(&abs_path).await.unwrap_or(false) {
             return Err(ServerError::not_found(format!(
                 "File does not exist: {:?}",
                 abs_path
@@ -261,6 +267,8 @@ impl FileService {
         let abs_path = self.to_absolute_path_checked(path)?;
         let content = content.to_string();
 
+        let exists = fs::try_exists(&abs_path).await.unwrap_or(false);
+
         if dry_run {
             // Preview mode - just return what would happen
             Ok(DryRunnable::new(
@@ -269,7 +277,7 @@ impl FileService {
                     "operation": "write_file",
                     "path": abs_path.to_string_lossy(),
                     "content_size": content.len(),
-                    "exists": abs_path.exists(),
+                    "exists": exists,
                 }),
             ))
         } else {
@@ -277,7 +285,8 @@ impl FileService {
             let mut transaction = OperationTransaction::new(self.operation_queue.clone());
 
             if let Some(parent) = abs_path.parent() {
-                if !parent.exists() {
+                let parent_exists = fs::try_exists(parent).await.unwrap_or(false);
+                if !parent_exists {
                     transaction.add_operation(FileOperation::new(
                         "system".to_string(),
                         OperationType::CreateDir,
@@ -305,7 +314,8 @@ impl FileService {
             self.operation_queue.wait_until_idle().await;
 
             // Verify the file was written
-            if !abs_path.exists() {
+            let written = fs::try_exists(&abs_path).await.unwrap_or(false);
+            if !written {
                 return Err(ServerError::internal(format!(
                     "File write failed: {:?}",
                     abs_path
@@ -336,7 +346,7 @@ impl FileService {
     ) -> ServerResult<Vec<String>> {
         let abs_path = self.to_absolute_path_checked(path)?;
 
-        if !abs_path.exists() {
+        if !fs::try_exists(&abs_path).await.unwrap_or(false) {
             return Err(ServerError::not_found(format!(
                 "Directory not found: {}",
                 abs_path.display()

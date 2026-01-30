@@ -6,6 +6,7 @@
 use async_trait::async_trait;
 use mill_plugin_api::ReferenceDetector;
 use std::path::{Path, PathBuf};
+use tokio::task::JoinSet;
 
 use crate::imports::{compute_module_path_from_file, find_crate_name_from_cargo_toml};
 
@@ -46,7 +47,8 @@ impl ReferenceDetector for RustReferenceDetector {
         );
 
         // Canonicalize paths to handle symlinks (e.g., /var vs /private/var on macOS)
-        let canonical_project = project_root.canonicalize().unwrap_or_else(|e| {
+        // Use tokio::fs for async canonicalization
+        let canonical_project = tokio::fs::canonicalize(project_root).await.unwrap_or_else(|e| {
             tracing::warn!(
                 error = %e,
                 project_root = %project_root.display(),
@@ -55,7 +57,7 @@ impl ReferenceDetector for RustReferenceDetector {
             project_root.to_path_buf()
         });
 
-        let canonical_old = old_path.canonicalize().unwrap_or_else(|e| {
+        let canonical_old = tokio::fs::canonicalize(old_path).await.unwrap_or_else(|e| {
             tracing::warn!(
                 error = %e,
                 old_path = %old_path.display(),
@@ -64,7 +66,7 @@ impl ReferenceDetector for RustReferenceDetector {
             old_path.to_path_buf()
         });
 
-        let canonical_new = new_path.canonicalize().unwrap_or_else(|e| {
+        let canonical_new = tokio::fs::canonicalize(new_path).await.unwrap_or_else(|e| {
             tracing::warn!(
                 error = %e,
                 new_path = %new_path.display(),
@@ -205,7 +207,10 @@ impl ReferenceDetector for RustReferenceDetector {
                     );
 
                     // For crate renames, scan ALL Rust files for imports from the old crate
+                    // Parallelize scanning using JoinSet
                     let crate_import_pattern = format!("use {}::", old_crate);
+                    let mut set = JoinSet::new();
+
                     for file in project_files {
                         // Skip files inside the renamed crate itself
                         if file.starts_with(old_path) {
@@ -217,16 +222,29 @@ impl ReferenceDetector for RustReferenceDetector {
                             continue;
                         }
 
-                        if let Ok(content) = tokio::fs::read_to_string(file).await {
-                            if content.contains(&crate_import_pattern) {
-                                tracing::debug!(
-                                    file = %file.display(),
-                                    old_crate = %old_crate,
-                                    "Found file importing from old crate"
-                                );
-                                if !affected.contains(file) {
-                                    affected.push(file.clone());
+                        let file_path = file.clone();
+                        let pattern = crate_import_pattern.clone();
+                        let old_crate_ref = old_crate.clone();
+
+                        set.spawn(async move {
+                            if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
+                                if content.contains(&pattern) {
+                                    tracing::debug!(
+                                        file = %file_path.display(),
+                                        old_crate = %old_crate_ref,
+                                        "Found file importing from old crate"
+                                    );
+                                    return Some(file_path);
                                 }
+                            }
+                            None
+                        });
+                    }
+
+                    while let Some(res) = set.join_next().await {
+                        if let Ok(Some(file)) = res {
+                            if !affected.contains(&file) {
+                                affected.push(file);
                             }
                         }
                     }
@@ -287,7 +305,7 @@ impl ReferenceDetector for RustReferenceDetector {
                                         new_module = %new_module_name,
                                         "Found parent lib.rs with mod declaration that needs updating"
                                     );
-                                    let canonical_lib_rs = lib_rs.canonicalize().unwrap_or(lib_rs);
+                                    let canonical_lib_rs = tokio::fs::canonicalize(&lib_rs).await.unwrap_or(lib_rs);
                                     if !affected.contains(&canonical_lib_rs) {
                                         affected.push(canonical_lib_rs);
                                     }
@@ -324,7 +342,7 @@ impl ReferenceDetector for RustReferenceDetector {
                                         new_module = %new_module_name,
                                         "Found parent mod.rs with mod declaration that needs updating"
                                     );
-                                    let canonical_mod_rs = mod_rs.canonicalize().unwrap_or(mod_rs);
+                                    let canonical_mod_rs = tokio::fs::canonicalize(&mod_rs).await.unwrap_or(mod_rs);
                                     if !affected.contains(&canonical_mod_rs) {
                                         affected.push(canonical_mod_rs);
                                     }
@@ -384,6 +402,8 @@ impl ReferenceDetector for RustReferenceDetector {
 
                 // Scan all Rust files for imports from the old module path
                 let module_pattern = format!("{}::", old_module_path);
+                let mut set = JoinSet::new();
+
                 for file in project_files {
                     if file == old_path || file == new_path {
                         continue;
@@ -394,76 +414,89 @@ impl ReferenceDetector for RustReferenceDetector {
                         continue;
                     }
 
-                    if let Ok(content) = tokio::fs::read_to_string(file).await {
-                        // Check if this file has imports from the old module path
-                        // Need to check:
-                        // 1. Absolute paths (e.g., "mylib::core::types")
-                        // 2. crate:: paths (e.g., "crate::core::types")
-                        // 3. Crate-relative paths (e.g., "utils::helpers" from lib.rs)
-                        // 4. Relative paths (e.g., "super::common", "self::common")
-                        let has_module_import = content.lines().any(|line| {
-                            let trimmed = line.trim();
-                            if !trimmed.starts_with("use ") {
-                                return false;
-                            }
+                    let file_path = file.clone();
+                    let module_pattern = module_pattern.clone();
+                    let old_module_path = old_module_path.clone();
 
-                            // Check for absolute module path (e.g., "use mylib::utils::helpers::process")
-                            if trimmed.contains(&module_pattern) {
-                                return true;
-                            }
-
-                            // Extract the last component of the module path (the module name being renamed)
-                            // e.g., "mylib::handlers::refactor::common" → "common"
-                            let old_module_name = old_module_path.split("::").last().unwrap_or("");
-
-                            // Check for relative imports like "use super::common::" or "use self::common::"
-                            if !old_module_name.is_empty() {
-                                let super_pattern = format!("super::{}::", old_module_name);
-                                let self_pattern = format!("self::{}::", old_module_name);
-                                let super_glob = format!("super::{}::*", old_module_name);
-                                let self_glob = format!("self::{}::*", old_module_name);
-
-                                if trimmed.contains(&super_pattern)
-                                    || trimmed.contains(&self_pattern)
-                                    || trimmed.contains(&super_glob)
-                                    || trimmed.contains(&self_glob)
-                                {
-                                    return true;
+                    set.spawn(async move {
+                        if let Ok(content) = tokio::fs::read_to_string(&file_path).await {
+                            // Check if this file has imports from the old module path
+                            // Need to check:
+                            // 1. Absolute paths (e.g., "mylib::core::types")
+                            // 2. crate:: paths (e.g., "crate::core::types")
+                            // 3. Crate-relative paths (e.g., "utils::helpers" from lib.rs)
+                            // 4. Relative paths (e.g., "super::common", "self::common")
+                            let has_module_import = content.lines().any(|line| {
+                                let trimmed = line.trim();
+                                if !trimmed.starts_with("use ") {
+                                    return false;
                                 }
-                            }
 
-                            // Check for crate:: prefixed imports (e.g., "use crate::utils::helpers::process")
-                            // Extract the suffix after the crate name from old_module_path
-                            // e.g., "mylib::core::types" → "core::types"
-                            if let Some((_crate_name, suffix)) = old_module_path.split_once("::") {
-                                let crate_pattern = format!("crate::{}::", suffix);
-                                if trimmed.contains(&crate_pattern) {
+                                // Check for absolute module path (e.g., "use mylib::utils::helpers::process")
+                                if trimmed.contains(&module_pattern) {
                                     return true;
                                 }
 
-                                // Check for crate-relative imports (e.g., "use utils::helpers::process" from lib.rs)
-                                // This matches when the use statement starts with the suffix
-                                // e.g., suffix="utils::helpers" matches "use utils::helpers::process"
-                                let relative_pattern = format!("use {}::", suffix);
-                                if trimmed.starts_with(&relative_pattern) {
-                                    return true;
+                                // Extract the last component of the module path (the module name being renamed)
+                                // e.g., "mylib::handlers::refactor::common" → "common"
+                                let old_module_name = old_module_path.split("::").last().unwrap_or("");
+
+                                // Check for relative imports like "use super::common::" or "use self::common::"
+                                if !old_module_name.is_empty() {
+                                    let super_pattern = format!("super::{}::", old_module_name);
+                                    let self_pattern = format!("self::{}::", old_module_name);
+                                    let super_glob = format!("super::{}::*", old_module_name);
+                                    let self_glob = format!("self::{}::*", old_module_name);
+
+                                    if trimmed.contains(&super_pattern)
+                                        || trimmed.contains(&self_pattern)
+                                        || trimmed.contains(&super_glob)
+                                        || trimmed.contains(&self_glob)
+                                    {
+                                        return true;
+                                    }
                                 }
-                            }
 
-                            false
-                        });
+                                // Check for crate:: prefixed imports (e.g., "use crate::utils::helpers::process")
+                                // Extract the suffix after the crate name from old_module_path
+                                // e.g., "mylib::core::types" → "core::types"
+                                if let Some((_crate_name, suffix)) = old_module_path.split_once("::") {
+                                    let crate_pattern = format!("crate::{}::", suffix);
+                                    if trimmed.contains(&crate_pattern) {
+                                        return true;
+                                    }
 
-                        if has_module_import {
-                            tracing::debug!(
-                                file = %file.display(),
-                                old_module_path = %old_module_path,
-                                "Found Rust file importing from old module path"
-                            );
-                            if !affected.contains(file) {
-                                affected.push(file.clone());
+                                    // Check for crate-relative imports (e.g., "use utils::helpers::process" from lib.rs)
+                                    // This matches when the use statement starts with the suffix
+                                    // e.g., suffix="utils::helpers" matches "use utils::helpers::process"
+                                    let relative_pattern = format!("use {}::", suffix);
+                                    if trimmed.starts_with(&relative_pattern) {
+                                        return true;
+                                    }
+                                }
+
+                                false
+                            });
+
+                            if has_module_import {
+                                tracing::debug!(
+                                    file = %file_path.display(),
+                                    old_module_path = %old_module_path,
+                                    "Found Rust file importing from old module path"
+                                );
+                                return Some(file_path);
                             }
                         }
-                    }
+                        None
+                    });
+                }
+
+                while let Some(res) = set.join_next().await {
+                     if let Ok(Some(file)) = res {
+                        if !affected.contains(&file) {
+                            affected.push(file);
+                        }
+                     }
                 }
 
                 tracing::info!(
@@ -610,7 +643,7 @@ mod tests {
 
         // Verify: lib.rs should be in the affected files
         let lib_rs = project_root.join("src/lib.rs");
-        let canonical_lib_rs = lib_rs.canonicalize().unwrap_or(lib_rs.clone());
+        let canonical_lib_rs = tokio::fs::canonicalize(&lib_rs).await.unwrap_or(lib_rs.clone());
         assert!(
             affected.contains(&canonical_lib_rs),
             "lib.rs should be detected as affected (has crate-relative import). Affected files: {:?}",
@@ -619,7 +652,7 @@ mod tests {
 
         // Verify: utils/mod.rs should also be affected (parent file)
         let mod_rs = project_root.join("src/utils/mod.rs");
-        let canonical_mod_rs = mod_rs.canonicalize().unwrap_or(mod_rs.clone());
+        let canonical_mod_rs = tokio::fs::canonicalize(&mod_rs).await.unwrap_or(mod_rs.clone());
         assert!(
             affected.contains(&canonical_mod_rs),
             "utils/mod.rs should be detected as affected (parent file). Affected files: {:?}",
