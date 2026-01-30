@@ -3,10 +3,10 @@
 //! Fallback detection for languages without specialized detectors.
 //! Uses import path resolution to find affected files.
 
+use mill_plugin_api::LanguagePlugin;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use mill_plugin_api::LanguagePlugin;
 
 /// Find affected files using generic import path resolution AND rewrite detection
 ///
@@ -187,12 +187,9 @@ fn get_all_imported_files_internal(
                 let import_specifiers = import_parser.parse_imports(content);
                 for specifier in import_specifiers {
                     // Reuse existing resolver
-                    if let Some(resolved) = resolve_import_to_file(
-                        &specifier,
-                        current_file,
-                        project_files,
-                        resolver,
-                    ) {
+                    if let Some(resolved) =
+                        resolve_import_to_file(&specifier, current_file, project_files, resolver)
+                    {
                         imported_files.push(resolved);
                     }
                 }
@@ -204,12 +201,9 @@ fn get_all_imported_files_internal(
     // Fallback: use regex-based extraction
     for line in content.lines() {
         if let Some(specifier) = extract_import_path(line) {
-            if let Some(resolved) = resolve_import_to_file(
-                &specifier,
-                current_file,
-                project_files,
-                resolver,
-            ) {
+            if let Some(resolved) =
+                resolve_import_to_file(&specifier, current_file, project_files, resolver)
+            {
                 imported_files.push(resolved);
             }
         }
@@ -347,8 +341,15 @@ export function main() {
         let plugin_map = build_plugin_ext_map(plugins);
 
         // Test generic detector
-        let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, &plugin_map, None);
+        let affected = find_generic_affected_files(
+            &old_path,
+            &new_path,
+            root,
+            &project_files,
+            plugins,
+            &plugin_map,
+            None,
+        );
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -393,8 +394,15 @@ export function main() {
         let plugins = plugin_registry.all();
         let plugin_map = build_plugin_ext_map(plugins);
 
-        let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, &plugin_map, None);
+        let affected = find_generic_affected_files(
+            old_path,
+            new_path,
+            root,
+            &project_files,
+            plugins,
+            &plugin_map,
+            None,
+        );
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -437,8 +445,15 @@ export function main() {
         let plugins = plugin_registry.all();
         let plugin_map = build_plugin_ext_map(plugins);
 
-        let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, &plugin_map, None);
+        let affected = find_generic_affected_files(
+            old_path,
+            new_path,
+            root,
+            &project_files,
+            plugins,
+            &plugin_map,
+            None,
+        );
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -477,8 +492,15 @@ export function main() {
         let plugins = plugin_registry.all();
         let plugin_map = build_plugin_ext_map(plugins);
 
-        let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, &plugin_map, None);
+        let affected = find_generic_affected_files(
+            &old_path,
+            &new_path,
+            root,
+            &project_files,
+            plugins,
+            &plugin_map,
+            None,
+        );
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),
@@ -529,8 +551,15 @@ export function main() {
         let plugins = plugin_registry.all();
         let plugin_map = build_plugin_ext_map(plugins);
 
-        let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, &plugin_map, None);
+        let affected = find_generic_affected_files(
+            old_path,
+            new_path,
+            root,
+            &project_files,
+            plugins,
+            &plugin_map,
+            None,
+        );
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),

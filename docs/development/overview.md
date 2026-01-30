@@ -4,7 +4,7 @@
 
 ---
 
-## 🚀 Quick Setup (5 minutes)
+## Quick Setup (5 minutes)
 
 ### Prerequisites
 - Rust toolchain (`rustup` recommended)
@@ -22,7 +22,7 @@ That's it! You're ready to contribute.
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 typemill/
@@ -43,7 +43,7 @@ typemill/
 ```
 ---
 
-## 🛠️ Common Development Tasks
+## Common Development Tasks
 
 ### Running Tests
 ```bash
@@ -86,7 +86,7 @@ cargo run -- start
 ```
 ---
 
-## 📖 Key Documentation
+## Key Documentation
 
 ### Getting Started
 - **[Plugin Development](plugin-development.md)** - Create language plugins
@@ -103,7 +103,7 @@ cargo run -- start
 
 ---
 
-## 🎯 Contribution Paths
+## Contribution Paths
 
 ### Path 1: Fix a Bug
 1. Find an issue labeled `good first issue` on GitHub
@@ -144,7 +144,7 @@ cargo nextest run -p mill-lang-python
 
 ---
 
-## 🧪 Testing Philosophy
+## Testing Philosophy
 
 **Test categories:**
 - **Unit tests**: In same file as code (`#[cfg(test)]`)
@@ -172,7 +172,7 @@ cargo nextest run --no-capture
 ```
 ---
 
-## 📦 Package Overview
+## Package Overview
 
 ### Core Packages
 
@@ -193,7 +193,7 @@ cargo nextest run --no-capture
 | `mill-plugin-bundle` | Plugin collection | Auto-generated |
 | `mill-lang-*` | Language plugins | Adding language support |
 
-## 🔧 Build Automation (xtask)
+## Build Automation (xtask)
 
 Mill uses the **xtask pattern** for cross-platform build tasks:
 
@@ -212,7 +212,7 @@ cargo xtask --help            # Show all tasks
 
 ---
 
-## 🐛 Debugging Tips
+## Debugging Tips
 
 ### Print Debugging
 ```rust
@@ -239,7 +239,7 @@ RUST_LOG=mill_lsp=trace cargo run -- start
 ```
 ---
 
-## 📝 Code Style
+## Code Style
 
 **Follow Rust conventions:**
 - Use `rustfmt` for formatting (run `cargo fmt`)
@@ -254,7 +254,7 @@ RUST_LOG=mill_lsp=trace cargo run -- start
 
 ---
 
-## 🚢 Release Process
+## Release Process
 
 **For maintainers only:**
 
@@ -268,7 +268,7 @@ RUST_LOG=mill_lsp=trace cargo run -- start
 
 ---
 
-## 🤝 Getting Help
+## Getting Help
 
 **Stuck? Need guidance?**
 
@@ -285,7 +285,7 @@ RUST_LOG=mill_lsp=trace cargo run -- start
 
 ---
 
-## 📚 Next Steps
+## Next Steps
 
 1. **[Plugin Development](plugin-development.md)** - Create language plugins
 2. **[Testing Guide](testing.md)** - Write tests

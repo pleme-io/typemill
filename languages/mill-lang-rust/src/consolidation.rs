@@ -955,3 +955,74 @@ async fn update_imports_in_single_file(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_rename_lib_rs_to_mod_rs() {
+        let dir = tempdir().unwrap();
+        let lib_rs = dir.path().join("lib.rs");
+        fs::write(&lib_rs, "// lib.rs content").await.unwrap();
+
+        rename_lib_rs_to_mod_rs(dir.path().to_str().unwrap()).await.unwrap();
+
+        assert!(!lib_rs.exists(), "lib.rs should be removed");
+        assert!(dir.path().join("mod.rs").exists(), "mod.rs should exist");
+        let content = fs::read_to_string(dir.path().join("mod.rs")).await.unwrap();
+        assert_eq!(content, "// lib.rs content");
+    }
+
+    #[tokio::test]
+    async fn test_flatten_nested_src_directory() {
+        let dir = tempdir().unwrap();
+        let src_dir = dir.path().join("src");
+        fs::create_dir(&src_dir).await.unwrap();
+
+        let file1 = src_dir.join("file1.rs");
+        fs::write(&file1, "fn file1() {}").await.unwrap();
+
+        flatten_nested_src_directory(dir.path().to_str().unwrap()).await.unwrap();
+
+        assert!(!src_dir.exists(), "src/ should be removed");
+        assert!(dir.path().join("file1.rs").exists(), "file1.rs should be moved up");
+    }
+
+    #[tokio::test]
+    async fn test_add_module_declaration() {
+        let dir = tempdir().unwrap();
+        let src_dir = dir.path().join("src");
+        fs::create_dir(&src_dir).await.unwrap();
+        let lib_rs = src_dir.join("lib.rs");
+
+        fs::write(&lib_rs, "pub mod existing;\n").await.unwrap();
+
+        add_module_declaration_to_target_lib_rs(dir.path().to_str().unwrap(), "new_mod").await.unwrap();
+
+        let content = fs::read_to_string(&lib_rs).await.unwrap();
+        assert!(content.contains("pub mod new_mod;"), "Should contain new module declaration");
+    }
+
+    #[tokio::test]
+    async fn test_fix_self_imports() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.rs");
+
+        fs::write(&file_path, "use my_crate::params::P;\npub use my_crate::types::T;\nfn f(p: my_crate::params::P) {}").await.unwrap();
+
+        let mut fixed = 0;
+        let mut replacements = 0;
+
+        fix_self_imports_in_file(&file_path, "my_crate", &mut fixed, &mut replacements).await.unwrap();
+
+        assert_eq!(fixed, 1, "Should fix 1 file");
+        assert_eq!(replacements, 3, "Should make 3 replacements");
+
+        let content = fs::read_to_string(&file_path).await.unwrap();
+        assert!(content.contains("use crate::params::P"));
+        assert!(content.contains("pub use crate::types::T"));
+        assert!(content.contains("fn f(p: crate::params::P)"));
+    }
+}

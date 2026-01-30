@@ -105,3 +105,104 @@ pub async fn merge_cargo_dependencies(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_merge_cargo_dependencies() {
+        let dir = tempdir().unwrap();
+        let source_path = dir.path().join("source_Cargo.toml");
+        let target_path = dir.path().join("target_Cargo.toml");
+
+        fs::write(
+            &source_path,
+            r#"
+[package]
+name = "source-crate"
+version = "0.1.0"
+
+[dependencies]
+serde = "1.0"
+tokio = { version = "1.0", features = ["full"] }
+common = { path = "../common" }
+"#
+        ).await.unwrap();
+
+        fs::write(
+            &target_path,
+            r#"
+[package]
+name = "target-crate"
+version = "0.1.0"
+
+[dependencies]
+log = "0.4"
+serde = "1.0"
+"#
+        ).await.unwrap();
+
+        merge_cargo_dependencies(&source_path, &target_path)
+            .await
+            .unwrap();
+
+        let content = fs::read_to_string(&target_path).await.unwrap();
+
+        // Check that new dependencies were added
+        assert!(content.contains("tokio"), "Target should contain tokio");
+        assert!(content.contains("common"), "Target should contain common");
+
+        // Check that existing dependencies are preserved
+        assert!(content.contains("log"), "Target should contain log");
+        assert!(content.contains("serde"), "Target should contain serde");
+    }
+
+    #[tokio::test]
+    async fn test_merge_cargo_dependencies_skips_self_dependency() {
+        let dir = tempdir().unwrap();
+        let source_path = dir.path().join("source_Cargo.toml");
+        let target_path = dir.path().join("target_Cargo.toml");
+
+        fs::write(
+            &source_path,
+            r#"
+[package]
+name = "source-crate"
+version = "0.1.0"
+
+[dependencies]
+target-crate = "0.1.0"
+other-dep = "1.0"
+"#
+        ).await.unwrap();
+
+        fs::write(
+            &target_path,
+            r#"
+[package]
+name = "target-crate"
+version = "0.1.0"
+
+[dependencies]
+"#
+        ).await.unwrap();
+
+        merge_cargo_dependencies(&source_path, &target_path)
+            .await
+            .unwrap();
+
+        let content = fs::read_to_string(&target_path).await.unwrap();
+        let doc = content.parse::<toml_edit::DocumentMut>().unwrap();
+
+        // Check dependencies table specifically
+        let deps = doc["dependencies"].as_table().expect("Should have dependencies table");
+
+        // Should NOT contain self-dependency
+        assert!(!deps.contains_key("target-crate"), "Should skip self-dependency");
+
+        // Should contain other dependency
+        assert!(deps.contains_key("other-dep"), "Should contain other-dep");
+    }
+}

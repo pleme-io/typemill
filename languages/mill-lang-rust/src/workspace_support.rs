@@ -400,3 +400,51 @@ fn update_package_name_impl(content: &str, new_name: &str) -> Result<String, Str
 
     Ok(doc.to_string())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_add_workspace_member_impl() {
+        let content = r#"
+[workspace]
+members = ["a"]
+"#;
+        let result = add_workspace_member_impl(content, "b").unwrap();
+        assert!(result.contains("\"b\""));
+        assert!(result.contains("\"a\""));
+    }
+
+    #[test]
+    fn test_remove_workspace_member_impl() {
+        let content = r#"
+[workspace]
+members = ["a", "b"]
+"#;
+        let result = remove_workspace_member_impl(content, "a").unwrap();
+        assert!(!result.contains("\"a\""));
+        assert!(result.contains("\"b\""));
+    }
+
+    #[test]
+    fn test_list_workspace_members_impl() {
+        let content = r#"
+[workspace]
+members = ["a", "b"]
+"#;
+        let result = list_workspace_members_impl(content).unwrap();
+        assert_eq!(result, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn test_update_package_name_impl() {
+        let content = r#"
+[package]
+name = "old_name"
+version = "0.1.0"
+"#;
+        let result = update_package_name_impl(content, "new_name").unwrap();
+        assert!(result.contains("name = \"new_name\""));
+    }
+}

@@ -309,8 +309,7 @@ fn apply_single_edit(source: &mut String, edit: &TextEdit) -> AstResult<EditStat
     {
         return Err(AstError::transformation(format!(
             "Edit start line {} is beyond source length {}",
-            edit.location.start_line,
-            num_lines
+            edit.location.start_line, num_lines
         )));
     }
 
@@ -320,8 +319,7 @@ fn apply_single_edit(source: &mut String, edit: &TextEdit) -> AstResult<EditStat
     {
         return Err(AstError::transformation(format!(
             "Edit end line {} is beyond source length {}",
-            edit.location.end_line,
-            num_lines
+            edit.location.end_line, num_lines
         )));
     }
 

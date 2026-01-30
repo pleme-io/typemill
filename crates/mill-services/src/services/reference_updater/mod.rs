@@ -542,8 +542,13 @@ impl ReferenceUpdater {
             }
             if let Ok(content) = tokio::fs::read_to_string(file).await {
                 // Use the optimized version with map and plugin list
-                let all_imports =
-                    self.get_all_imported_files_with_map(&content, file, plugins, &plugin_map, project_files);
+                let all_imports = self.get_all_imported_files_with_map(
+                    &content,
+                    file,
+                    plugins,
+                    &plugin_map,
+                    project_files,
+                );
 
                 // Check if any import resolves to the renamed file
                 if all_imports.contains(&renamed_file.to_path_buf()) {
