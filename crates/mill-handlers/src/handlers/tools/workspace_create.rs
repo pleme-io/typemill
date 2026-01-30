@@ -134,11 +134,23 @@ pub async fn handle_create_package(
 
     info!(language_ext = %language_ext, "Using language plugin");
 
-    // Get language plugin
-    let plugin = context
+    // Get language plugin as Arc to pass to blocking task
+    // We need an owned Arc to move into the spawn_blocking closure
+    // Downcast inner registry to get access to PluginDiscovery which has all()
+    let plugin_registry = context
         .app_state
         .language_plugins
-        .get_plugin(language_ext)
+        .inner()
+        .downcast_ref::<mill_plugin_api::PluginDiscovery>()
+        .ok_or_else(|| {
+            ServerError::internal("Failed to access plugin registry implementation")
+        })?;
+
+    let plugin = plugin_registry
+        .all()
+        .iter()
+        .find(|p| p.handles_extension(language_ext))
+        .cloned()
         .ok_or_else(|| {
             ServerError::not_supported(format!(
                 "No language plugin found for extension: {}",
@@ -146,13 +158,13 @@ pub async fn handle_create_package(
             ))
         })?;
 
-    // Get project factory capability
-    let project_factory = plugin.project_factory().ok_or_else(|| {
-        ServerError::not_supported(format!(
+    // Check capability first (cheap check before spawning thread)
+    if plugin.project_factory().is_none() {
+        return Err(ServerError::not_supported(format!(
             "{} language plugin does not support package creation",
             plugin.metadata().name
-        ))
-    })?;
+        )));
+    }
 
     // Build plugin configuration
     let config = CreatePackageConfig {
@@ -163,8 +175,21 @@ pub async fn handle_create_package(
         workspace_root: context.app_state.project_root.to_string_lossy().to_string(),
     };
 
-    // Delegate to plugin
-    let result = project_factory.create_package(&config).map_err(|e| {
+    // Delegate to plugin in blocking thread
+    let result = tokio::task::spawn_blocking(move || {
+        // Get capability again inside the thread (from the moved Arc)
+        let project_factory = plugin.project_factory().ok_or_else(|| {
+            // This shouldn't happen due to check above, but type system requires it
+            mill_plugin_api::PluginApiError::NotSupported {
+                operation: "project_factory".to_string(),
+            }
+        })?;
+
+        project_factory.create_package(&config)
+    })
+    .await
+    .map_err(|e| ServerError::internal(format!("Task join error: {}", e)))?
+    .map_err(|e| {
         error!(error = ?e, "Failed to create package");
         // Convert PluginApiError to ServerError
         match e {

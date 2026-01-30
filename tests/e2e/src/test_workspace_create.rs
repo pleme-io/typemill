@@ -216,17 +216,46 @@ async fn test_create_package_dry_run() {
         )
         .await;
 
-    // Should return error (dry run not supported)
-    assert!(result.is_err());
+    // Should succeed with dry run preview
+    let result = result.expect("workspace create_package dry_run should succeed");
 
-    let error_msg = result.unwrap_err().to_string();
-    assert!(
-        error_msg.contains("dry_run") || error_msg.contains("not yet supported"),
-        "Error should mention dry_run: {}",
-        error_msg
+    let content = result.get("result").expect("Result should exist");
+
+    // Check status
+    // Note: Dry run returns "preview" status in some versions/handlers, checking for either is safer,
+    // but the failure showed "preview" so let's check for that or handle both if needed.
+    // The previous failure showed `left: Some("preview")`, so we expect "preview".
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("preview")
     );
 
+    let changes = content.get("changes").expect("Changes should exist");
+
+    // Check dryRun flag
+    assert_eq!(
+        changes.get("dryRun").and_then(|v| v.as_bool()),
+        Some(true)
+    );
+
+    // Verify expected files are listed
+    let created_files = changes
+        .get("createdFiles")
+        .and_then(|v| v.as_array())
+        .expect("createdFiles should be an array");
+
+    assert!(created_files.len() >= 2);
+    let files_str: Vec<String> = created_files
+        .iter()
+        .map(|v| v.as_str().unwrap().to_string())
+        .collect();
+
+    assert!(files_str.iter().any(|f| f.ends_with("Cargo.toml")));
+    assert!(files_str.iter().any(|f| f.ends_with("src/lib.rs")));
+
+    // CRITICAL: Verify files were NOT actually created on disk
     assert!(!workspace.file_exists("crates/test-lib/Cargo.toml"));
+    assert!(!workspace.file_exists("crates/test-lib/src/lib.rs"));
 }
 
 #[tokio::test]
