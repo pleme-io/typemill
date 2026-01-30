@@ -96,6 +96,9 @@ pub mod test_workspace_find_replace;
 #[cfg(test)]
 pub mod test_tools_coverage;
 
+#[cfg(test)]
+pub mod test_language_parity;
+
 // Cross-platform compatibility tests
 #[cfg(test)]
 pub mod test_cross_platform;
