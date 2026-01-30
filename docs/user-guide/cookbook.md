@@ -315,11 +315,11 @@ Run your test suite after refactoring operations to catch issues early.
 
 ### Check Documentation
 For detailed parameter reference, see:
-- [Refactor Tool](tools/refactor.md)
-- [Workspace Tools](tools/workspace.md)
+- [Refactor Tool](../tools/refactor.md)
+- [Workspace Tools](../tools/workspace.md)
 
 ### Get Help
 - **CLI help**: `mill tool <name> --help`
 - **Tool list**: `mill tools`
 - **Server status**: `mill status`
-- **Troubleshooting**: [user-guide/troubleshooting.md](user-guide/troubleshooting.md)
+- **Troubleshooting**: [Troubleshooting](troubleshooting.md)

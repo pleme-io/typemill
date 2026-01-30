@@ -243,7 +243,7 @@ fn _force_plugin_linkage() {
 
 ## Test Coverage Requirements
 
-> **Note:** For detailed standards and examples, see **[testing_standards.md](testing_standards.md)**.
+> **Note:** For detailed standards and examples, see **[testing.md](testing.md#language-plugin-testing-standards)**.
 
 | Category | Minimum Tests | What to Test |
 |----------|---------------|--------------|

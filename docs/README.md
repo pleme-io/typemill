@@ -11,6 +11,7 @@ Complete documentation for TypeMill - Pure Rust MCP server for AI-powered code i
 - **[Getting Started](user-guide/getting-started.md)** - Complete setup guide (installation → team setup)
 - **[Configuration](user-guide/configuration.md)** - Configuration reference and environment variables
 - **[Cheatsheet](user-guide/cheatsheet.md)** - Quick command reference
+- **[Cookbook](user-guide/cookbook.md)** - Practical recipes for common tasks
 - **[Troubleshooting](user-guide/troubleshooting.md)** - Common issues and solutions
 
 ## 🛠️ Tool Reference
