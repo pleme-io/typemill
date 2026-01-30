@@ -199,10 +199,17 @@ impl DirectLspAdapter {
                                 let extensions_to_try = ["ts", "tsx", "js", "jsx"];
                                 for ext in &extensions_to_try {
                                     // Try to find any file with this extension in the workspace
-                                    if let Ok(entries) = std::fs::read_dir(root_dir) {
-                                        for entry in entries.flatten() {
+                                    if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
+                                        while let Ok(Some(entry)) = entries.next_entry().await {
                                             let path = entry.path();
-                                            if path.is_file()
+                                            // Note: is_file() on DirEntry is cheap (doesn't stat again on most OSs)
+                                            // but path.is_file() might stat. entry.file_type() is async in tokio.
+                                            let is_file = match entry.file_type().await {
+                                                Ok(ft) => ft.is_file(),
+                                                Err(_) => false,
+                                            };
+
+                                            if is_file
                                                 && path.extension().and_then(|e| e.to_str())
                                                     == Some(ext)
                                             {
@@ -219,11 +226,25 @@ impl DirectLspAdapter {
                                 // If still not found, try src directory
                                 if warmup_file.is_none() {
                                     let src_dir = root_dir.join("src");
-                                    if src_dir.exists() && src_dir.is_dir() {
-                                        if let Ok(entries) = std::fs::read_dir(&src_dir) {
-                                            for entry in entries.flatten() {
+                                    let src_exists = tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
+                                    let is_dir = if src_exists {
+                                        tokio::fs::metadata(&src_dir).await
+                                            .map(|m| m.is_dir())
+                                            .unwrap_or(false)
+                                    } else {
+                                        false
+                                    };
+
+                                    if is_dir {
+                                        if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
+                                            while let Ok(Some(entry)) = entries.next_entry().await {
                                                 let path = entry.path();
-                                                if path.is_file() {
+                                                let is_file = match entry.file_type().await {
+                                                    Ok(ft) => ft.is_file(),
+                                                    Err(_) => false,
+                                                };
+
+                                                if is_file {
                                                     if let Some(ext) =
                                                         path.extension().and_then(|e| e.to_str())
                                                     {
