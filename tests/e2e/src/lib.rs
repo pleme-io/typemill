@@ -107,6 +107,10 @@ pub mod test_real_project_zod;
 #[cfg(test)]
 pub mod test_zod_operations;
 
+// User scenario tests (cloning real repos)
+#[cfg(test)]
+pub mod user_scenario_test;
+
 #[cfg(test)]
 pub mod manual_verification_test;
 
