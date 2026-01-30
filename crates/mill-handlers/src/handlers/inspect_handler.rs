@@ -184,10 +184,10 @@ impl InspectHandler {
             });
         }
 
-        // Execute all tasks
-        for task in tasks {
-            let (item, response_result) = task.await;
+        // Execute all tasks concurrently
+        let results = futures::future::join_all(tasks).await;
 
+        for (item, response_result) in results {
             match response_result {
                 Ok(response) => {
                     let content = response.data.unwrap_or(json!(null));
