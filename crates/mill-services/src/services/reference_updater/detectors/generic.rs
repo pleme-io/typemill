@@ -3,7 +3,10 @@
 //! Fallback detection for languages without specialized detectors.
 //! Uses import path resolution to find affected files.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use mill_plugin_api::LanguagePlugin;
 
 /// Find affected files using generic import path resolution AND rewrite detection
 ///
@@ -23,7 +26,8 @@ pub(crate) fn find_generic_affected_files(
     new_path: &Path,
     project_root: &Path,
     project_files: &[PathBuf],
-    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+    plugins: &[Arc<dyn LanguagePlugin>],
+    plugin_map: &HashMap<String, Arc<dyn LanguagePlugin>>,
     rename_info: Option<&serde_json::Value>,
 ) -> Vec<PathBuf> {
     use std::collections::HashSet;
@@ -37,6 +41,10 @@ pub(crate) fn find_generic_affected_files(
         "find_generic_affected_files called"
     );
 
+    // Create resolver once for reuse across all files
+    // This optimization prevents creating a new resolver (allocating vec) for every file
+    let resolver = mill_ast::ImportPathResolver::with_plugins(project_root, plugins.to_vec());
+
     for file in project_files {
         // Do not skip old_path - we want to scan the file being moved for self-references
         // (e.g. string literals containing its own name) so we can update them.
@@ -48,8 +56,14 @@ pub(crate) fn find_generic_affected_files(
         }
         if let Ok(content) = std::fs::read_to_string(file) {
             // METHOD 1: Import-based detection (existing logic)
-            let all_imports =
-                get_all_imported_files(&content, file, plugins, project_files, project_root);
+            // Pass the pre-created resolver
+            let all_imports = get_all_imported_files_internal(
+                &content,
+                file,
+                plugin_map,
+                project_files,
+                &resolver,
+            );
 
             tracing::debug!(
                 file = %file.display(),
@@ -76,56 +90,53 @@ pub(crate) fn find_generic_affected_files(
             // (which updates imports, mod declarations, use statements, AND qualified paths).
             // Including .rs here would create duplicate overlapping edits.
             if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
-                for plugin in plugins {
-                    if plugin.handles_extension(ext) {
-                        // Debug log for test investigation
+                // Use map for O(1) lookup
+                if let Some(plugin) = plugin_map.get(ext) {
+                    // Debug log for test investigation
+                    #[cfg(test)]
+                    println!(
+                        "DEBUG: Checking plugin {} for file {}",
+                        plugin.metadata().name,
+                        file.display()
+                    );
+
+                    // Try rewriting to see if this file would be affected
+                    // Pass rename_info so plugins receive scope flags (update_exact_matches, etc.)
+                    let rewrite_result = plugin.rewrite_file_references(
+                        &content,
+                        old_path,
+                        new_path,
+                        file,
+                        project_root,
+                        rename_info,
+                    );
+
+                    #[cfg(test)]
+                    if rewrite_result.is_none() {
+                        println!(
+                            "DEBUG: rewrite_file_references returned None for {}",
+                            file.display()
+                        );
+                    }
+
+                    if let Some((updated_content, change_count)) = rewrite_result {
                         #[cfg(test)]
                         println!(
-                            "DEBUG: Checking plugin {} for file {}",
-                            plugin.metadata().name,
+                            "DEBUG: rewrite_file_references returned change_count={} for {}",
+                            change_count,
                             file.display()
                         );
 
-                        // Try rewriting to see if this file would be affected
-                        // Pass rename_info so plugins receive scope flags (update_exact_matches, etc.)
-                        let rewrite_result = plugin.rewrite_file_references(
-                            &content,
-                            old_path,
-                            new_path,
-                            file,
-                            project_root,
-                            rename_info,
-                        );
-
-                        #[cfg(test)]
-                        if rewrite_result.is_none() {
-                            println!(
-                                "DEBUG: rewrite_file_references returned None for {}",
-                                file.display()
+                        if change_count > 0 && updated_content != content {
+                            tracing::info!(
+                                file = %file.display(),
+                                plugin = plugin.metadata().name,
+                                changes = change_count,
+                                "File affected by path reference - marking as affected (rewrite detection)"
                             );
+                            affected.insert(file.clone());
+                            // break; // One plugin detected changes, no need to check others (already implied by map lookup)
                         }
-
-                        if let Some((updated_content, change_count)) = rewrite_result {
-                            #[cfg(test)]
-                            println!(
-                                "DEBUG: rewrite_file_references returned change_count={} for {}",
-                                change_count,
-                                file.display()
-                            );
-
-                            if change_count > 0 && updated_content != content {
-                                tracing::info!(
-                                    file = %file.display(),
-                                    plugin = plugin.metadata().name,
-                                    changes = change_count,
-                                    "File affected by path reference - marking as affected (rewrite detection)"
-                                );
-                                affected.insert(file.clone());
-                                break; // One plugin detected changes, no need to check others
-                            }
-                        }
-
-                        break; // Only check the plugin that handles this extension
                     }
                 }
             }
@@ -148,30 +159,44 @@ pub(crate) fn find_generic_affected_files(
 pub(crate) fn get_all_imported_files(
     content: &str,
     current_file: &Path,
-    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+    plugins: &[Arc<dyn LanguagePlugin>],
+    plugin_map: &HashMap<String, Arc<dyn LanguagePlugin>>,
     project_files: &[PathBuf],
     project_root: &Path,
+) -> Vec<PathBuf> {
+    // Create resolver ONCE
+    let resolver = mill_ast::ImportPathResolver::with_plugins(project_root, plugins.to_vec());
+
+    get_all_imported_files_internal(content, current_file, plugin_map, project_files, &resolver)
+}
+
+/// Internal helper that takes a pre-created resolver
+fn get_all_imported_files_internal(
+    content: &str,
+    current_file: &Path,
+    plugin_map: &HashMap<String, Arc<dyn LanguagePlugin>>,
+    project_files: &[PathBuf],
+    resolver: &mill_ast::ImportPathResolver,
 ) -> Vec<PathBuf> {
     let mut imported_files = Vec::new();
 
     if let Some(ext) = current_file.extension().and_then(|e| e.to_str()) {
-        for plugin in plugins {
-            if plugin.handles_extension(ext) {
-                if let Some(import_parser) = plugin.import_parser() {
-                    let import_specifiers = import_parser.parse_imports(content);
-                    for specifier in import_specifiers {
-                        if let Some(resolved) = resolve_import_to_file(
-                            &specifier,
-                            current_file,
-                            project_files,
-                            project_root,
-                            plugins,
-                        ) {
-                            imported_files.push(resolved);
-                        }
+        // Use map for O(1) lookup
+        if let Some(plugin) = plugin_map.get(ext) {
+            if let Some(import_parser) = plugin.import_parser() {
+                let import_specifiers = import_parser.parse_imports(content);
+                for specifier in import_specifiers {
+                    // Reuse existing resolver
+                    if let Some(resolved) = resolve_import_to_file(
+                        &specifier,
+                        current_file,
+                        project_files,
+                        resolver,
+                    ) {
+                        imported_files.push(resolved);
                     }
-                    return imported_files;
                 }
+                return imported_files;
             }
         }
     }
@@ -183,8 +208,7 @@ pub(crate) fn get_all_imported_files(
                 &specifier,
                 current_file,
                 project_files,
-                project_root,
-                plugins,
+                resolver,
             ) {
                 imported_files.push(resolved);
             }
@@ -202,10 +226,8 @@ fn resolve_import_to_file(
     specifier: &str,
     importing_file: &Path,
     project_files: &[PathBuf],
-    project_root: &Path,
-    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+    resolver: &mill_ast::ImportPathResolver,
 ) -> Option<PathBuf> {
-    let resolver = mill_ast::ImportPathResolver::with_plugins(project_root, plugins.to_vec());
     resolver.resolve_import_to_file(specifier, importing_file, project_files)
 }
 
@@ -243,6 +265,19 @@ mod tests {
     use super::*;
     use std::fs;
     use tempfile::TempDir;
+
+    // Helper to build map for tests
+    fn build_plugin_ext_map(
+        plugins: &[Arc<dyn LanguagePlugin>],
+    ) -> HashMap<String, Arc<dyn LanguagePlugin>> {
+        let mut map = HashMap::new();
+        for plugin in plugins {
+            for ext in plugin.metadata().extensions {
+                map.entry(ext.to_string()).or_insert_with(|| plugin.clone());
+            }
+        }
+        map
+    }
 
     #[test]
     fn test_extract_import_path() {
@@ -309,10 +344,11 @@ export function main() {
         let plugin_registry =
             crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
+        let plugin_map = build_plugin_ext_map(plugins);
 
         // Test generic detector
         let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, None);
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, &plugin_map, None);
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -355,9 +391,10 @@ export function main() {
         let plugin_registry =
             crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
+        let plugin_map = build_plugin_ext_map(plugins);
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, None);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, &plugin_map, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -398,9 +435,10 @@ export function main() {
         let plugin_registry =
             crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
+        let plugin_map = build_plugin_ext_map(plugins);
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, None);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, &plugin_map, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -437,9 +475,10 @@ export function main() {
         let plugin_registry =
             crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
+        let plugin_map = build_plugin_ext_map(plugins);
 
         let affected =
-            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, None);
+            find_generic_affected_files(&old_path, &new_path, root, &project_files, plugins, &plugin_map, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),
@@ -488,9 +527,10 @@ export function main() {
         let plugin_registry =
             crate::services::registry_builder::build_language_plugin_registry(bundle_plugins);
         let plugins = plugin_registry.all();
+        let plugin_map = build_plugin_ext_map(plugins);
 
         let affected =
-            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, None);
+            find_generic_affected_files(old_path, new_path, root, &project_files, plugins, &plugin_map, None);
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),

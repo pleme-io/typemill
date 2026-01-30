@@ -50,6 +50,9 @@ impl ReferenceUpdater {
         _scan_scope: Option<mill_plugin_api::ScanScope>,
         rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
     ) -> ServerResult<EditPlan> {
+        // Build the plugin extension map once for O(1) lookups
+        let plugin_map = build_plugin_ext_map(plugins);
+
         let is_directory_rename = old_path.is_dir();
 
         // Serialize rename_scope to JSON and merge with existing rename_info
@@ -60,7 +63,7 @@ impl ReferenceUpdater {
 
         // From edit_builder.rs
         let mut project_files =
-            find_project_files(&self.project_root, plugins, rename_scope).await?;
+            find_project_files_with_map(&self.project_root, &plugin_map, rename_scope).await?;
 
         // For consolidation moves (detected via rename_info), exclude Cargo.toml files
         // These are handled semantically by consolidate_rust_package, not via generic path updates
@@ -112,11 +115,12 @@ impl ReferenceUpdater {
                 new_path = %new_path.display(),
                 "Detected package rename, using package-level detection"
             );
-            self.find_affected_files_for_rename(
+            self.find_affected_files_for_rename_with_map(
                 old_path,
                 new_path,
                 &project_files,
                 plugins,
+                &plugin_map,
                 merged_rename_info.as_ref(),
             )
             .await?
@@ -136,11 +140,12 @@ impl ReferenceUpdater {
                 "Running directory-level detection for string literals"
             );
             let directory_level_affected = self
-                .find_affected_files_for_rename(
+                .find_affected_files_for_rename_with_map(
                     old_path,
                     new_path,
                     &project_files,
                     plugins,
+                    &plugin_map,
                     merged_rename_info.as_ref(),
                 )
                 .await?;
@@ -161,11 +166,12 @@ impl ReferenceUpdater {
                 let relative_path = file_in_dir.strip_prefix(old_path).unwrap_or(file_in_dir);
                 let new_file_path = new_path.join(relative_path);
                 let importers = self
-                    .find_affected_files_for_rename(
+                    .find_affected_files_for_rename_with_map(
                         file_in_dir,
                         &new_file_path,
                         &project_files,
                         plugins,
+                        &plugin_map,
                         merged_rename_info.as_ref(),
                     )
                     .await?;
@@ -194,11 +200,12 @@ impl ReferenceUpdater {
 
             affected_vec
         } else {
-            self.find_affected_files_for_rename(
+            self.find_affected_files_for_rename_with_map(
                 old_path,
                 new_path,
                 &project_files,
                 plugins,
+                &plugin_map,
                 merged_rename_info.as_ref(),
             )
             .await?
@@ -253,7 +260,7 @@ impl ReferenceUpdater {
             );
             let plugin = if let Some(ext) = file_path.extension() {
                 let ext_str = ext.to_str().unwrap_or("");
-                plugins.iter().find(|p| p.handles_extension(ext_str))
+                plugin_map.get(ext_str)
             } else {
                 None
             };
@@ -527,14 +534,16 @@ impl ReferenceUpdater {
         plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     ) -> ServerResult<Vec<PathBuf>> {
         let mut affected = Vec::new();
+        let plugin_map = build_plugin_ext_map(plugins);
 
         for file in project_files {
             if file == renamed_file {
                 continue;
             }
             if let Ok(content) = tokio::fs::read_to_string(file).await {
+                // Use the optimized version with map and plugin list
                 let all_imports =
-                    self.get_all_imported_files(&content, file, plugins, project_files);
+                    self.get_all_imported_files_with_map(&content, file, plugins, &plugin_map, project_files);
 
                 // Check if any import resolves to the renamed file
                 if all_imports.contains(&renamed_file.to_path_buf()) {
@@ -560,6 +569,28 @@ impl ReferenceUpdater {
         plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
         rename_info: Option<&serde_json::Value>,
     ) -> ServerResult<Vec<PathBuf>> {
+        let plugin_map = build_plugin_ext_map(plugins);
+        self.find_affected_files_for_rename_with_map(
+            old_path,
+            new_path,
+            project_files,
+            plugins,
+            &plugin_map,
+            rename_info,
+        )
+        .await
+    }
+
+    /// Optimized version of find_affected_files_for_rename that reuses the plugin map
+    pub async fn find_affected_files_for_rename_with_map(
+        &self,
+        old_path: &Path,
+        new_path: &Path,
+        project_files: &[PathBuf],
+        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+        plugin_map: &HashMap<String, std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>>,
+        rename_info: Option<&serde_json::Value>,
+    ) -> ServerResult<Vec<PathBuf>> {
         // Language-specific cross-package move detection
         // Some languages (e.g., Rust) use package-qualified imports which the generic
         // ImportPathResolver cannot resolve. We need special handling for cross-package moves.
@@ -569,16 +600,17 @@ impl ReferenceUpdater {
         // Find plugin that owns this path (by file extension or manifest file)
         let owning_plugin = if old_path.is_dir() {
             // Check for package directory by manifest file
+            // Iterate plugins for manifest check (still O(N) but N is small and called once)
             plugins.iter().find(|p| {
                 let manifest_file = p.metadata().manifest_filename;
                 old_path.join(manifest_file).exists()
             })
         } else {
-            // Check for file by extension
+            // Check for file by extension - use map!
             old_path
                 .extension()
                 .and_then(|e| e.to_str())
-                .and_then(|ext| plugins.iter().find(|p| p.handles_extension(ext)))
+                .and_then(|ext| plugin_map.get(ext))
         };
 
         if let Some(plugin) = owning_plugin {
@@ -611,6 +643,7 @@ impl ReferenceUpdater {
                     &self.project_root,
                     &non_plugin_files,
                     plugins,
+                    plugin_map,
                     rename_info,
                 );
 
@@ -624,6 +657,7 @@ impl ReferenceUpdater {
                     &self.project_root,
                     project_files,
                     plugins,
+                    plugin_map,
                     rename_info,
                 );
 
@@ -637,6 +671,7 @@ impl ReferenceUpdater {
                 &self.project_root,
                 project_files,
                 plugins,
+                plugin_map,
                 rename_info,
             );
 
@@ -650,17 +685,19 @@ impl ReferenceUpdater {
         Ok(all_affected)
     }
 
-    pub(crate) fn get_all_imported_files(
+    pub(crate) fn get_all_imported_files_with_map(
         &self,
         content: &str,
         current_file: &Path,
         plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+        plugin_map: &HashMap<String, std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>>,
         project_files: &[PathBuf],
     ) -> Vec<PathBuf> {
         detectors::get_all_imported_files(
             content,
             current_file,
             plugins,
+            plugin_map,
             project_files,
             &self.project_root,
         )
@@ -677,7 +714,9 @@ impl ReferenceUpdater {
             None => return Ok(false),
         };
 
-        let plugin = match plugins.iter().find(|p| p.handles_extension(extension)) {
+        // Use map for lookup
+        let plugin_map = build_plugin_ext_map(plugins);
+        let plugin = match plugin_map.get(extension) {
             Some(p) => p,
             None => {
                 return Ok(false);
@@ -719,6 +758,21 @@ impl ReferenceUpdater {
 
         Ok(true)
     }
+}
+
+/// Helper to build a map of extension -> plugin for O(1) lookups
+fn build_plugin_ext_map(
+    plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+) -> HashMap<String, std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>> {
+    let mut map = HashMap::new();
+    // Iterate plugins in order to respect precedence (first match wins)
+    for plugin in plugins {
+        for ext in plugin.metadata().extensions {
+            // Only insert if not already present to respect precedence
+            map.entry(ext.to_string()).or_insert_with(|| plugin.clone());
+        }
+    }
+    map
 }
 
 /// Merges existing rename_info (cargo package names) with serialized RenameScope (scope flags)
@@ -854,12 +908,22 @@ pub async fn find_project_files(
     plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<Vec<PathBuf>> {
+    let plugin_map = build_plugin_ext_map(plugins);
+    find_project_files_with_map(project_root, &plugin_map, rename_scope).await
+}
+
+/// Optimized version of find_project_files that takes a plugin map
+pub async fn find_project_files_with_map(
+    project_root: &Path,
+    plugin_map: &HashMap<String, std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>>,
+    rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
+) -> ServerResult<Vec<PathBuf>> {
     let mut files = Vec::new();
 
     fn collect_files<'a>(
         dir: &'a Path,
         files: &'a mut Vec<PathBuf>,
-        plugins: &'a [std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
+        plugin_map: &'a HashMap<String, std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>>,
         rename_scope: Option<&'a mill_foundation::core::rename_scope::RenameScope>,
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ServerResult<()>> + Send + 'a>> {
         Box::pin(async move {
@@ -895,7 +959,7 @@ pub async fn find_project_files(
                 {
                     let path = entry.path();
                     if path.is_dir() {
-                        collect_files(&path, files, plugins, rename_scope).await?;
+                        collect_files(&path, files, plugin_map, rename_scope).await?;
                     } else {
                         // If RenameScope is provided, use it to determine file inclusion
                         // Otherwise, fall back to plugin-based filtering for backward compatibility
@@ -903,9 +967,7 @@ pub async fn find_project_files(
                             scope.should_include_file(&path)
                         } else if let Some(ext) = path.extension() {
                             let ext_str = ext.to_str().unwrap_or("");
-                            plugins
-                                .iter()
-                                .any(|plugin| plugin.handles_extension(ext_str))
+                            plugin_map.contains_key(ext_str)
                         } else {
                             false
                         };
@@ -920,7 +982,7 @@ pub async fn find_project_files(
         })
     }
 
-    collect_files(project_root, &mut files, plugins, rename_scope).await?;
+    collect_files(project_root, &mut files, plugin_map, rename_scope).await?;
     Ok(files)
 }
 
