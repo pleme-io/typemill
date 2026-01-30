@@ -82,7 +82,6 @@ impl RefactorExtractPlanner {
         source: &SourceRange,
         options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
-        tracing::info!("RefactorExtractPlanner: calling plan_extract_variable (VERIFICATION)");
         // Convert LSP Range to CodeRange
         let code_range = CodeRange {
             start_line: source.range.start.line,
@@ -111,13 +110,10 @@ impl RefactorExtractPlanner {
             .downcast_ref::<mill_plugin_api::PluginDiscovery>()
             .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
 
-        let edit_plan = mill_ast::refactoring::extract_variable::plan_extract_variable(
+        let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
             &file_content,
-            source.range.start.line,
-            source.range.start.character,
-            source.range.end.line,
-            source.range.end.character,
-            Some(source.name.clone()),
+            &code_range,
+            &source.name,
             &source.file_path,
             None,                   // No LSP service - use AST-only approach
             Some(plugin_discovery), // Pass plugin registry
@@ -145,12 +141,6 @@ impl RefactorExtractPlanner {
     ) -> ServerResult<ExtractPlan> {
         // For now, extract variable uses similar logic to extract function
         // Language plugins can provide more specialized implementations
-        let code_range = CodeRange {
-            start_line: source.range.start.line,
-            start_col: source.range.start.character,
-            end_line: source.range.end.line,
-            end_col: source.range.end.character,
-        };
 
         let file_path = Path::new(&source.file_path);
         let file_content = context
@@ -171,10 +161,13 @@ impl RefactorExtractPlanner {
             .downcast_ref::<mill_plugin_api::PluginDiscovery>()
             .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
 
-        let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
+        let edit_plan = mill_ast::refactoring::extract_variable::plan_extract_variable(
             &file_content,
-            &code_range,
-            &source.name,
+            source.range.start.line,
+            source.range.start.character,
+            source.range.end.line,
+            source.range.end.character,
+            Some(source.name.clone()),
             &source.file_path,
             None,                   // No LSP service - use AST-only approach
             Some(plugin_discovery), // Pass plugin registry
