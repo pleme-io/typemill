@@ -67,6 +67,33 @@ pub static VARIABLE_PATTERN: Lazy<Regex> = Lazy::new(|| {
         .expect("Python variable pattern should be valid")
 });
 
+/// Pattern for detecting function definitions (used for extraction)
+///
+/// Matches: `def function_name(args):`, `async def function_name(args):`
+/// Captures: indent, async, name, args
+pub static FUNCTION_DEF_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^(\s*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*:")
+        .expect("Python function definition pattern should be valid")
+});
+
+/// Pattern for detecting variable assignments (used for extraction)
+///
+/// Matches: `variable = value`
+/// Captures: indent, name, value
+pub static VARIABLE_ASSIGN_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^(\s*)(\w+)\s*=\s*(.+)")
+        .expect("Python variable assignment pattern should be valid")
+});
+
+/// Pattern for detecting class definitions (used for extraction)
+///
+/// Matches: `class ClassName`
+/// Captures: name
+pub static CLASS_DEF_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^class\s+(\w+)")
+        .expect("Python class definition pattern should be valid")
+});
+
 // === Helper Functions ===
 
 /// Generates a regex pattern for matching qualified path references to a module.
