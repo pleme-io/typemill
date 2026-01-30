@@ -2,7 +2,7 @@ use crate::error::AstError;
 use crate::package_extractor::ExtractModuleToPackageParams;
 use futures::stream::StreamExt;
 use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
-use mill_plugin_api::{FileDiscovery, LanguagePlugin, StandardFileDiscovery};
+use mill_plugin_api::LanguagePlugin;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tracing::debug;
@@ -220,24 +220,20 @@ pub(crate) async fn add_import_update_edits(
 ) -> Result<(), AstError> {
     debug!("Starting use statement updates across workspace");
 
-    // Use FileDiscovery capability or fallback to standard discovery
-    let source_files = if let Some(discovery) = plugin.file_discovery() {
-        discovery
-            .find_source_files(source_path)
-            .await
-            .map_err(|e| AstError::Analysis {
-                message: format!("Failed to find source files: {}", e),
-            })?
-    } else {
-        let extensions = &plugin.metadata().extensions;
-        let discovery = StandardFileDiscovery::new(extensions);
-        discovery
-            .find_source_files(source_path)
-            .await
-            .map_err(|e| AstError::Analysis {
-                message: format!("Failed to find source files: {}", e),
-            })?
-    };
+    // Use FileDiscovery capability
+    let source_files = plugin
+        .file_discovery()
+        .ok_or_else(|| AstError::Analysis {
+            message: format!(
+                "Plugin for language {} does not support file discovery",
+                plugin.metadata().name
+            ),
+        })?
+        .find_source_files(source_path)
+        .await
+        .map_err(|e| AstError::Analysis {
+            message: format!("Failed to find source files: {}", e),
+        })?;
 
     debug!(
         source_files_count = source_files.len(),
