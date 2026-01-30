@@ -54,7 +54,8 @@ impl InspectHandler {
             "Resolving symbol position by name"
         );
 
-        let request = PluginRequest::new("get_document_symbols".to_string(), file_path.to_path_buf());
+        let request =
+            PluginRequest::new("get_document_symbols".to_string(), file_path.to_path_buf());
 
         match context.plugin_manager.handle_request(request).await {
             Ok(response) => {
