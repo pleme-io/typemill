@@ -4,34 +4,79 @@
 //! to verify they work correctly and don't break the codebase.
 
 use crate::harness::{TestClient, TestWorkspace};
+use crate::test_helpers::{find_mill_binary, copy_dir_recursive};
 use serde_json::json;
 use std::process::Command;
 use std::time::Duration;
+use std::path::Path;
 
 const LARGE_PROJECT_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Acquire a directory-based lock for caching
+fn acquire_lock(lock_path: &Path) {
+    let start = std::time::Instant::now();
+    while start.elapsed() < Duration::from_secs(300) {
+        if std::fs::create_dir(lock_path).is_ok() {
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    panic!("Timeout acquiring lock {:?}", lock_path);
+}
+
+fn release_lock(lock_path: &Path) {
+    let _ = std::fs::remove_dir(lock_path);
+}
 
 /// Setup a fresh Zod workspace for testing
 fn setup_zod_workspace() -> TestWorkspace {
     let workspace = TestWorkspace::new();
+    let cache_dir = std::env::temp_dir().join("mill_test_cache_zod");
+    let lock_dir = std::env::temp_dir().join("mill_test_cache_zod.lock");
 
-    // Clone Zod
-    let status = Command::new("git")
-        .args([
-            "clone",
-            "--depth",
-            "1",
-            "https://github.com/colinhacks/zod.git",
-            ".",
-        ])
-        .current_dir(workspace.path())
-        .status()
-        .expect("Failed to clone zod");
+    // Check if cache exists and is valid (has .git)
+    let cache_valid = cache_dir.join(".git").exists();
 
-    assert!(status.success(), "git clone failed");
+    if !cache_valid {
+        acquire_lock(&lock_dir);
+        // Check again after lock
+        if !cache_dir.join(".git").exists() {
+            // Remove if exists but invalid (e.g. partial clone)
+            if cache_dir.exists() {
+                let _ = std::fs::remove_dir_all(&cache_dir);
+            }
+
+            println!("Cloning zod to cache: {:?}", cache_dir);
+            let status = Command::new("git")
+                .args([
+                    "clone",
+                    "--depth",
+                    "1",
+                    "https://github.com/colinhacks/zod.git",
+                    cache_dir.to_str().unwrap(),
+                ])
+                .status()
+                .expect("Failed to execute git clone");
+
+            if !status.success() {
+                release_lock(&lock_dir);
+                panic!("git clone failed");
+            }
+        }
+        release_lock(&lock_dir);
+    }
+
+    // Copy from cache to workspace
+    // Use Rust-based recursive copy for cross-platform compatibility
+    copy_dir_recursive(&cache_dir, workspace.path())
+        .expect("Failed to copy from cache");
 
     // Run mill setup
-    let mill_path = std::env::var("MILL_PATH")
-        .unwrap_or_else(|_| "/home/user/typemill/target/debug/mill".to_string());
+    let mill_path = find_mill_binary();
+
+    if !mill_path.exists() {
+        panic!("Mill binary not found at {:?}", mill_path);
+    }
 
     let status = Command::new(&mill_path)
         .args(["setup"])

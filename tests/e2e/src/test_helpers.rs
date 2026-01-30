@@ -421,3 +421,48 @@ pub fn setup_workspace_from_fixture(workspace: &TestWorkspace, files: &[(&str, &
         workspace.create_file(file_path, content);
     }
 }
+
+/// Recursive copy directory helper
+pub fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    if !dst.exists() {
+        std::fs::create_dir_all(dst)?;
+    }
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        let dst_path = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(&entry.path(), &dst_path)?;
+        } else {
+            std::fs::copy(entry.path(), &dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+/// Helper to find the mill binary in the build target directory
+pub fn find_mill_binary() -> std::path::PathBuf {
+    if let Ok(path) = std::env::var("MILL_PATH") {
+        return std::path::PathBuf::from(path);
+    }
+
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").expect("CARGO_MANIFEST_DIR not set");
+    let mut root = std::path::PathBuf::from(manifest_dir);
+    root.pop(); // e2e
+    root.pop(); // tests
+
+    // Check debug first
+    let debug_path = root.join("target/debug/mill");
+    if debug_path.exists() {
+        return debug_path;
+    }
+
+    // Check release
+    let release_path = root.join("target/release/mill");
+    if release_path.exists() {
+        return release_path;
+    }
+
+    // Fallback to debug (default expected)
+    debug_path
+}
