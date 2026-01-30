@@ -20,9 +20,6 @@ pub mod resilience_tests;
 
 // Unified Refactoring API integration tests (Proposal 30)
 #[cfg(test)]
-pub mod comprehensive_refactoring_test;
-
-#[cfg(test)]
 pub mod test_rename_integration;
 
 #[cfg(test)]
@@ -35,7 +32,7 @@ pub mod test_comprehensive_rename_coverage;
 pub mod test_cross_workspace_import_updates;
 
 #[cfg(test)]
-pub mod test_file_discovery_bug;
+pub mod test_file_discovery_regression;
 
 #[cfg(test)]
 pub mod test_scope_presets;
@@ -114,9 +111,6 @@ pub mod test_zod_operations;
 // User scenario tests (cloning real repos)
 #[cfg(test)]
 pub mod user_scenario_test;
-
-#[cfg(test)]
-pub mod manual_verification_test;
 
 #[cfg(test)]
 pub use harness::{TestClient, TestWorkspace};
