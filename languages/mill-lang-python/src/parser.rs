@@ -121,10 +121,39 @@ fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
 /// Extract Python function definitions with metadata
 pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
     let mut functions = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
-    for (line_num, line) in lines.iter().enumerate() {
+    // Stack of active functions: (start_line, indentation, function)
+    let mut active_functions: Vec<(u32, usize, PythonFunction)> = Vec::new();
+
+    let mut last_line_idx = 0;
+
+    for (line_num, line) in source.lines().enumerate() {
+        let line_num = line_num as u32;
+        last_line_idx = line_num;
+        let trimmed = line.trim();
+
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        // Calculate indentation
+        let indent = line.chars().take_while(|c| c.is_whitespace()).count();
+
+        // Check if any active functions ended
+        // A function ends if the current line's indentation is <= the function's indentation
+        // We iterate active_functions in reverse to close nested ones first
+        while let Some((_, func_indent, _)) = active_functions.last() {
+            if indent <= *func_indent {
+                let (_, _, mut func) = active_functions.pop().unwrap();
+                // The function ended at the previous line index
+                func.end_line = line_num.saturating_sub(1);
+                functions.push(func);
+            } else {
+                break;
+            }
+        }
+
         if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
-            let _indent = captures
+            let _indent_str = captures
                 .get(1)
                 .expect("Python function regex should always capture indent at index 1")
                 .as_str();
@@ -146,19 +175,34 @@ pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonF
                     .filter(|arg| !arg.is_empty())
                     .collect()
             };
-            let end_line =
-                find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
-            functions.push(PythonFunction {
+
+            let func = PythonFunction {
                 name: name.to_string(),
-                start_line: line_num as u32,
-                end_line,
+                start_line: line_num,
+                end_line: line_num, // Will update later
                 args,
-                body_start_line: line_num as u32 + 1,
+                body_start_line: line_num + 1,
                 is_async,
                 decorators: Vec::new(),
-            });
+            };
+
+            // Push to stack with current indentation
+            // We use the regex capture for indentation? No, use computed indent.
+            // FUNCTION_DEF_PATTERN captures indentation in group 1.
+            let func_indent = _indent_str.len();
+            active_functions.push((line_num, func_indent, func));
         }
     }
+
+    // Close remaining functions
+    for (_, _, mut func) in active_functions {
+        func.end_line = last_line_idx;
+        functions.push(func);
+    }
+
+    // Sort functions by start_line to maintain order
+    functions.sort_by_key(|f| f.start_line);
+
     Ok(functions)
 }
 /// Python function representation
@@ -584,6 +628,61 @@ def function_with_args(a, b, c=None):
         assert_eq!(functions[2].name, "function_with_args");
         assert!(!functions[2].is_async);
         assert_eq!(functions[2].args, vec!["a", "b", "c=None"]);
+    }
+
+    #[test]
+    fn test_extract_python_functions_with_comments() {
+        let source = r#"
+def func_with_comments():
+    # This is a comment at indentation 4
+    x = 1
+# This is a comment at indentation 0
+    y = 2
+    return x + y
+
+def another_func():
+    pass
+"#;
+        let functions = extract_python_functions(source).unwrap();
+        assert_eq!(functions.len(), 2);
+        assert_eq!(functions[0].name, "func_with_comments");
+        // The comment at indentation 0 should NOT close the function because it starts with #
+        // But wait, the function ends at `return x + y` line?
+        // Let's trace:
+        // Line 1: def func... (0). Stack [func].
+        // Line 2: # This... (4). Ignored.
+        // Line 3: x = 1 (4). 4 > 0.
+        // Line 4: # This... (0). Ignored.
+        // Line 5: y = 2 (4). 4 > 0.
+        // Line 6: return... (4). 4 > 0.
+        // Line 7: empty.
+        // Line 8: def another... (0). 0 <= 0. Pop func.
+
+        // So func should include y=2 and return.
+        // end_line should be 6 (line index of return).
+
+        // Let's check line indices:
+        // 0: empty
+        // 1: def func...
+        // 2: # ...
+        // 3: x = 1
+        // 4: # ...
+        // 5: y = 2
+        // 6: return ...
+        // 7: empty
+        // 8: def another...
+
+        // func starts at 1. ends at 7? (line 8 triggers pop, previous line is 7).
+        // Or 6?
+        // My logic: `func.end_line = line_num.saturating_sub(1)`.
+        // If line_num is 8, end_line is 7.
+        // If line 7 is empty, does it matter?
+        // Ideally end_line should be last code line (6).
+        // But `find_python_function_end` logic was "until next block".
+        // So 7 is acceptable.
+
+        assert_eq!(functions[0].end_line, 7);
+        assert_eq!(functions[1].name, "another_func");
     }
     #[test]
     fn test_extract_python_variables_basic() {
