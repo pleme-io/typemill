@@ -189,11 +189,21 @@ impl mill_plugin_api::RefactoringProvider for TypeScriptPlugin {
         &self,
         source: &str,
         start_line: u32,
+        start_col: u32,
         end_line: u32,
+        end_col: u32,
         function_name: &str,
         file_path: &str,
     ) -> mill_plugin_api::PluginResult<mill_foundation::protocol::EditPlan> {
-        refactoring::plan_extract_function(source, start_line, end_line, function_name, file_path)
+        refactoring::plan_extract_function(
+            source,
+            start_line,
+            start_col,
+            end_line,
+            end_col,
+            function_name,
+            file_path,
+        )
     }
 
     fn supports_extract_variable(&self) -> bool {

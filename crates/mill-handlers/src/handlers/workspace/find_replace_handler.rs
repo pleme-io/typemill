@@ -41,7 +41,7 @@ pub struct FindReplaceParams {
 
     /// Scope configuration
     #[serde(default)]
-    pub scope: ScopeConfig,
+    pub scope: ScopeParam,
 
     /// Dry-run mode (default: true for safety)
     #[serde(default = "default_dry_run")]
@@ -64,8 +64,22 @@ fn default_dry_run() -> bool {
     true
 }
 
-/// Scope configuration for controlling which files to search
+/// Scope parameter that accepts either a keyword string or a configuration object
 #[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub enum ScopeParam {
+    Keyword(String),
+    Config(ScopeConfig),
+}
+
+impl Default for ScopeParam {
+    fn default() -> Self {
+        ScopeParam::Config(ScopeConfig::default())
+    }
+}
+
+/// Scope configuration for controlling which files to search
+#[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ScopeConfig {
     /// Glob patterns to include (e.g., ["**/*.rs", "**/*.toml"])
@@ -138,8 +152,23 @@ pub async fn handle_find_replace(
     // Get workspace root from app_state
     let workspace_root = &context.app_state.project_root;
 
+    // Resolve scope parameter
+    let scope_config = match &params.scope {
+        ScopeParam::Keyword(k) => {
+            if k == "workspace" {
+                ScopeConfig::default()
+            } else {
+                return Err(ServerError::invalid_request(format!(
+                    "Invalid scope keyword: '{}'. Use 'workspace' or a configuration object.",
+                    k
+                )));
+            }
+        }
+        ScopeParam::Config(c) => c.clone(),
+    };
+
     // 1. Discover files matching scope
-    let files = discover_files(workspace_root, &params.scope).await?;
+    let files = discover_files(workspace_root, &scope_config).await?;
     debug!(files_count = files.len(), "Discovered files to search");
 
     // 2. Process each file

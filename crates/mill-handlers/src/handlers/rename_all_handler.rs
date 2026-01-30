@@ -214,6 +214,7 @@ impl RenameAllHandler {
 
             let applied_files = result
                 .get("applied_files")
+                .or_else(|| result.get("appliedFiles"))
                 .and_then(|a| a.as_array())
                 .map(|arr| {
                     arr.iter()

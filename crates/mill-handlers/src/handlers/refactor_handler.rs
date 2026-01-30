@@ -237,13 +237,17 @@ impl RefactorHandler {
     /// Parse RefactorPlan response and convert to WriteResponse
     fn parse_plan_response(&self, content: &Value, operation: &str) -> ServerResult<WriteResponse> {
         // Extract plan details from the RefactorPlan variant
+        // Handle both tagged (if changed in future) and untagged (current) serialization
         let plan_data = if let Some(extract_plan) = content.get("ExtractPlan") {
             extract_plan
         } else if let Some(inline_plan) = content.get("InlinePlan") {
             inline_plan
+        } else if content.get("summary").is_some() {
+            // Untagged enum serialization - content itself is the plan
+            content
         } else {
             return Err(ServerError::internal(
-                "Unexpected plan format: missing ExtractPlan or InlinePlan",
+                "Unexpected plan format: missing ExtractPlan, InlinePlan, or summary",
             ));
         };
 

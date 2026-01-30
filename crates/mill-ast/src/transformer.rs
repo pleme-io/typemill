@@ -231,15 +231,17 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         );
     }
 
-    // Sort edits by priority (highest first) and then by location (reverse order to avoid offset issues)
+    // Sort edits by location (reverse order/bottom-up) to avoid offset issues.
+    // Priority is used as a tie-breaker for edits at the same location.
     let mut sorted_edits = deduplicated_edits;
     sorted_edits.sort_by(|a, b| {
-        match b.priority.cmp(&a.priority) {
+        // Primary sort: Location (descending / bottom-up)
+        match b.location.start_line.cmp(&a.location.start_line) {
             std::cmp::Ordering::Equal => {
-                // If same priority, sort by location (reverse order)
-                match b.location.start_line.cmp(&a.location.start_line) {
+                match b.location.start_column.cmp(&a.location.start_column) {
                     std::cmp::Ordering::Equal => {
-                        b.location.start_column.cmp(&a.location.start_column)
+                        // Secondary sort: Priority (descending / highest first)
+                        b.priority.cmp(&a.priority)
                     }
                     other => other,
                 }

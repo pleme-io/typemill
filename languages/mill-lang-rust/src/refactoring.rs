@@ -15,7 +15,9 @@ use mill_plugin_api::{PluginApiError, PluginResult};
 pub fn plan_extract_function(
     source: &str,
     start_line: u32,
+    _start_col: u32,
     end_line: u32,
+    _end_col: u32,
     function_name: &str,
     file_path: &str,
 ) -> PluginResult<EditPlan> {
