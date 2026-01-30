@@ -331,6 +331,11 @@ impl RuntimePluginManager {
         self.metadata_cache.get(name)
     }
 
+    /// Get all plugin metadata
+    pub fn get_all_metadata(&self) -> HashMap<String, PluginMetadata> {
+        self.metadata_cache.clone()
+    }
+
     /// Get all registered plugin names
     pub fn get_plugin_names(&self) -> Vec<String> {
         self.plugins.keys().cloned().collect()

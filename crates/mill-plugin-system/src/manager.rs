@@ -231,15 +231,7 @@ impl PluginManager {
     /// Get metadata for all plugins
     pub async fn get_all_metadata(&self) -> HashMap<String, PluginMetadata> {
         let registry = self.registry.read().await;
-        let mut metadata = HashMap::new();
-
-        for plugin_name in registry.get_plugin_names() {
-            if let Some(meta) = registry.get_plugin_metadata(&plugin_name) {
-                metadata.insert(plugin_name, meta.clone());
-            }
-        }
-
-        metadata
+        registry.get_all_metadata()
     }
 
     /// Get metadata for a specific plugin
