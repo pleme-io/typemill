@@ -14,6 +14,9 @@
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
 
+#[cfg(test)]
+mod worker_tests;
+
 // Re-export workspaces from mill-workspaces for backward compatibility
 pub use mill_workspaces as workspaces;
 
@@ -215,113 +218,7 @@ pub async fn create_dispatcher_with_workspace(
     .await;
 
     // Start background processor for operation queue
-    {
-        let queue = services.operation_queue.clone();
-        tokio::spawn(async move {
-            use mill_services::services::OperationType;
-            use serde_json::Value;
-            use std::path::Path;
-            use tokio::fs;
-            use tokio::io::AsyncWriteExt;
-
-            queue
-                .process_with(move |op, stats| async move {
-                    tracing::debug!(
-                        operation_id = %op.id,
-                        operation_type = ?op.operation_type,
-                        file_path = %op.file_path.display(),
-                        "Executing queued operation"
-                    );
-
-                    let result = match op.operation_type {
-                        OperationType::CreateDir => {
-                            fs::create_dir_all(&op.file_path).await.map_err(|e| {
-                                ServerError::internal(format!("Failed to create directory: {}", e))
-                            })?;
-                            Ok(Value::Null)
-                        }
-                        OperationType::CreateFile | OperationType::Write => {
-                            let content = op
-                                .params
-                                .get("content")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
-
-                            // Write and explicitly sync to disk to avoid caching issues
-                            let mut file = fs::File::create(&op.file_path).await.map_err(|e| {
-                                ServerError::internal(format!("Failed to create file: {}", e))
-                            })?;
-
-                            file.write_all(content.as_bytes()).await.map_err(|e| {
-                                ServerError::internal(format!("Failed to write content: {}", e))
-                            })?;
-
-                            // CRITICAL: Sync file to disk BEFORE updating stats
-                            file.sync_all().await.map_err(|e| {
-                                ServerError::internal(format!("Failed to sync file: {}", e))
-                            })?;
-
-                            Ok(Value::Null)
-                        }
-                        OperationType::Delete => {
-                            if op.file_path.exists() {
-                                fs::remove_file(&op.file_path).await.map_err(|e| {
-                                    ServerError::internal(format!("Failed to delete file: {}", e))
-                                })?;
-                            }
-                            Ok(Value::Null)
-                        }
-                        OperationType::Rename => {
-                            let new_path_str = op
-                                .params
-                                .get("new_path")
-                                .and_then(|v| v.as_str())
-                                .ok_or_else(|| {
-                                ServerError::internal("Missing 'new_path' parameter for Rename")
-                            })?;
-                            let new_path = Path::new(new_path_str);
-
-                            fs::rename(&op.file_path, new_path).await.map_err(|e| {
-                                ServerError::internal(format!("Failed to rename file: {}", e))
-                            })?;
-                            Ok(Value::Null)
-                        }
-                        _ => Err(ServerError::internal(format!(
-                            "Unsupported operation type in worker: {:?}",
-                            op.operation_type
-                        ))),
-                    };
-
-                    // Update stats AFTER all I/O is complete (including sync_all)
-                    let mut stats_guard = stats.lock().await;
-                    match &result {
-                        Ok(_) => {
-                            stats_guard.completed_operations += 1;
-                            tracing::info!(
-                                operation_id = %op.id,
-                                operation_type = ?op.operation_type,
-                                completed = stats_guard.completed_operations,
-                                "Operation executed successfully"
-                            );
-                        }
-                        Err(e) => {
-                            stats_guard.failed_operations += 1;
-                            tracing::error!(
-                                operation_id = %op.id,
-                                operation_type = ?op.operation_type,
-                                error = %e,
-                                failed = stats_guard.failed_operations,
-                                "Operation execution failed"
-                            );
-                        }
-                    }
-                    drop(stats_guard); // Explicitly release lock
-
-                    result
-                })
-                .await;
-        });
-    }
+    spawn_operation_worker(services.operation_queue.clone(), project_root.clone());
 
     // Create application state
     let app_state = Arc::new(AppState {
@@ -380,4 +277,225 @@ impl ServerHandle {
         tracing::info!("Server shut down successfully");
         Ok(())
     }
+}
+
+/// Convert path to absolute and verify it's within project root
+async fn validate_path(
+    project_root: &std::path::Path,
+    path: &std::path::Path,
+) -> ServerResult<PathBuf> {
+    use tokio::fs;
+
+    let canonical_root = fs::canonicalize(project_root).await.map_err(|e| {
+        ServerError::internal(format!(
+            "Failed to canonicalize project root {:?}: {}",
+            project_root, e
+        ))
+    })?;
+
+    // Convert to absolute
+    let abs_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        project_root.join(path)
+    };
+
+    // Try to canonicalize the full path if it exists
+    // We use fs::metadata as a way to check existence async
+    let canonical = if fs::metadata(&abs_path).await.is_ok() {
+        fs::canonicalize(&abs_path).await.map_err(|e| {
+            ServerError::invalid_request(format!(
+                "Path canonicalization failed for {:?}: {}",
+                abs_path, e
+            ))
+        })?
+    } else {
+        // Path doesn't exist - find first existing ancestor and build from there
+        let mut current = abs_path.clone();
+        let mut components_to_add = Vec::new();
+
+        // Walk up until we find an existing directory
+        // Loop bound: preventing infinite loop if root is missing (though unlikely if project_root exists)
+        loop {
+            if fs::metadata(&current).await.is_ok() {
+                break;
+            }
+
+            if let Some(filename) = current.file_name() {
+                components_to_add.push(filename.to_os_string());
+                if let Some(parent) = current.parent() {
+                    current = parent.to_path_buf();
+                } else {
+                    // Reached root without finding existing path
+                    return Err(ServerError::invalid_request(format!(
+                        "Cannot validate path: no existing ancestor found for {:?}",
+                        abs_path
+                    )));
+                }
+            } else {
+                return Err(ServerError::invalid_request(format!(
+                    "Invalid path: no filename component in {:?}",
+                    current
+                )));
+            }
+        }
+
+        // Canonicalize the existing ancestor
+        let mut canonical = fs::canonicalize(&current).await.map_err(|e| {
+            ServerError::invalid_request(format!(
+                "Path canonicalization failed for {:?}: {}",
+                current, e
+            ))
+        })?;
+
+        // Add back the non-existing components
+        for component in components_to_add.iter().rev() {
+            canonical = canonical.join(component);
+        }
+
+        canonical
+    };
+
+    // Verify containment within project root
+    if !canonical.starts_with(&canonical_root) {
+        return Err(ServerError::permission_denied(format!(
+            "Path traversal detected: {:?} escapes project root {:?}",
+            path, project_root
+        )));
+    }
+
+    Ok(canonical)
+}
+
+/// Spawn a worker to process file operations in the background
+pub fn spawn_operation_worker(
+    queue: Arc<mill_services::services::OperationQueue>,
+    project_root: PathBuf,
+) {
+    tokio::spawn(async move {
+        use mill_services::services::OperationType;
+        use serde_json::Value;
+        use std::path::Path;
+        use tokio::fs;
+        use tokio::io::AsyncWriteExt;
+
+        queue
+            .process_with(move |op, stats| {
+                let project_root = project_root.clone();
+                async move {
+                tracing::debug!(
+                    operation_id = %op.id,
+                    operation_type = ?op.operation_type,
+                    file_path = %op.file_path.display(),
+                    "Executing queued operation"
+                );
+
+                // Security check: Validate path before any operation
+                let valid_path = match validate_path(&project_root, &op.file_path).await {
+                    Ok(p) => p,
+                    Err(e) => {
+                        let mut stats_guard = stats.lock().await;
+                        stats_guard.failed_operations += 1;
+                        tracing::error!(
+                            operation_id = %op.id,
+                            error = %e,
+                            "Security check failed: Path traversal prevented"
+                        );
+                        return Err(e);
+                    }
+                };
+
+                // Use valid_path instead of op.file_path for subsequent operations
+                let result = match op.operation_type {
+                    OperationType::CreateDir => {
+                        fs::create_dir_all(&valid_path).await.map_err(|e| {
+                            ServerError::internal(format!("Failed to create directory: {}", e))
+                        })?;
+                        Ok(Value::Null)
+                    }
+                    OperationType::CreateFile | OperationType::Write => {
+                        let content = op
+                            .params
+                            .get("content")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+
+                        // Write and explicitly sync to disk to avoid caching issues
+                        let mut file = fs::File::create(&valid_path).await.map_err(|e| {
+                            ServerError::internal(format!("Failed to create file: {}", e))
+                        })?;
+
+                        file.write_all(content.as_bytes()).await.map_err(|e| {
+                            ServerError::internal(format!("Failed to write content: {}", e))
+                        })?;
+
+                        // CRITICAL: Sync file to disk BEFORE updating stats
+                        file.sync_all().await.map_err(|e| {
+                            ServerError::internal(format!("Failed to sync file: {}", e))
+                        })?;
+
+                        Ok(Value::Null)
+                    }
+                    OperationType::Delete => {
+                        if valid_path.exists() {
+                            fs::remove_file(&valid_path).await.map_err(|e| {
+                                ServerError::internal(format!("Failed to delete file: {}", e))
+                            })?;
+                        }
+                        Ok(Value::Null)
+                    }
+                    OperationType::Rename => {
+                        let new_path_str = op
+                            .params
+                            .get("new_path")
+                            .and_then(|v| v.as_str())
+                            .ok_or_else(|| {
+                            ServerError::internal("Missing 'new_path' parameter for Rename")
+                        })?;
+                        let new_path = Path::new(new_path_str);
+
+                        // Also validate new_path
+                        let valid_new_path = validate_path(&project_root, new_path).await?;
+
+                        fs::rename(&valid_path, valid_new_path).await.map_err(|e| {
+                            ServerError::internal(format!("Failed to rename file: {}", e))
+                        })?;
+                        Ok(Value::Null)
+                    }
+                    _ => Err(ServerError::internal(format!(
+                        "Unsupported operation type in worker: {:?}",
+                        op.operation_type
+                    ))),
+                };
+
+                // Update stats AFTER all I/O is complete (including sync_all)
+                let mut stats_guard = stats.lock().await;
+                match &result {
+                    Ok(_) => {
+                        stats_guard.completed_operations += 1;
+                        tracing::info!(
+                            operation_id = %op.id,
+                            operation_type = ?op.operation_type,
+                            completed = stats_guard.completed_operations,
+                            "Operation executed successfully"
+                        );
+                    }
+                    Err(e) => {
+                        stats_guard.failed_operations += 1;
+                        tracing::error!(
+                            operation_id = %op.id,
+                            operation_type = ?op.operation_type,
+                            error = %e,
+                            failed = stats_guard.failed_operations,
+                            "Operation execution failed"
+                        );
+                    }
+                }
+                drop(stats_guard); // Explicitly release lock
+
+                result
+            }
+            })
+            .await;
+    });
 }
