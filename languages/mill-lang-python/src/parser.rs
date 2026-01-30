@@ -17,6 +17,7 @@ use mill_lang_common::{
 use mill_plugin_api::{PluginApiError, PluginResult, Symbol, SymbolKind};
 use regex::Regex;
 use std::path::Path;
+use std::sync::OnceLock;
 use tracing::debug;
 /// List all function names in Python source code using Python's native AST parser.
 /// This function spawns a Python subprocess to perform the parsing.
@@ -118,10 +119,13 @@ fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
 }
 /// Extract Python function definitions with metadata
 pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
+    static FUNC_RE: OnceLock<Regex> = OnceLock::new();
     let mut functions = Vec::new();
     let lines: Vec<&str> = source.lines().collect();
-    let func_re = Regex::new(r"^(\s*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*:")
-        .expect("Python function regex pattern should be valid");
+    let func_re = FUNC_RE.get_or_init(|| {
+        Regex::new(r"^(\s*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*:")
+            .expect("Python function regex pattern should be valid")
+    });
     for (line_num, line) in lines.iter().enumerate() {
         if let Some(captures) = func_re.captures(line) {
             let _indent = captures
@@ -179,9 +183,12 @@ pub(crate) struct PythonFunction {
 }
 /// Extract Python variable assignments
 pub(crate) fn extract_python_variables(source: &str) -> PluginResult<Vec<PythonVariable>> {
+    static ASSIGN_RE: OnceLock<Regex> = OnceLock::new();
     let mut variables = Vec::new();
-    let assign_re = Regex::new(r"^(\s*)(\w+)\s*=\s*(.+)")
-        .expect("Python variable assignment regex pattern should be valid");
+    let assign_re = ASSIGN_RE.get_or_init(|| {
+        Regex::new(r"^(\s*)(\w+)\s*=\s*(.+)")
+            .expect("Python variable assignment regex pattern should be valid")
+    });
     for (line_num, line) in source.lines().enumerate() {
         if let Some(captures) = assign_re.captures(line) {
             let var_name = captures
@@ -308,8 +315,10 @@ pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
             documentation: None,
         });
     }
-    let class_re =
-        Regex::new(r"^class\s+(\w+)").expect("Python class regex pattern should be valid");
+    static CLASS_RE: OnceLock<Regex> = OnceLock::new();
+    let class_re = CLASS_RE.get_or_init(|| {
+        Regex::new(r"^class\s+(\w+)").expect("Python class regex pattern should be valid")
+    });
     let lines: Vec<&str> = source.lines().collect();
     for (line_num, line) in lines.iter().enumerate() {
         if let Some(captures) = class_re.captures(line.trim()) {
@@ -657,5 +666,36 @@ variable = "value"
         assert!(has_function, "Should extract function");
         assert!(has_class, "Should extract class");
         assert!(has_variable, "Should extract variable");
+    }
+
+    #[test]
+    #[ignore]
+    fn benchmark_extract_symbols_regex_compilation() {
+        use std::time::Instant;
+        let source = r#"
+class TestClass1:
+    def method1(self):
+        pass
+
+class TestClass2:
+    pass
+
+class TestClass3:
+    pass
+
+def function1():
+    x = 1
+    y = 2
+    return x + y
+"#;
+        // Repeat source to make it larger
+        let source = source.repeat(100);
+
+        let start = Instant::now();
+        for _ in 0..1000 {
+            let _ = extract_symbols(&source);
+        }
+        let duration = start.elapsed();
+        println!("Time taken: {:?}", duration);
     }
 }
