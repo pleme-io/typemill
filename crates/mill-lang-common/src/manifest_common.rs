@@ -216,9 +216,7 @@ impl TomlWorkspace {
 
             if let Some(base_table) = base_deps.as_table_mut() {
                 for (key, value) in source_table.into_iter() {
-                    if !base_table.contains_key(&key) {
-                        base_table.insert(&key, value);
-                    }
+                    base_table.entry(&key).or_insert(value);
                 }
             }
         }
@@ -231,9 +229,7 @@ impl TomlWorkspace {
 
             if let Some(base_table) = base_deps.as_table_mut() {
                 for (key, value) in source_table.into_iter() {
-                    if !base_table.contains_key(&key) {
-                        base_table.insert(&key, value);
-                    }
+                    base_table.entry(&key).or_insert(value);
                 }
             }
         }
