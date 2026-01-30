@@ -36,6 +36,7 @@ use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::path::Path;
 use tracing::{debug, info};
 
 pub struct RefactorHandler {
@@ -97,10 +98,13 @@ impl RefactorHandler {
             ServerError::invalid_request("Extract action requires 'name' parameter")
         })?;
 
+        // Resolve relative paths to absolute using workspace root
+        let file_path = resolve_file_path(&context.app_state.project_root, &params.params.file_path);
+
         let extract_params = crate::handlers::refactor_extract::ExtractPlanParams {
             kind: params.params.kind.clone(),
             source: crate::handlers::refactor_extract::SourceRange {
-                file_path: params.params.file_path.clone(),
+                file_path,
                 range: lsp_types::Range {
                     start: lsp_types::Position {
                         line: range.start_line,
@@ -166,10 +170,13 @@ impl RefactorHandler {
             ServerError::invalid_request("Inline action requires 'character' parameter")
         })?;
 
+        // Resolve relative paths to absolute using workspace root
+        let file_path = resolve_file_path(&context.app_state.project_root, &params.params.file_path);
+
         let inline_params = crate::handlers::refactor_inline::InlinePlanParams {
             kind: params.params.kind.clone(),
             target: crate::handlers::refactor_inline::InlineTarget {
-                file_path: params.params.file_path.clone(),
+                file_path,
                 position: lsp_types::Position { line, character },
             },
             options: crate::handlers::refactor_inline::InlineOptions {
@@ -501,6 +508,16 @@ impl Default for RefactorOptions {
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/// Resolve a file path to absolute, using workspace root for relative paths
+fn resolve_file_path(workspace_root: &Path, path: &str) -> String {
+    let path_buf = Path::new(path);
+    if path_buf.is_absolute() {
+        path.to_string()
+    } else {
+        workspace_root.join(path).to_string_lossy().to_string()
+    }
+}
 
 /// Capitalize the first character of a string
 fn capitalize_first(s: &str) -> String {

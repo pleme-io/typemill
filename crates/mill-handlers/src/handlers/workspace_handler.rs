@@ -430,30 +430,59 @@ impl WorkspaceHandler {
         // Check if this is an EditPlan (dry run) or ApplyResult (executed)
         if result.get("edits").is_some() {
             // This is an EditPlan (preview mode)
-            let edits = result
-                .get("edits")
-                .and_then(|v| v.as_array())
-                .map(|arr| arr.len())
-                .unwrap_or(0);
+            let edits_array = result.get("edits").and_then(|v| v.as_array());
+            let edits_count = edits_array.map(|arr| arr.len()).unwrap_or(0);
 
-            // Extract unique file paths
-            let files_changed = result
-                .get("edits")
-                .and_then(|v| v.as_array())
-                .map(|arr| {
-                    let mut files = std::collections::HashSet::new();
-                    for edit in arr {
-                        if let Some(file_path) = edit.get("filePath").and_then(|v| v.as_str()) {
-                            files.insert(file_path.to_string());
+            // Extract unique file paths and detect import path modifications
+            let mut files_changed = std::collections::HashSet::new();
+            let mut import_path_warnings: Vec<Diagnostic> = vec![];
+
+            if let Some(edits) = edits_array {
+                for edit in edits {
+                    if let Some(file_path) = edit.get("filePath").and_then(|v| v.as_str()) {
+                        files_changed.insert(file_path.to_string());
+
+                        // Check if this edit might affect an import path
+                        if let Some(original) = edit.get("originalText").and_then(|v| v.as_str()) {
+                            if Self::looks_like_path_segment(original)
+                                && Self::is_code_file(file_path)
+                            {
+                                let line = edit
+                                    .get("location")
+                                    .and_then(|l| l.get("startLine"))
+                                    .and_then(|v| v.as_u64())
+                                    .map(|n| n as u32);
+
+                                import_path_warnings.push(Diagnostic {
+                                    severity: DiagnosticSeverity::Warning,
+                                    message: format!(
+                                        "This replacement may modify an import path. The text '{}' looks like a path segment. Verify imports still resolve correctly.",
+                                        original
+                                    ),
+                                    file_path: Some(file_path.to_string()),
+                                    line,
+                                });
+                            }
                         }
                     }
-                    files.into_iter().collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
+                }
+            }
+
+            // Deduplicate warnings by file (only show one warning per file)
+            let mut seen_files = std::collections::HashSet::new();
+            import_path_warnings.retain(|w| {
+                if let Some(ref fp) = w.file_path {
+                    seen_files.insert(fp.clone())
+                } else {
+                    true
+                }
+            });
+
+            let files_changed: Vec<_> = files_changed.into_iter().collect();
 
             let summary = format!(
                 "Preview: Would replace {} matches in {} files",
-                edits,
+                edits_count,
                 files_changed.len()
             );
 
@@ -461,7 +490,7 @@ impl WorkspaceHandler {
                 status: WriteStatus::Preview,
                 summary,
                 files_changed,
-                diagnostics: vec![],
+                diagnostics: import_path_warnings,
                 changes: Some(result),
             };
 
@@ -499,6 +528,31 @@ impl WorkspaceHandler {
 
             Ok(serde_json::to_value(response)?)
         }
+    }
+
+    /// Check if a string looks like it could be part of a file path
+    /// (contains path separators or common path patterns)
+    fn looks_like_path_segment(text: &str) -> bool {
+        // Check for path-like patterns that might indicate this is part of an import
+        text.contains('/')
+            || text.contains('\\')
+            || text.starts_with('.')
+            || text.starts_with("..")
+            || text.ends_with(".js")
+            || text.ends_with(".ts")
+            || text.ends_with(".tsx")
+            || text.ends_with(".jsx")
+            || text.ends_with(".mjs")
+            || text.ends_with(".rs")
+            || text.ends_with(".py")
+    }
+
+    /// Check if a file is a code file that might contain imports
+    fn is_code_file(path: &str) -> bool {
+        let code_extensions = [
+            ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs", ".py", ".go", ".java",
+        ];
+        code_extensions.iter().any(|ext| path.ends_with(ext))
     }
 
     /// Handle update_members action - add/remove/list workspace members
