@@ -18,6 +18,7 @@ pub mod parser;
 mod path_alias_resolver;
 mod project_factory;
 pub mod refactoring;
+pub mod reference_detector;
 mod regex_patterns; // Re-exports from constants for backward compatibility
 mod string_literal_support;
 mod tsconfig;
@@ -57,6 +58,7 @@ define_language_plugin! {
         project_factory: project_factory::TypeScriptProjectFactory,
         lsp_installer: lsp_installer::TypeScriptLspInstaller,
         path_alias_resolver: path_alias_resolver::TypeScriptPathAliasResolver,
+        reference_detector: reference_detector::TypeScriptReferenceDetector,
         file_discovery: TypeScriptFileDiscovery,
     },
     doc: "TypeScript/JavaScript language plugin implementation"
@@ -129,6 +131,9 @@ impl LanguagePlugin for TypeScriptPlugin {
         },
         file_discovery => {
             file_discovery: FileDiscovery,
+        },
+        reference_detector => {
+            reference_detector: ReferenceDetector,
         },
     }
 

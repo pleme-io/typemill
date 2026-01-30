@@ -17,6 +17,7 @@ pub mod manifest;
 pub mod parser;
 pub mod project_factory;
 pub mod refactoring;
+pub mod reference_detector;
 mod string_literal_support;
 pub mod test_fixtures;
 pub mod workspace_support;
@@ -51,6 +52,7 @@ define_language_plugin! {
         workspace_support: workspace_support::PythonWorkspaceSupport,
         project_factory: project_factory::PythonProjectFactory,
         lsp_installer: lsp_installer::PythonLspInstaller,
+        reference_detector: reference_detector::PythonReferenceDetector,
         file_discovery: PythonFileDiscovery,
     },
     doc: "Python language plugin implementation providing comprehensive Python language support"
@@ -217,6 +219,9 @@ impl LanguagePlugin for PythonPlugin {
         },
         file_discovery => {
             file_discovery: FileDiscovery,
+        },
+        reference_detector => {
+            reference_detector: ReferenceDetector,
         },
     }
 }
