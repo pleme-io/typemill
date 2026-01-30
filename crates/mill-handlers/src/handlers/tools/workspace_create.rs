@@ -6,6 +6,7 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_plugin_api::{CreatePackageConfig, PackageType, Template};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::path::Path;
 use tracing::{debug, error, info};
 
 /// Service for workspace package creation operations
@@ -93,6 +94,7 @@ pub(crate) struct CreatePackageResult {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct PackageInfo {
     pub name: String,
     pub version: String,
@@ -120,11 +122,11 @@ pub async fn handle_create_package(
         "Parsed create_package parameters"
     );
 
-    // Dry-run mode not yet supported - requires non-mutable plugin operations
+    let workspace_root = &context.app_state.project_root;
+
+    // Handle dry-run mode - preview what would be created
     if params.options.dry_run {
-        return Err(ServerError::invalid_request(
-            "dry_run mode not yet supported for workspace create_package action".to_string(),
-        ));
+        return preview_create_package(workspace_root, &params);
     }
 
     // Get language extension based on the specified language type
@@ -191,4 +193,188 @@ pub async fn handle_create_package(
     };
 
     Ok(serde_json::to_value(mcp_result).unwrap())
+}
+
+/// Preview what files would be created for a package without actually creating them.
+/// This implements dry-run mode for create_package.
+fn preview_create_package(
+    workspace_root: &Path,
+    params: &CreatePackageParams,
+) -> ServerResult<Value> {
+    debug!(
+        package_path = %params.package_path,
+        language = ?params.language,
+        package_type = ?params.package_type,
+        template = ?params.options.template,
+        "Previewing package creation"
+    );
+
+    // Resolve package path (relative to workspace or absolute)
+    let package_path = if Path::new(&params.package_path).is_absolute() {
+        std::path::PathBuf::from(&params.package_path)
+    } else {
+        workspace_root.join(&params.package_path)
+    };
+
+    // Validate package path doesn't already exist
+    if package_path.exists() {
+        return Err(ServerError::invalid_request(format!(
+            "Package path already exists: {}",
+            package_path.display()
+        )));
+    }
+
+    // Derive package name from the path (last component)
+    let package_name = package_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|n| n.replace('-', "_")) // Normalize for Rust/Python conventions
+        .ok_or_else(|| {
+            ServerError::invalid_request(format!(
+                "Cannot derive package name from path: {}",
+                params.package_path
+            ))
+        })?;
+
+    // Calculate what files would be created based on language type
+    let (created_files, manifest_path) = predict_created_files(
+        &package_path,
+        &package_name,
+        params.language,
+        params.package_type,
+        params.options.template,
+    );
+
+    let mcp_result = CreatePackageResult {
+        created_files,
+        workspace_updated: params.options.add_to_workspace,
+        package_info: PackageInfo {
+            name: package_name,
+            version: "0.1.0".to_string(),
+            manifest_path,
+        },
+        dry_run: true,
+    };
+
+    Ok(serde_json::to_value(mcp_result).unwrap())
+}
+
+/// Predict what files would be created for a given language, package type, and template.
+fn predict_created_files(
+    package_path: &Path,
+    package_name: &str,
+    language: LanguageType,
+    package_type: PackageType,
+    template: Template,
+) -> (Vec<String>, String) {
+    let mut files = Vec::new();
+    let manifest_path: String;
+
+    match language {
+        LanguageType::Cargo => {
+            // Cargo.toml
+            let cargo_toml = package_path.join("Cargo.toml");
+            manifest_path = cargo_toml.display().to_string();
+            files.push(manifest_path.clone());
+
+            // Entry file
+            match package_type {
+                PackageType::Library => {
+                    files.push(package_path.join("src/lib.rs").display().to_string());
+                }
+                PackageType::Binary => {
+                    files.push(package_path.join("src/main.rs").display().to_string());
+                }
+            }
+
+            // Full template extras
+            if matches!(template, Template::Full) {
+                files.push(package_path.join("README.md").display().to_string());
+                files.push(
+                    package_path
+                        .join("tests/integration_test.rs")
+                        .display()
+                        .to_string(),
+                );
+                files.push(package_path.join("examples/basic.rs").display().to_string());
+            }
+        }
+        LanguageType::Npm => {
+            // package.json
+            let package_json = package_path.join("package.json");
+            manifest_path = package_json.display().to_string();
+            files.push(manifest_path.clone());
+
+            // tsconfig.json
+            files.push(package_path.join("tsconfig.json").display().to_string());
+
+            // Entry file
+            match package_type {
+                PackageType::Library => {
+                    files.push(package_path.join("src/index.ts").display().to_string());
+                }
+                PackageType::Binary => {
+                    files.push(package_path.join("src/main.ts").display().to_string());
+                }
+            }
+
+            // Baseline files (always included for npm)
+            files.push(package_path.join("README.md").display().to_string());
+            files.push(package_path.join(".gitignore").display().to_string());
+            files.push(
+                package_path
+                    .join("tests/index.test.ts")
+                    .display()
+                    .to_string(),
+            );
+
+            // Full template extras
+            if matches!(template, Template::Full) {
+                files.push(package_path.join(".eslintrc.json").display().to_string());
+            }
+        }
+        LanguageType::Python => {
+            // pyproject.toml
+            let pyproject = package_path.join("pyproject.toml");
+            manifest_path = pyproject.display().to_string();
+            files.push(manifest_path.clone());
+
+            // Entry file (in src/<package_name>/)
+            match package_type {
+                PackageType::Library => {
+                    files.push(
+                        package_path
+                            .join(format!("src/{}/__init__.py", package_name))
+                            .display()
+                            .to_string(),
+                    );
+                }
+                PackageType::Binary => {
+                    files.push(
+                        package_path
+                            .join(format!("src/{}/main.py", package_name))
+                            .display()
+                            .to_string(),
+                    );
+                }
+            }
+
+            // Baseline files (always included for Python)
+            files.push(package_path.join("README.md").display().to_string());
+            files.push(package_path.join(".gitignore").display().to_string());
+            files.push(
+                package_path
+                    .join("tests/test_basic.py")
+                    .display()
+                    .to_string(),
+            );
+
+            // Full template extras
+            if matches!(template, Template::Full) {
+                files.push(package_path.join("setup.py").display().to_string());
+            }
+        }
+    }
+
+    (files, manifest_path)
 }

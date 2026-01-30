@@ -917,11 +917,9 @@ async fn test_zod_extract_dependencies_execute() {
 // Create Package Tests (Dry Run + Execute)
 // ============================================================================
 
-/// Test: Dry-run create package
-/// NOTE: Currently skipped because create_package doesn't support dryRun mode yet
+/// Test: Dry-run create package - previews what files would be created
 #[tokio::test]
 #[serial]
-#[ignore = "create_package dryRun not yet implemented"]
 async fn test_zod_create_package_dry_run() {
     let mut ctx = ZOD_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
 
@@ -953,13 +951,54 @@ async fn test_zod_create_package_dry_run() {
         result
     );
 
+    let inner = result.get("result").unwrap();
+
+    // Verify status is preview (WriteResponse format)
+    assert_eq!(
+        inner.get("status"),
+        Some(&json!("preview")),
+        "status should be 'preview' for dry run: {:?}",
+        inner
+    );
+
+    // Verify filesChanged preview contains expected npm package files
+    let files_changed = inner
+        .get("filesChanged")
+        .and_then(|v| v.as_array())
+        .expect("filesChanged should be an array");
+    assert!(
+        !files_changed.is_empty(),
+        "filesChanged should not be empty"
+    );
+
+    // Verify changes contains the original create_package result
+    let changes = inner.get("changes").expect("changes should exist");
+
+    // Verify dry run flag in changes
+    assert_eq!(
+        changes.get("dryRun"),
+        Some(&json!(true)),
+        "changes.dryRun should be true"
+    );
+
+    // Verify packageInfo is populated in changes
+    let package_info = changes.get("packageInfo").expect("packageInfo should exist");
+    assert!(
+        package_info.get("name").is_some(),
+        "packageInfo.name should exist"
+    );
+    assert!(
+        package_info.get("manifestPath").is_some(),
+        "packageInfo.manifestPath should exist"
+    );
+
     // Package should NOT be created (dry run)
     assert!(
         !pkg_path.exists(),
         "new-pkg-dry should NOT exist after dry run"
     );
 
-    println!("✅ Successfully dry-run create_package");
+    println!("✅ Successfully dry-run create_package with {} predicted files", files_changed.len());
 }
 
 /// Test: Execute create package
