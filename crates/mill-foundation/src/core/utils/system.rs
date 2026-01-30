@@ -16,17 +16,19 @@ pub fn command_exists(cmd: &str) -> bool {
 /// # Examples
 /// ```
 /// use mill_foundation::core::utils::system;
-/// let (success, output) = system::test_command_with_version("rustc", &[]);
+/// # tokio_test::block_on(async {
+/// let (success, output) = system::test_command_with_version("rustc", &[]).await;
 /// assert!(success);
+/// # })
 /// ```
-pub fn test_command_with_version(cmd: &str, args: &[&str]) -> (bool, String) {
-    use std::process::Command;
+pub async fn test_command_with_version(cmd: &str, args: &[&str]) -> (bool, String) {
+    use tokio::process::Command;
 
     // Try: cmd args --version
     let mut full_args = args.to_vec();
     full_args.push("--version");
 
-    match Command::new(cmd).args(&full_args).output() {
+    match Command::new(cmd).args(&full_args).output().await {
         Ok(output) if output.status.success() => {
             let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
             (true, version)
@@ -35,7 +37,7 @@ pub fn test_command_with_version(cmd: &str, args: &[&str]) -> (bool, String) {
             // Try with -v instead
             let mut args_v = args.to_vec();
             args_v.push("-v");
-            match Command::new(cmd).args(&args_v).output() {
+            match Command::new(cmd).args(&args_v).output().await {
                 Ok(out2) if out2.status.success() => {
                     let version = String::from_utf8_lossy(&out2.stdout).trim().to_string();
                     (true, version)
@@ -184,20 +186,20 @@ mod tests {
         assert!(path.is_none());
     }
 
-    #[test]
-    fn test_test_command_with_version_rustc() {
+    #[tokio::test]
+    async fn test_test_command_with_version_rustc() {
         // Test with rustc which should be available
-        let (success, output) = test_command_with_version("rustc", &[]);
+        let (success, output) = test_command_with_version("rustc", &[]).await;
         assert!(success, "rustc --version should succeed");
         assert!(!output.is_empty(), "Version output should not be empty");
         assert!(output.contains("rustc"), "Output should contain 'rustc'");
     }
 
-    #[test]
-    fn test_test_command_with_version_missing() {
+    #[tokio::test]
+    async fn test_test_command_with_version_missing() {
         // Test with non-existent command
         let (success, _output) =
-            test_command_with_version("this-command-does-not-exist-12345", &[]);
+            test_command_with_version("this-command-does-not-exist-12345", &[]).await;
         assert!(!success, "Non-existent command should fail");
     }
 
