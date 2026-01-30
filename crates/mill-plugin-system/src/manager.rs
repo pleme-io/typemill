@@ -414,11 +414,9 @@ impl PluginManager {
         let registry = self.registry.read().await;
         let mut all_tools = Vec::new();
 
-        for plugin_name in registry.get_plugin_names() {
-            if let Some(plugin) = registry.get_plugin(&plugin_name) {
-                let tools = plugin.tool_definitions();
-                all_tools.extend(tools);
-            }
+        for plugin in registry.get_all_plugins() {
+            let tools = plugin.tool_definitions();
+            all_tools.extend(tools);
         }
 
         all_tools
