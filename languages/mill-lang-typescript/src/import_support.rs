@@ -16,7 +16,7 @@ use mill_plugin_api::{
     path_alias_resolver::PathAliasResolver,
     PluginResult,
 };
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tracing::{debug, warn};
 
 /// TypeScript/JavaScript import support implementation
@@ -276,6 +276,21 @@ pub(crate) fn rewrite_imports_for_move_with_context(
     path_alias_resolver: Option<&crate::path_alias_resolver::TypeScriptPathAliasResolver>,
     project_root: Option<&Path>,
 ) -> (String, usize) {
+    // Check if the importing file itself is being moved (is inside old_path)
+    // This happens when moving a directory containing files with relative imports
+    let is_internal_update = importing_file.starts_with(old_path);
+
+    if is_internal_update {
+        return rewrite_internal_imports(
+            content,
+            old_path,
+            new_path,
+            importing_file,
+            path_alias_resolver,
+            project_root,
+        );
+    }
+
     let mut new_content = content.to_string();
     let mut changes = 0;
 
@@ -448,6 +463,161 @@ pub(crate) fn rewrite_imports_for_move_with_context(
     (new_content, changes)
 }
 
+/// Rewrite internal imports when a file is moved
+/// This handles updating relative imports inside the moved file itself
+fn rewrite_internal_imports(
+    content: &str,
+    old_move_root: &Path,
+    new_move_root: &Path,
+    importing_file_old_path: &Path,
+    _path_alias_resolver: Option<&crate::path_alias_resolver::TypeScriptPathAliasResolver>,
+    _project_root: Option<&Path>,
+) -> (String, usize) {
+    let mut new_content = content.to_string();
+    let mut changes = 0;
+
+    // Calculate importing file's NEW location
+    let relative_path_in_move = match importing_file_old_path.strip_prefix(old_move_root) {
+        Ok(p) => p,
+        Err(_) => return (new_content, 0),
+    };
+    let importing_file_new_path = new_move_root.join(relative_path_in_move);
+    let importing_dir_old = importing_file_old_path.parent().unwrap_or(Path::new(""));
+
+    // Get all imports
+    let imports = match crate::parser::analyze_imports(content, Some(importing_file_old_path)) {
+        Ok(graph) => graph.imports,
+        Err(_) => {
+            let simple = parse_imports_simple(content);
+            simple
+                .into_iter()
+                .map(|s| mill_foundation::protocol::ImportInfo {
+                    module_path: s,
+                    import_type: mill_foundation::protocol::ImportType::EsModule,
+                    named_imports: Vec::new(),
+                    default_import: None,
+                    namespace_import: None,
+                    type_only: false,
+                    location: mill_foundation::protocol::SourceLocation {
+                        start_line: 0,
+                        start_column: 0,
+                        end_line: 0,
+                        end_column: 0,
+                    },
+                })
+                .collect()
+        }
+    };
+
+    for import in imports {
+        let specifier = &import.module_path;
+
+        // Only care about relative imports (starting with .)
+        if !specifier.starts_with('.') {
+            continue;
+        }
+
+        // Resolve absolute target (based on OLD location)
+        let absolute_target = importing_dir_old.join(specifier);
+        let absolute_target_normalized = normalize_path(&absolute_target);
+
+        // Determine if target is ALSO moving
+        let target_new_location = if absolute_target_normalized.starts_with(old_move_root) {
+            // Target is moving too!
+            let relative = absolute_target_normalized
+                .strip_prefix(old_move_root)
+                .unwrap();
+            new_move_root.join(relative)
+        } else {
+            // Target stays put (external file)
+            absolute_target_normalized.clone()
+        };
+
+        // Calculate NEW relative import from NEW location of importing file
+        let new_specifier =
+            calculate_relative_import(&importing_file_new_path, &target_new_location);
+
+        // Preserve .js extension if present in original
+        let final_new_specifier = if specifier.ends_with(".js") && !new_specifier.ends_with(".js") {
+            format!("{}.js", new_specifier)
+        } else {
+            new_specifier
+        };
+
+        // If it changed, replace it
+        if final_new_specifier != *specifier {
+            let escaped_spec = regex::escape(specifier);
+            let safe_new_spec = final_new_specifier.replace("$", "$$");
+
+            for quote in &["'", "\""] {
+                // 1. Side-effect import: import 'spec'
+                let se_pattern = format!(r"import\s*{}{}{}", quote, escaped_spec, quote);
+                if let Ok(re) = regex::Regex::new(&se_pattern) {
+                    let replacement = format!("import {}{}{}", quote, safe_new_spec, quote);
+                    let new = re.replace_all(&new_content, replacement.as_str());
+                    if new != new_content {
+                        new_content = new.to_string();
+                        changes += 1;
+                    }
+                }
+
+                // 2. from 'spec'
+                let from_pattern = format!(r"from\s*{}{}{}", quote, escaped_spec, quote);
+                if let Ok(re) = regex::Regex::new(&from_pattern) {
+                    let replacement = format!("from {}{}{}", quote, safe_new_spec, quote);
+                    let new = re.replace_all(&new_content, replacement.as_str());
+                    if new != new_content {
+                        new_content = new.to_string();
+                        changes += 1;
+                    }
+                }
+
+                // 3. require('spec')
+                let req_pattern = format!(r"require\s*\(\s*{}{}{}\s*\)", quote, escaped_spec, quote);
+                if let Ok(re) = regex::Regex::new(&req_pattern) {
+                    let replacement = format!("require({}{}{})", quote, safe_new_spec, quote);
+                    let new = re.replace_all(&new_content, replacement.as_str());
+                    if new != new_content {
+                        new_content = new.to_string();
+                        changes += 1;
+                    }
+                }
+
+                // 4. import('spec')
+                let dyn_pattern = format!(r"import\s*\(\s*{}{}{}\s*\)", quote, escaped_spec, quote);
+                if let Ok(re) = regex::Regex::new(&dyn_pattern) {
+                    let replacement = format!("import({}{}{})", quote, safe_new_spec, quote);
+                    let new = re.replace_all(&new_content, replacement.as_str());
+                    if new != new_content {
+                        new_content = new.to_string();
+                        changes += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    (new_content, changes)
+}
+
+/// Normalize path by processing . and .. components
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        use std::path::Component;
+        match component {
+            Component::ParentDir => {
+                result.pop();
+            }
+            Component::CurDir => {}
+            _ => {
+                result.push(component);
+            }
+        }
+    }
+    result
+}
+
 /// Convert a file path to an import string
 /// Calculate relative import path from importing_file to target_file
 /// Returns a string like "./helper" or "../utils/helper"
@@ -520,6 +690,43 @@ fn calculate_relative_import(importing_file: &Path, target_file: &Path) -> Strin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_normalize_path() {
+        let path = PathBuf::from("/tmp/src/components/../models/User");
+        let normalized = normalize_path(&path);
+        assert_eq!(normalized, PathBuf::from("/tmp/src/models/User"));
+
+        let path2 = PathBuf::from("/tmp/src/components/./Button.ts");
+        let normalized2 = normalize_path(&path2);
+        assert_eq!(normalized2, PathBuf::from("/tmp/src/components/Button.ts"));
+    }
+
+    #[test]
+    fn test_rewrite_internal_imports_logic() {
+        // Simulate the failing case
+        // Old: /tmp/src/components/Button.ts
+        // New: /tmp/src/ui/components/Button.ts
+        // Import: ../models/User
+        // Expected: ../../models/User
+
+        let old_root = PathBuf::from("/tmp/src/components");
+        let new_root = PathBuf::from("/tmp/src/ui/components");
+        let importing_file = PathBuf::from("/tmp/src/components/Button.ts");
+        let content = "import { User } from '../models/User';";
+
+        let (updated, changes) = rewrite_internal_imports(
+            content,
+            &old_root,
+            &new_root,
+            &importing_file,
+            None,
+            None
+        );
+
+        assert_eq!(changes, 1);
+        assert!(updated.contains("from '../../models/User'"), "Got: {}", updated);
+    }
 
     #[test]
     fn test_rewrite_imports_for_rename() {
