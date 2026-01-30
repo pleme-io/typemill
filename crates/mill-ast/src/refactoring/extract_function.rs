@@ -105,7 +105,9 @@ pub async fn plan_extract_function(
                     .plan_extract_function(
                         source,
                         range.start_line,
+                        range.start_col,
                         range.end_line,
+                        range.end_col,
                         new_function_name,
                         file_path,
                     )

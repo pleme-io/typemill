@@ -30,15 +30,17 @@ use swc_ecma_visit::{Visit, VisitWith};
 pub fn plan_extract_function(
     source: &str,
     start_line: u32,
+    start_col: u32,
     end_line: u32,
+    end_col: u32,
     new_function_name: &str,
     file_path: &str,
 ) -> PluginResult<EditPlan> {
     let range = CodeRange {
         start_line,
-        start_col: 0, // Simplified for now
+        start_col,
         end_line,
-        end_col: source.lines().nth(end_line as usize).unwrap_or("").len() as u32, // Simplified
+        end_col,
     };
     ast_extract_function_ts_js(source, &range, new_function_name, file_path)
 }

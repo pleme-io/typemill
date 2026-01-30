@@ -171,14 +171,19 @@ pub trait RefactoringProvider: Send + Sync {
     ///
     /// * `source` - Source code content
     /// * `start_line` - Start line of selection (0-based)
+    /// * `start_col` - Start column of selection (0-based)
     /// * `end_line` - End line of selection (0-based)
+    /// * `end_col` - End column of selection (0-based)
     /// * `function_name` - Name for the extracted function
     /// * `file_path` - Path to the source file
+    #[allow(clippy::too_many_arguments)]
     async fn plan_extract_function(
         &self,
         _source: &str,
         _start_line: u32,
+        _start_col: u32,
         _end_line: u32,
+        _end_col: u32,
         _function_name: &str,
         _file_path: &str,
     ) -> PluginResult<mill_foundation::protocol::EditPlan> {
