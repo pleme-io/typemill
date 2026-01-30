@@ -7,14 +7,16 @@
 
 use crate::handlers::common::calculate_checksum;
 use futures::stream::StreamExt;
+use lsp_types::{Location, Position, Range, TextEdit, Uri};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::{
     DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning,
 };
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info};
+use url::Url;
 
 /// Planning service for prune operations
 pub struct PrunePlanner;
@@ -87,12 +89,10 @@ impl PrunePlanner {
     /// Helper to remove a specific identifier from an import statement
     /// Returns Some(new_line) if we can keep the import with other identifiers
     /// Returns None if the entire line should be deleted
-    // TODO: wire up - use when cleanup_imports option is enabled
-    #[allow(dead_code)]
     fn remove_import_identifier(&self, line: &str, identifier: &str) -> Option<String> {
         // Check if this is an import statement with curly braces
         if !line.trim_start().starts_with("import") || !line.contains('{') || !line.contains('}') {
-            return None; // Not a destructured import, delete entire line
+            return Some(line.to_string()); // Not a destructured import, keep line as is
         }
 
         // Extract the part between curly braces
@@ -116,8 +116,8 @@ impl PrunePlanner {
                 .filter(|s| !s.trim().is_empty())
                 .count()
         {
-            // Identifier wasn't found, delete entire line
-            None
+            // Identifier wasn't found, keep line as is
+            Some(line.to_string())
         } else {
             // Reconstruct the import with remaining identifiers
             let prefix = &line[..start_brace + 1];
@@ -125,6 +125,173 @@ impl PrunePlanner {
             let new_imports = identifiers.join(", ");
             Some(format!("{} {} {}", prefix, new_imports, suffix))
         }
+    }
+
+    /// Generate edits to clean up imports of a symbol in other files
+    async fn cleanup_imports(
+        &self,
+        symbol_name: &str,
+        def_file_path: &Path,
+        line: u32,
+        character: u32,
+        context: &mill_handler_api::ToolHandlerContext,
+    ) -> ServerResult<HashMap<Uri, Vec<TextEdit>>> {
+        let mut changes: HashMap<Uri, Vec<TextEdit>> = HashMap::new();
+
+        // Get extension to find LSP client
+        let extension = def_file_path
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .ok_or_else(|| {
+                ServerError::invalid_request(format!(
+                    "File has no extension: {}",
+                    def_file_path.display()
+                ))
+            })?;
+
+        // Get LSP client
+        let client_opt = {
+            let adapter = context.lsp_adapter.lock().await;
+            if let Some(adapter) = adapter.as_ref() {
+                adapter.get_or_create_client(extension).await.ok()
+            } else {
+                None
+            }
+        };
+
+        if let Some(client) = client_opt {
+            // Create Uri from path
+            let uri_str = Url::from_file_path(def_file_path)
+                .map_err(|_| ServerError::invalid_request("Invalid definition file path"))?
+                .to_string();
+            let uri: Uri = uri_str
+                .parse()
+                .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+
+            // Find references
+            let params = lsp_types::ReferenceParams {
+                text_document_position: lsp_types::TextDocumentPositionParams {
+                    text_document: lsp_types::TextDocumentIdentifier { uri: uri.clone() },
+                    position: Position { line, character },
+                },
+                context: lsp_types::ReferenceContext {
+                    include_declaration: false,
+                },
+                work_done_progress_params: Default::default(),
+                partial_result_params: Default::default(),
+            };
+
+            let response = client
+                .send_request(
+                    "textDocument/references",
+                    serde_json::to_value(params).unwrap(),
+                )
+                .await
+                .map_err(|e| ServerError::internal(format!("Failed to find references: {}", e)))?;
+
+            let references: Vec<Location> = serde_json::from_value(response).unwrap_or_default();
+
+            // Group references by file
+            let mut files_with_refs: HashMap<Uri, Vec<Location>> = HashMap::new();
+            for reference in references {
+                files_with_refs
+                    .entry(reference.uri.clone())
+                    .or_default()
+                    .push(reference);
+            }
+
+            // Process each file
+            for (file_uri, locations) in files_with_refs {
+                // Skip the definition file itself (handled by symbol delete plan)
+                if file_uri == uri {
+                    continue;
+                }
+
+                // Convert Uri to Path via Url
+                let url_str = file_uri.as_str();
+                let url = Url::parse(url_str)
+                    .map_err(|e| ServerError::internal(format!("Failed to parse URI as URL: {}", e)))?;
+
+                let path = url
+                    .to_file_path()
+                    .map_err(|_| ServerError::internal("Failed to convert URI to path"))?;
+
+                let content = context
+                    .app_state
+                    .file_service
+                    .read_file(&path)
+                    .await
+                    .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
+
+                let lines: Vec<&str> = content.lines().collect();
+                let mut edits = Vec::new();
+                let mut processed_lines = HashSet::new();
+
+                for location in locations {
+                    let line_idx = location.range.start.line as usize;
+                    if line_idx >= lines.len() {
+                        continue;
+                    }
+
+                    // Avoid processing the same line multiple times
+                    if processed_lines.contains(&line_idx) {
+                        continue;
+                    }
+                    processed_lines.insert(line_idx);
+
+                    let line = lines[line_idx];
+
+                    // Only process import statements
+                    if !line.trim_start().starts_with("import") {
+                        continue;
+                    }
+
+                    // Attempt to remove identifier
+                    if let Some(new_line) = self.remove_import_identifier(line, symbol_name) {
+                        if new_line != line {
+                            // Replace line
+                            let range = Range {
+                                start: Position {
+                                    line: line_idx as u32,
+                                    character: 0,
+                                },
+                                end: Position {
+                                    line: line_idx as u32,
+                                    character: line.len() as u32,
+                                },
+                            };
+
+                            edits.push(TextEdit {
+                                range,
+                                new_text: new_line,
+                            });
+                        }
+                    } else {
+                        // Delete line (including newline if possible)
+                        // To delete the line completely, we delete from start of this line to start of next line
+                        let start = Position {
+                            line: line_idx as u32,
+                            character: 0,
+                        };
+                        let end = Position {
+                            line: (line_idx + 1) as u32,
+                            character: 0,
+                        };
+
+                        edits.push(TextEdit {
+                            range: Range { start, end },
+                            new_text: "".to_string(),
+                        });
+                    }
+                }
+
+                if !edits.is_empty() {
+                    changes.insert(file_uri, edits);
+                }
+            }
+        }
+
+        Ok(changes)
     }
 
     /// Generate plan for symbol deletion using AST-based analysis
@@ -227,10 +394,40 @@ impl PrunePlanner {
             })?;
 
         // Convert EditPlan to WorkspaceEdit using the converter utility from move module
-        let workspace_edit =
+        let mut workspace_edit =
             crate::handlers::relocate_ops::converter::convert_edit_plan_to_workspace_edit(
                 &edit_plan,
             )?;
+
+        let mut warnings = Vec::new();
+
+        // Clean up imports if enabled
+        if params.options.cleanup_imports.unwrap_or(true) {
+            if let Some(symbol_name) = &selector.symbol_name {
+                let cleanup_edits = self
+                    .cleanup_imports(
+                        symbol_name,
+                        file_path,
+                        selector.line,
+                        selector.character,
+                        context,
+                    )
+                    .await?;
+
+                if !cleanup_edits.is_empty() {
+                    let changes = workspace_edit.changes.get_or_insert_with(HashMap::new);
+                    for (uri, edits) in cleanup_edits {
+                        changes.entry(uri).or_default().extend(edits);
+                    }
+                }
+            } else {
+                warnings.push(PlanWarning {
+                    code: "MISSING_SYMBOL_NAME".to_string(),
+                    message: "Cannot clean up imports without symbol name".to_string(),
+                    candidates: None,
+                });
+            }
+        }
 
         // Calculate file checksums
         let mut file_checksums = HashMap::new();
@@ -268,7 +465,7 @@ impl PrunePlanner {
             deletions: Vec::new(), // No file deletions, using edits instead
             edits: Some(workspace_edit),
             summary,
-            warnings: Vec::new(),
+            warnings,
             metadata,
             file_checksums,
         })
@@ -507,5 +704,46 @@ impl PrunePlanner {
             metadata,
             file_checksums,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove_import_identifier() {
+        let planner = PrunePlanner::new();
+
+        // Case 1: Destructured import, remove one identifier
+        let line = "import { A, B } from './mod';";
+        let result = planner.remove_import_identifier(line, "A");
+        assert_eq!(result, Some("import { B } from './mod';".to_string()));
+
+        // Case 2: Destructured import, remove last identifier (should delete line)
+        let line = "import { A } from './mod';";
+        let result = planner.remove_import_identifier(line, "A");
+        assert_eq!(result, None);
+
+        // Case 3: Destructured import, identifier not found (should be no-op)
+        let line = "import { A } from './mod';";
+        let result = planner.remove_import_identifier(line, "B");
+        assert_eq!(result, Some(line.to_string()));
+
+        // Case 4: Default import (should be no-op currently)
+        let line = "import A from './mod';";
+        let result = planner.remove_import_identifier(line, "A");
+        assert_eq!(result, Some(line.to_string()));
+
+        // Case 5: Complex spacing
+        let line = "import {  A ,  B  } from './mod';";
+        let result = planner.remove_import_identifier(line, "A");
+        // Implementation trims whitespace and reconstructs with single spaces
+        assert_eq!(result, Some("import { B } from './mod';".to_string()));
+
+        // Case 6: Not an import (should be no-op)
+        let line = "const x = 1;";
+        let result = planner.remove_import_identifier(line, "x");
+        assert_eq!(result, Some(line.to_string()));
     }
 }
