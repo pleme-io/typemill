@@ -125,7 +125,16 @@ impl LanguagePlugin for PythonPlugin {
         debug!("Listing Python functions");
 
         // Try native Python parser first
-        match parser::list_functions(source) {
+        // Use spawn_blocking to avoid blocking the async runtime with subprocess I/O
+        let source_string = source.to_string();
+        let parse_result = tokio::task::spawn_blocking(move || parser::list_functions(&source_string)).await;
+
+        // Handle task join error (panic or cancellation)
+        let result = parse_result.map_err(|e| {
+            mill_plugin_api::PluginApiError::internal(format!("Blocking task failed: {}", e))
+        })?;
+
+        match result {
             Ok(functions) => {
                 debug!(
                     functions_count = functions.len(),
@@ -830,5 +839,42 @@ dependencies = [
             !manifest.dependencies.is_empty(),
             "Should find dependencies"
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_list_functions_is_non_blocking() {
+        // This test verifies that list_functions does not block the async executor
+        let plugin = PythonPlugin::new();
+        // 50,000 lines should take some time to parse/transfer
+        let source = "def foo(): pass\n".repeat(50000);
+
+        // Spawn a background task that attempts to tick while list_functions is running
+        let start_time = std::time::Instant::now();
+        // We want the background task to run within the next 500ms.
+        // If list_functions blocks for > 500ms, the background task will not get a chance to run
+        // before the deadline expires.
+        let end_time = start_time + std::time::Duration::from_millis(500);
+
+        let background_handle = tokio::spawn(async move {
+            let mut ticks = 0;
+            while std::time::Instant::now() < end_time {
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                ticks += 1;
+            }
+            ticks
+        });
+
+        // Run list_functions
+        let result = plugin.list_functions(&source).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 50000);
+
+        let ticks = background_handle.await.unwrap();
+
+        // If it was blocking (and took > 500ms), ticks would be 0.
+        // We expect some concurrency.
+        // Note: this assertion might be flaky on extremely slow machines if list_functions finishes < 10ms,
+        // but with 50,000 lines it should take significantly longer than 10ms.
+        assert!(ticks > 0, "list_functions blocked the executor! Ticks: {}", ticks);
     }
 }
