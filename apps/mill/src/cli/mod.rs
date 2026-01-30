@@ -1344,6 +1344,16 @@ async fn handle_tool_command(
         use mill_transport::{default_socket_path, is_daemon_running, UnixSocketClient};
 
         let socket_path = default_socket_path();
+
+        // Auto-start daemon if not running to cache project state
+        if !is_daemon_running(&socket_path).await {
+             eprintln!("🚀 Auto-starting mill daemon for persistent project state...");
+             if let Err(e) = start_background_daemon().await {
+                 eprintln!("⚠️  Failed to auto-start daemon: {}", e);
+                 // Fall through to in-process execution
+             }
+        }
+
         if is_daemon_running(&socket_path).await {
             // Use daemon for faster execution (LSP servers already running)
             match UnixSocketClient::connect(&socket_path).await {
@@ -1453,17 +1463,14 @@ async fn handle_daemon_command(command: DaemonCommands) {
 
                 run_daemon_server(&socket_path, &pid_path).await;
             } else {
-                // Daemonize: fork and run in background
+                // Run in background using detached child process
                 println!("🚀 Starting daemon in background...");
+                if let Err(e) = start_background_daemon().await {
+                    eprintln!("❌ Failed to start daemon: {}", e);
+                    process::exit(1);
+                }
+                println!("✅ Daemon started successfully");
                 println!("   Socket: {}", socket_path.display());
-
-                // For now, just run in foreground with a message
-                // True daemonization requires fork() which is complex
-                // Users can use `mill daemon start --foreground &` for now
-                eprintln!("   Note: Use 'mill daemon start --foreground &' for background mode");
-                eprintln!("   or run with 'nohup mill daemon start --foreground &'");
-
-                run_daemon_server(&socket_path, &pid_path).await;
             }
         }
         DaemonCommands::Stop => {
@@ -1530,6 +1537,44 @@ async fn handle_daemon_command(command: DaemonCommands) {
             }
         }
     }
+}
+
+/// Start daemon in background as a detached process
+#[cfg(unix)]
+async fn start_background_daemon() -> Result<(), String> {
+    use mill_transport::default_socket_path;
+    use std::process::{Command, Stdio};
+
+    // 1. Get current executable path
+    let exe_path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get current executable path: {}", e))?;
+
+    // 2. Spawn daemon process (mill daemon start --foreground)
+    // We use --foreground to avoid the complex fork() logic in the daemon command itself,
+    // but we spawn it as a detached process from here.
+    let _child = Command::new(exe_path)
+        .arg("daemon")
+        .arg("start")
+        .arg("--foreground")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn daemon process: {}", e))?;
+
+    // 3. Wait for socket to appear (with timeout)
+    let socket_path = default_socket_path();
+    let start_time = std::time::Instant::now();
+    let timeout = std::time::Duration::from_secs(10); // 10s timeout for slow startup
+
+    while start_time.elapsed() < timeout {
+        if mill_transport::is_daemon_running(&socket_path).await {
+            return Ok(());
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+
+    Err("Timeout waiting for daemon to start".to_string())
 }
 
 /// Run the daemon server (used by handle_daemon_command)
