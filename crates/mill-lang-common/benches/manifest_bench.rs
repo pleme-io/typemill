@@ -1,7 +1,6 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use mill_lang_common::manifest_common::TomlWorkspace;
 use std::hint::black_box;
-use toml_edit::{DocumentMut, value};
 
 fn generate_dependencies(count: usize) -> String {
     let mut s = String::from("[dependencies]\n");
@@ -25,8 +24,9 @@ fn bench_merge_dependencies(c: &mut Criterion) {
     for size in [10, 100, 1_000].iter() {
         let base_toml = generate_dependencies(*size);
         // Source has overlapping dependencies and new ones
-        let source_toml = format!("{}\n{}",
-            generate_dependencies(*size + size/2), // Overlap + New
+        let source_toml = format!(
+            "{}\n{}",
+            generate_dependencies(*size + size / 2), // Overlap + New
             generate_dev_dependencies(*size)
         );
 

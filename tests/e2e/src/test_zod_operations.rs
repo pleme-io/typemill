@@ -81,14 +81,21 @@ async fn test_zod_relocate_file_dry_run() {
         .expect("relocate dry-run should succeed");
 
     // Dry run should not modify files
-    assert!(source_path.exists(), "Source should still exist after dry run");
+    assert!(
+        source_path.exists(),
+        "Source should still exist after dry run"
+    );
     assert!(
         !dest_path.exists(),
         "Destination should not exist after dry run"
     );
 
     // Result should exist
-    assert!(result.get("result").is_some(), "Should have result: {:?}", result);
+    assert!(
+        result.get("result").is_some(),
+        "Should have result: {:?}",
+        result
+    );
 }
 
 #[tokio::test]
@@ -238,8 +245,16 @@ async fn test_zod_extract_dependencies_npm() {
 
     // Verify target was updated
     let target_content = workspace.read_file("packages/target-pkg/package.json");
-    assert!(target_content.contains("lodash"), "Should have lodash: {}", target_content);
-    assert!(target_content.contains("^4.17.0"), "Should have version: {}", target_content);
+    assert!(
+        target_content.contains("lodash"),
+        "Should have lodash: {}",
+        target_content
+    );
+    assert!(
+        target_content.contains("^4.17.0"),
+        "Should have version: {}",
+        target_content
+    );
     assert!(!target_content.contains("axios"), "Should not have axios"); // Not extracted
 }
 
@@ -293,7 +308,10 @@ async fn test_zod_extract_dependencies_dry_run() {
 
     // Target should NOT be modified (dry run)
     let target_content = workspace.read_file("packages/tgt-pkg/package.json");
-    assert!(!target_content.contains("react"), "Should not have react in dry run");
+    assert!(
+        !target_content.contains("react"),
+        "Should not have react in dry run"
+    );
 }
 
 // ============================================================================

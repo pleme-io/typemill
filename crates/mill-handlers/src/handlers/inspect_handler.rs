@@ -76,7 +76,9 @@ impl InspectHandler {
                                     let position = symbol
                                         .get("selectionRange")
                                         .or_else(|| symbol.get("range"))
-                                        .or_else(|| symbol.get("location").and_then(|l| l.get("range")))
+                                        .or_else(|| {
+                                            symbol.get("location").and_then(|l| l.get("range"))
+                                        })
                                         .and_then(|r| r.get("start"));
 
                                     if let Some(pos) = position {
