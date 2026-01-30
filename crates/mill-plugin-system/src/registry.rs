@@ -331,9 +331,19 @@ impl RuntimePluginManager {
         self.metadata_cache.get(name)
     }
 
+    /// Get all plugin metadata
+    pub fn get_all_metadata(&self) -> HashMap<String, PluginMetadata> {
+        self.metadata_cache.clone()
+    }
+
     /// Get all registered plugin names
     pub fn get_plugin_names(&self) -> Vec<String> {
         self.plugins.keys().cloned().collect()
+    }
+
+    /// Get all registered plugins
+    pub fn get_all_plugins(&self) -> impl Iterator<Item = &Arc<dyn LanguagePlugin>> {
+        self.plugins.values()
     }
 
     /// Get all supported file extensions
@@ -354,6 +364,14 @@ impl RuntimePluginManager {
     /// Get capabilities for a specific plugin
     pub fn get_plugin_capabilities(&self, name: &str) -> Option<Capabilities> {
         self.plugins.get(name).map(|plugin| plugin.capabilities())
+    }
+
+    /// Get capabilities for all plugins
+    pub fn get_all_capabilities(&self) -> HashMap<String, Capabilities> {
+        self.plugins
+            .iter()
+            .map(|(name, plugin)| (name.clone(), plugin.capabilities()))
+            .collect()
     }
 
     /// Get statistics about the registry

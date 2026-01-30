@@ -211,15 +211,7 @@ impl PluginManager {
     /// Get capabilities for all plugins
     pub async fn get_all_capabilities(&self) -> HashMap<String, Capabilities> {
         let registry = self.registry.read().await;
-        let mut capabilities = HashMap::new();
-
-        for plugin_name in registry.get_plugin_names() {
-            if let Some(caps) = registry.get_plugin_capabilities(&plugin_name) {
-                capabilities.insert(plugin_name, caps);
-            }
-        }
-
-        capabilities
+        registry.get_all_capabilities()
     }
 
     /// Get capabilities for a specific plugin
@@ -231,15 +223,7 @@ impl PluginManager {
     /// Get metadata for all plugins
     pub async fn get_all_metadata(&self) -> HashMap<String, PluginMetadata> {
         let registry = self.registry.read().await;
-        let mut metadata = HashMap::new();
-
-        for plugin_name in registry.get_plugin_names() {
-            if let Some(meta) = registry.get_plugin_metadata(&plugin_name) {
-                metadata.insert(plugin_name, meta.clone());
-            }
-        }
-
-        metadata
+        registry.get_all_metadata()
     }
 
     /// Get metadata for a specific plugin
@@ -414,11 +398,9 @@ impl PluginManager {
         let registry = self.registry.read().await;
         let mut all_tools = Vec::new();
 
-        for plugin_name in registry.get_plugin_names() {
-            if let Some(plugin) = registry.get_plugin(&plugin_name) {
-                let tools = plugin.tool_definitions();
-                all_tools.extend(tools);
-            }
+        for plugin in registry.get_all_plugins() {
+            let tools = plugin.tool_definitions();
+            all_tools.extend(tools);
         }
 
         all_tools
