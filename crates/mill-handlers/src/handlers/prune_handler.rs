@@ -19,6 +19,7 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_foundation::planning::RefactorPlan;
 use serde::Deserialize;
 use serde_json::Value;
+use std::collections::HashSet;
 use tracing::{debug, info};
 
 /// Handler for prune operations (delete with cleanup) - calls services directly
@@ -197,19 +198,17 @@ impl PruneHandler {
         params: &PruneParams,
     ) -> ServerResult<Value> {
         // Collect affected files
-        let mut files_changed = Vec::new();
+        let mut files_changed = HashSet::new();
 
         for deletion in &plan.deletions {
-            files_changed.push(deletion.path.clone());
+            files_changed.insert(deletion.path.clone());
         }
 
         if let Some(edits) = &plan.edits {
             if let Some(changes) = &edits.changes {
                 for file_path in changes.keys() {
                     let path_str = file_path.to_string();
-                    if !files_changed.contains(&path_str) {
-                        files_changed.push(path_str);
-                    }
+                    files_changed.insert(path_str);
                 }
             }
             if let Some(doc_changes) = &edits.document_changes {
@@ -217,11 +216,15 @@ impl PruneHandler {
             }
         }
 
+        // Convert to sorted list for deterministic output
+        let mut files_list: Vec<String> = files_changed.into_iter().collect();
+        files_list.sort();
+
         let summary = format!(
             "Preview: {} {} deletion affecting {} file(s)",
             params.target.kind,
             params.target.file_path,
-            files_changed.len()
+            files_list.len()
         );
 
         let diagnostics: Vec<Diagnostic> = plan
@@ -238,7 +241,7 @@ impl PruneHandler {
         let plan_json = serde_json::to_value(RefactorPlan::DeletePlan(plan.clone()))
             .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
 
-        let mut response = WriteResponse::preview(summary, files_changed, plan_json);
+        let mut response = WriteResponse::preview(summary, files_list, plan_json);
         response.diagnostics = diagnostics;
 
         serde_json::to_value(&response)
@@ -296,15 +299,13 @@ impl PruneHandler {
     /// Extract file paths from DocumentChanges
     fn extract_files_from_doc_changes(
         doc_changes: &lsp_types::DocumentChanges,
-        files: &mut Vec<String>,
+        files: &mut HashSet<String>,
     ) {
         match doc_changes {
             lsp_types::DocumentChanges::Edits(edits_list) => {
                 for edit in edits_list {
                     let uri = edit.text_document.uri.to_string();
-                    if !files.contains(&uri) {
-                        files.push(uri);
-                    }
+                    files.insert(uri);
                 }
             }
             lsp_types::DocumentChanges::Operations(ops) => {
@@ -312,32 +313,22 @@ impl PruneHandler {
                     match op {
                         lsp_types::DocumentChangeOperation::Edit(edit) => {
                             let uri = edit.text_document.uri.to_string();
-                            if !files.contains(&uri) {
-                                files.push(uri);
-                            }
+                            files.insert(uri);
                         }
                         lsp_types::DocumentChangeOperation::Op(resource_op) => match resource_op {
                             lsp_types::ResourceOp::Create(c) => {
                                 let uri = c.uri.to_string();
-                                if !files.contains(&uri) {
-                                    files.push(uri);
-                                }
+                                files.insert(uri);
                             }
                             lsp_types::ResourceOp::Rename(r) => {
                                 let old = r.old_uri.to_string();
                                 let new = r.new_uri.to_string();
-                                if !files.contains(&old) {
-                                    files.push(old);
-                                }
-                                if !files.contains(&new) {
-                                    files.push(new);
-                                }
+                                files.insert(old);
+                                files.insert(new);
                             }
                             lsp_types::ResourceOp::Delete(d) => {
                                 let uri = d.uri.to_string();
-                                if !files.contains(&uri) {
-                                    files.push(uri);
-                                }
+                                files.insert(uri);
                             }
                         },
                     }
@@ -359,7 +350,7 @@ mod tests {
 
     #[test]
     fn test_prune_options_default() {
-        let options = PruneOptions::default();
+        let options = PruneOptionsInput::default();
         assert!(options.dry_run);
         assert_eq!(options.cleanup_imports, Some(true));
         assert_eq!(options.force, None);
@@ -402,5 +393,66 @@ mod tests {
         assert_eq!(params.target.kind, "file");
         assert!(!params.options.dry_run);
         assert_eq!(params.options.force, Some(true));
+    }
+
+    #[test]
+    fn test_extract_files_from_doc_changes_duplicates() {
+        use lsp_types::{
+            DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
+            TextDocumentEdit, Uri,
+        };
+        use std::str::FromStr;
+
+        let uri1 = Uri::from_str("file:///tmp/file1.rs").unwrap();
+        let uri2 = Uri::from_str("file:///tmp/file2.rs").unwrap();
+
+        // Create edits for file1 twice
+        let edit1 = TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri1.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Left(lsp_types::TextEdit {
+                range: lsp_types::Range::default(),
+                new_text: "change1".to_string(),
+            })],
+        };
+
+        let edit2 = TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri1.clone(), // Duplicate URI
+                version: None,
+            },
+            edits: vec![OneOf::Left(lsp_types::TextEdit {
+                range: lsp_types::Range::default(),
+                new_text: "change2".to_string(),
+            })],
+        };
+
+        // Create edit for file2
+        let edit3 = TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri2.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Left(lsp_types::TextEdit {
+                range: lsp_types::Range::default(),
+                new_text: "change3".to_string(),
+            })],
+        };
+
+        // Construct DocumentChanges
+        let doc_changes = DocumentChanges::Operations(vec![
+            DocumentChangeOperation::Edit(edit1),
+            DocumentChangeOperation::Edit(edit2),
+            DocumentChangeOperation::Edit(edit3),
+        ]);
+
+        let mut files = HashSet::new();
+        PruneHandler::extract_files_from_doc_changes(&doc_changes, &mut files);
+
+        assert_eq!(files.len(), 2);
+        assert!(files.contains(&uri1.to_string()));
+        assert!(files.contains(&uri2.to_string()));
     }
 }
