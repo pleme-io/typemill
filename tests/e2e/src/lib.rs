@@ -103,6 +103,10 @@ pub mod test_cross_platform;
 #[cfg(test)]
 pub mod test_real_project_zod;
 
+// Zod operations testing (move, extract workflows)
+#[cfg(test)]
+pub mod test_zod_operations;
+
 #[cfg(test)]
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
