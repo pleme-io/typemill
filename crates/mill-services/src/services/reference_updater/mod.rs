@@ -242,8 +242,31 @@ impl ReferenceUpdater {
                     }
                 }
             } else {
-                // For non-Rust directory renames, exclude files inside the directory
-                affected_files.retain(|file| !file.starts_with(old_path));
+                // For non-Rust directory renames, allow files inside the directory to be processed
+                // This is necessary to update relative imports pointing outside the moved directory.
+                // The language plugins must handle the check for "internal vs external update" logic.
+                // affected_files.retain(|file| !file.starts_with(old_path));
+
+                // However, we need to make sure we INCLUDE all files inside the directory in affected_files list
+                // currently affected_files only contains files that reference the directory name or its contents from outside
+                // We must add all files inside the directory to be processed for their internal imports.
+
+                let files_in_directory: Vec<PathBuf> = project_files
+                    .iter()
+                    .filter(|f| f.starts_with(old_path))
+                    .cloned()
+                    .collect();
+
+                tracing::info!(
+                    files_in_directory_count = files_in_directory.len(),
+                    "Adding files inside moved directory for internal import updates"
+                );
+
+                for file in files_in_directory {
+                    if !affected_files.contains(&file) {
+                        affected_files.push(file);
+                    }
+                }
             }
         }
 
