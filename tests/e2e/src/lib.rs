@@ -95,6 +95,10 @@ pub mod test_workspace_find_replace;
 #[cfg(test)]
 pub mod test_cross_platform;
 
+// Real project integration tests (Zod)
+#[cfg(test)]
+pub mod test_real_project_zod;
+
 #[cfg(test)]
 pub use harness::{TestClient, TestWorkspace};
 pub use helpers::*;
