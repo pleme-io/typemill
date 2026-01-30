@@ -7,10 +7,11 @@ use mill_plugin_api::LanguagePlugin;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tokio::task::JoinSet;
 
 /// Find affected files using generic import path resolution AND rewrite detection
 ///
-/// This is the fallback detector for languages without specialized logic.
+/// This is the fallback detector for languages without specialized detectors.
 /// It uses TWO detection methods to ensure comprehensive coverage:
 /// 1. Import path resolution (for module imports)
 /// 2. Plugin rewrite detection (for string literals, config paths, etc.)
@@ -21,7 +22,7 @@ use std::sync::Arc;
 ///
 /// * `rename_info` - Optional JSON containing scope flags (update_exact_matches, etc.)
 ///   and cargo package info. Passed to plugins to control rewriting behavior.
-pub(crate) fn find_generic_affected_files(
+pub(crate) async fn find_generic_affected_files(
     old_path: &Path,
     new_path: &Path,
     project_root: &Path,
@@ -43,7 +44,31 @@ pub(crate) fn find_generic_affected_files(
 
     // Create resolver once for reuse across all files
     // This optimization prevents creating a new resolver (allocating vec) for every file
-    let resolver = mill_ast::ImportPathResolver::with_plugins(project_root, plugins.to_vec());
+    // Wrap in Arc for sharing across tasks
+    let resolver = Arc::new(mill_ast::ImportPathResolver::with_plugins(
+        project_root,
+        plugins.to_vec(),
+    ));
+
+    // Also wrap plugin_map in Arc for sharing
+    let plugin_map = Arc::new(plugin_map.clone());
+    let rename_info = rename_info.cloned(); // Clone the Value (cheap enough usually)
+
+    let mut join_set = JoinSet::new();
+
+    // Limit concurrency if needed, but for IO bound work, default JoinSet is fine.
+    // However, spawning thousands of tasks might be too much for memory if files are large.
+    // But let's assume it's fine for now or rely on Tokio's scheduler.
+
+    // We need to clone paths to move them into tasks
+    let old_path = old_path.to_path_buf();
+    let new_path = new_path.to_path_buf();
+    let project_root = project_root.to_path_buf();
+    // We need a full copy of project_files for resolution context in each task!
+    // Wait, get_all_imported_files_internal needs project_files to resolve imports.
+    // Passing a full Vec clone to each task is O(N^2) memory! That's bad.
+    // We should wrap project_files in Arc too.
+    let project_files_arc = Arc::new(project_files.to_vec());
 
     for file in project_files {
         // Do not skip old_path - we want to scan the file being moved for self-references
@@ -51,94 +76,100 @@ pub(crate) fn find_generic_affected_files(
         // The MoveService handles remapping edits from old_path to new_path to prevent
         // file resurrection during execution.
 
-        if file == new_path {
+        if file == &new_path {
             continue;
         }
-        if let Ok(content) = std::fs::read_to_string(file) {
-            // METHOD 1: Import-based detection (existing logic)
-            // Pass the pre-created resolver
-            let all_imports = get_all_imported_files_internal(
-                &content,
-                file,
-                plugin_map,
-                project_files,
-                &resolver,
-            );
 
-            tracing::debug!(
-                file = %file.display(),
-                imports_count = all_imports.len(),
-                imports = ?all_imports.iter().map(|p| p.display().to_string()).collect::<Vec<_>>(),
-                "Parsed imports from file"
-            );
+        let file = file.clone();
+        let old_path = old_path.clone();
+        let new_path = new_path.clone();
+        let project_root = project_root.clone();
+        let resolver = resolver.clone();
+        let plugin_map = plugin_map.clone();
+        let rename_info = rename_info.clone();
+        let project_files_arc = project_files_arc.clone();
 
-            // Check if imports reference either the old path (pre-move) or new path (post-move)
-            if all_imports.contains(&old_path.to_path_buf())
-                || all_imports.contains(&new_path.to_path_buf())
-            {
-                tracing::info!(
-                    file = %file.display(),
-                    "File imports from old/new path - marking as affected (import detection)"
-                );
-                affected.insert(file.clone());
-                continue; // Already marked, skip rewrite detection
-            }
+        join_set.spawn(async move {
+            if let Ok(content) = tokio::fs::read_to_string(&file).await {
+                // Now run CPU-bound/Blocking-IO work in spawn_blocking
+                // We need to move everything into the blocking closure
+                let file_clone = file.clone();
+                let old_path_clone = old_path.clone();
+                let new_path_clone = new_path.clone();
+                let project_root_clone = project_root.clone();
+                let resolver_clone = resolver.clone();
+                let plugin_map_clone = plugin_map.clone();
+                let rename_info_clone = rename_info.clone();
+                let project_files_clone = project_files_arc.clone();
+                let content_clone = content.clone();
 
-            // METHOD 2: Rewrite-based detection (NEW - calls all plugin detectors)
-            // This catches string literals, TOML paths, YAML paths, etc.
-            // IMPORTANT: Skip .rs files - they're fully handled by import updater
-            // (which updates imports, mod declarations, use statements, AND qualified paths).
-            // Including .rs here would create duplicate overlapping edits.
-            if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
-                // Use map for O(1) lookup
-                if let Some(plugin) = plugin_map.get(ext) {
-                    // Debug log for test investigation
-                    #[cfg(test)]
-                    println!(
-                        "DEBUG: Checking plugin {} for file {}",
-                        plugin.metadata().name,
-                        file.display()
+                let result = tokio::task::spawn_blocking(move || {
+                    // METHOD 1: Import-based detection (existing logic)
+                    // Pass the pre-created resolver
+                    let all_imports = get_all_imported_files_internal(
+                        &content_clone,
+                        &file_clone,
+                        &plugin_map_clone,
+                        &project_files_clone,
+                        &resolver_clone,
                     );
 
-                    // Try rewriting to see if this file would be affected
-                    // Pass rename_info so plugins receive scope flags (update_exact_matches, etc.)
-                    let rewrite_result = plugin.rewrite_file_references(
-                        &content,
-                        old_path,
-                        new_path,
-                        file,
-                        project_root,
-                        rename_info,
-                    );
-
-                    #[cfg(test)]
-                    if rewrite_result.is_none() {
-                        println!(
-                            "DEBUG: rewrite_file_references returned None for {}",
-                            file.display()
-                        );
+                    // Check if imports reference either the old path (pre-move) or new path (post-move)
+                    if all_imports.contains(&old_path_clone) || all_imports.contains(&new_path_clone) {
+                        return Some(file_clone);
                     }
 
-                    if let Some((updated_content, change_count)) = rewrite_result {
-                        #[cfg(test)]
-                        println!(
-                            "DEBUG: rewrite_file_references returned change_count={} for {}",
-                            change_count,
-                            file.display()
-                        );
-
-                        if change_count > 0 && updated_content != content {
-                            tracing::info!(
-                                file = %file.display(),
-                                plugin = plugin.metadata().name,
-                                changes = change_count,
-                                "File affected by path reference - marking as affected (rewrite detection)"
+                    // METHOD 2: Rewrite-based detection (NEW - calls all plugin detectors)
+                    // This catches string literals, TOML paths, YAML paths, etc.
+                    // IMPORTANT: Skip .rs files - they're fully handled by import updater
+                    // (which updates imports, mod declarations, use statements, AND qualified paths).
+                    // Including .rs here would create duplicate overlapping edits.
+                    if let Some(ext) = file_clone.extension().and_then(|e| e.to_str()) {
+                        // Use map for O(1) lookup
+                        if let Some(plugin) = plugin_map_clone.get(ext) {
+                            // Try rewriting to see if this file would be affected
+                            // Pass rename_info so plugins receive scope flags (update_exact_matches, etc.)
+                            let rewrite_result = plugin.rewrite_file_references(
+                                &content_clone,
+                                &old_path_clone,
+                                &new_path_clone,
+                                &file_clone,
+                                &project_root_clone,
+                                rename_info_clone.as_ref(),
                             );
-                            affected.insert(file.clone());
-                            // break; // One plugin detected changes, no need to check others (already implied by map lookup)
+
+                            if let Some((updated_content, change_count)) = rewrite_result {
+                                if change_count > 0 && updated_content != content_clone {
+                                    return Some(file_clone);
+                                }
+                            }
                         }
                     }
+                    None
+                }).await;
+
+                match result {
+                    Ok(Some(f)) => Some(f),
+                    Ok(None) => None,
+                    Err(e) => {
+                        tracing::error!("Blocking task panicked: {}", e);
+                        None
+                    }
                 }
+            } else {
+                None
+            }
+        });
+    }
+
+    while let Some(res) = join_set.join_next().await {
+        match res {
+            Ok(Some(file)) => {
+                affected.insert(file);
+            }
+            Ok(None) => {}
+            Err(e) => {
+                tracing::error!("Task join error: {}", e);
             }
         }
     }
@@ -295,8 +326,8 @@ mod tests {
         assert_eq!(extract_import_path("this is from a file"), None);
     }
 
-    #[test]
-    fn test_generic_detector_with_typescript() {
+    #[tokio::test]
+    async fn test_generic_detector_with_typescript() {
         // Create temp workspace
         let workspace = TempDir::new().unwrap();
         let root = workspace.path();
@@ -349,7 +380,7 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        );
+        ).await;
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -367,8 +398,8 @@ export function main() {
 
     /// Test that generic detector finds YAML files with path references
     /// This verifies the rewrite-based detection works in the fallback path
-    #[test]
-    fn test_generic_detector_finds_yaml_files() {
+    #[tokio::test]
+    async fn test_generic_detector_finds_yaml_files() {
         let workspace = TempDir::new().unwrap();
         let root = workspace.path();
 
@@ -402,7 +433,7 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        );
+        ).await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -413,8 +444,8 @@ export function main() {
 
     /// Test that generic detector finds TOML files with path references
     /// This verifies the rewrite-based detection works in the fallback path
-    #[test]
-    fn test_generic_detector_finds_toml_files() {
+    #[tokio::test]
+    async fn test_generic_detector_finds_toml_files() {
         let workspace = TempDir::new().unwrap();
         let root = workspace.path();
 
@@ -453,7 +484,7 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        );
+        ).await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -464,8 +495,8 @@ export function main() {
 
     /// Test that generic detector finds Markdown files with path references
     /// This verifies the rewrite-based detection works in the fallback path
-    #[test]
-    fn test_generic_detector_finds_markdown_files() {
+    #[tokio::test]
+    async fn test_generic_detector_finds_markdown_files() {
         let workspace = TempDir::new().unwrap();
         let root = workspace.path();
 
@@ -500,7 +531,7 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        );
+        ).await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),
@@ -515,8 +546,8 @@ export function main() {
 
     /// Test that generic detector finds string literals in Rust files
     /// This verifies the rewrite-based detection works for Rust string literals
-    #[test]
-    fn test_generic_detector_finds_rust_string_literals() {
+    #[tokio::test]
+    async fn test_generic_detector_finds_rust_string_literals() {
         let workspace = TempDir::new().unwrap();
         let root = workspace.path();
 
@@ -559,7 +590,7 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        );
+        ).await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),

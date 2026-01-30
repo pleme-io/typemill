@@ -18,6 +18,7 @@ type ServerResult<T> = Result<T, ServerError>;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use tokio::task::JoinSet;
 
 /// A service for updating references in a workspace.
 pub struct ReferenceUpdater {
@@ -533,30 +534,77 @@ impl ReferenceUpdater {
         project_files: &[PathBuf],
         plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
     ) -> ServerResult<Vec<PathBuf>> {
-        let mut affected = Vec::new();
-        let plugin_map = build_plugin_ext_map(plugins);
+        use std::collections::HashSet;
+
+        let mut affected = HashSet::new();
+        let plugin_map = Arc::new(build_plugin_ext_map(plugins));
+        let plugins_arc = Arc::new(plugins.to_vec());
+        let project_files_arc = Arc::new(project_files.to_vec());
+        let renamed_file = renamed_file.to_path_buf();
+        let project_root = self.project_root.clone();
+
+        let mut join_set = JoinSet::new();
 
         for file in project_files {
-            if file == renamed_file {
+            if file == &renamed_file {
                 continue;
             }
-            if let Ok(content) = tokio::fs::read_to_string(file).await {
-                // Use the optimized version with map and plugin list
-                let all_imports = self.get_all_imported_files_with_map(
-                    &content,
-                    file,
-                    plugins,
-                    &plugin_map,
-                    project_files,
-                );
 
-                // Check if any import resolves to the renamed file
-                if all_imports.contains(&renamed_file.to_path_buf()) {
-                    affected.push(file.clone());
+            let file = file.clone();
+            let renamed_file = renamed_file.clone();
+            let plugins_clone = plugins_arc.clone();
+            let plugin_map_clone = plugin_map.clone();
+            let project_files_clone = project_files_arc.clone();
+            let project_root_clone = project_root.clone();
+
+            join_set.spawn(async move {
+                if let Ok(content) = tokio::fs::read_to_string(&file).await {
+                    // Offload blocking work
+                    let content_clone = content.clone();
+                    let file_clone = file.clone();
+
+                    let result = tokio::task::spawn_blocking(move || {
+                        // Use generic detector's helper which is synchronous
+                        detectors::get_all_imported_files(
+                            &content_clone,
+                            &file_clone,
+                            &plugins_clone,
+                            &plugin_map_clone,
+                            &project_files_clone,
+                            &project_root_clone,
+                        )
+                    }).await;
+
+                    match result {
+                        Ok(all_imports) => {
+                             if all_imports.contains(&renamed_file) {
+                                return Some(file);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Blocking task panicked: {}", e);
+                        }
+                    }
+                }
+                None
+            });
+        }
+
+        while let Some(res) = join_set.join_next().await {
+            match res {
+                Ok(Some(file)) => {
+                    affected.insert(file);
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::error!("Task join error: {}", e);
                 }
             }
         }
-        Ok(affected)
+
+        let mut affected_vec: Vec<PathBuf> = affected.into_iter().collect();
+        affected_vec.sort(); // Deterministic order
+        Ok(affected_vec)
     }
 
     /// Find affected files for a rename operation, checking both old and new paths.
@@ -650,7 +698,8 @@ impl ReferenceUpdater {
                     plugins,
                     plugin_map,
                     rename_info,
-                );
+                )
+                .await;
 
                 all_affected.extend(generic_affected);
             } else {
@@ -664,7 +713,8 @@ impl ReferenceUpdater {
                     plugins,
                     plugin_map,
                     rename_info,
-                );
+                )
+                .await;
 
                 all_affected.extend(generic_affected);
             }
@@ -678,7 +728,8 @@ impl ReferenceUpdater {
                 plugins,
                 plugin_map,
                 rename_info,
-            );
+            )
+            .await;
 
             all_affected.extend(generic_affected);
         }
@@ -688,24 +739,6 @@ impl ReferenceUpdater {
         all_affected.dedup();
 
         Ok(all_affected)
-    }
-
-    pub(crate) fn get_all_imported_files_with_map(
-        &self,
-        content: &str,
-        current_file: &Path,
-        plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
-        plugin_map: &HashMap<String, std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>>,
-        project_files: &[PathBuf],
-    ) -> Vec<PathBuf> {
-        detectors::get_all_imported_files(
-            content,
-            current_file,
-            plugins,
-            plugin_map,
-            project_files,
-            &self.project_root,
-        )
     }
 
     pub async fn update_import_reference(
