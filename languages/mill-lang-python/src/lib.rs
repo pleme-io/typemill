@@ -21,6 +21,9 @@ mod string_literal_support;
 pub mod test_fixtures;
 pub mod workspace_support;
 
+#[cfg(test)]
+mod performance_tests;
+
 use async_trait::async_trait;
 use mill_lang_common::{
     define_language_plugin, impl_capability_delegations, impl_language_plugin_basics,
@@ -71,35 +74,41 @@ impl LanguagePlugin for PythonPlugin {
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
         debug!("Parsing Python source code");
 
-        // Extract all symbols from the source code
-        let symbols = parser::extract_symbols(source)?;
+        let source = source.to_string();
 
-        // Parse imports
-        let imports = parser::parse_python_imports(source)?;
+        tokio::task::spawn_blocking(move || {
+            // Extract all symbols from the source code
+            let symbols = parser::extract_symbols(&source)?;
 
-        // Create a simplified AST representation
-        let functions = parser::extract_python_functions(source)?;
-        let variables = parser::extract_python_variables(source)?;
+            // Parse imports
+            let imports = parser::parse_python_imports(&source)?;
 
-        let ast_json = serde_json::json!({
-            "type": "Module",
-            "functions_count": functions.len(),
-            "variables_count": variables.len(),
-            "imports_count": imports.len(),
-            "imports": imports,
-        });
+            // Create a simplified AST representation
+            let functions = parser::extract_python_functions(&source)?;
+            let variables = parser::extract_python_variables(&source)?;
 
-        debug!(
-            symbols_count = symbols.len(),
-            functions_count = functions.len(),
-            imports_count = imports.len(),
-            "Parsed Python source"
-        );
+            let ast_json = serde_json::json!({
+                "type": "Module",
+                "functions_count": functions.len(),
+                "variables_count": variables.len(),
+                "imports_count": imports.len(),
+                "imports": imports,
+            });
 
-        Ok(ParsedSource {
-            data: ast_json,
-            symbols,
+            debug!(
+                symbols_count = symbols.len(),
+                functions_count = functions.len(),
+                imports_count = imports.len(),
+                "Parsed Python source"
+            );
+
+            Ok(ParsedSource {
+                data: ast_json,
+                symbols,
+            })
         })
+        .await
+        .map_err(|e| mill_plugin_api::PluginApiError::internal(format!("Task join error: {}", e)))?
     }
 
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
