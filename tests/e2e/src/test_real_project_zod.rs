@@ -79,9 +79,7 @@ async fn test_zod_search_symbols() {
     let inner_result = result.get("result").expect("Should have result field");
 
     // The results field should exist (may be empty if LSP hasn't indexed yet)
-    let symbols = inner_result
-        .get("results")
-        .and_then(|s| s.as_array());
+    let symbols = inner_result.get("results").and_then(|s| s.as_array());
 
     match symbols {
         Some(arr) if !arr.is_empty() => {
@@ -407,10 +405,7 @@ async fn test_zod_rename_file_execute() {
         !old_path.exists(),
         "errors.ts should no longer exist after rename"
     );
-    assert!(
-        new_path.exists(),
-        "zod-errors.ts should exist after rename"
-    );
+    assert!(new_path.exists(), "zod-errors.ts should exist after rename");
 
     // Verify content preserved
     let new_content = std::fs::read_to_string(&new_path).expect("Should read zod-errors.ts");
@@ -425,9 +420,7 @@ async fn test_zod_rename_file_execute() {
         let types_content = std::fs::read_to_string(&types_file).expect("Should read types.ts");
         // The import should now reference zod-errors instead of errors
         if types_content.contains("./errors") {
-            println!(
-                "⚠️ Import not updated in types.ts (may need LSP for import updates)"
-            );
+            println!("⚠️ Import not updated in types.ts (may need LSP for import updates)");
         } else if types_content.contains("./zod-errors") {
             println!("✅ Import correctly updated in types.ts");
         }

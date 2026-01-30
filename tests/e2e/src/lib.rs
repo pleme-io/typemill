@@ -83,6 +83,10 @@ pub mod test_workspace_create;
 #[cfg(test)]
 pub mod test_workspace_extract_deps;
 
+// Workspace dependency extraction tests for npm/package.json
+#[cfg(test)]
+pub mod test_workspace_extract_deps_npm;
+
 // Workspace member management tests (Proposal 50)
 #[cfg(test)]
 pub mod test_workspace_update_members;

@@ -404,8 +404,8 @@ impl WorkspaceHandler {
         };
 
         let files_changed = if target_updated && !dry_run {
-            // Extract target manifest path from result if available
-            vec!["Cargo.toml".to_string()] // Simplified - in real usage would extract actual path
+            // Target manifest was updated - could be Cargo.toml or package.json
+            vec!["manifest".to_string()]
         } else {
             vec![]
         };
