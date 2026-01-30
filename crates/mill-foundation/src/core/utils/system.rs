@@ -1,18 +1,8 @@
 //! System-level utilities
 
-/// Check if a command exists on the system's PATH
+/// Check if a command exists on the system's PATH or as an absolute path
 pub fn command_exists(cmd: &str) -> bool {
-    std::process::Command::new(if cfg!(target_os = "windows") {
-        "where"
-    } else {
-        "command"
-    })
-    .arg("-v")
-    .arg(cmd)
-    .stdout(std::process::Stdio::null())
-    .stderr(std::process::Stdio::null())
-    .status()
-    .is_ok_and(|status| status.success())
+    resolve_command_path(cmd).is_some()
 }
 
 /// Test if a command works by running it with --version
@@ -120,6 +110,18 @@ mod tests {
             Some(val) => std::env::set_var("CI", val),
             None => std::env::remove_var("CI"),
         }
+    }
+
+    #[test]
+    fn test_resolve_command_path_absolute_path() {
+        // Find rustc first
+        let rustc_path = resolve_command_path("rustc").expect("rustc should be found");
+        let rustc_path_str = rustc_path.to_str().expect("path should be valid string");
+
+        // Now verify we can resolve it using the absolute path
+        let path = resolve_command_path(rustc_path_str);
+        assert!(path.is_some(), "Should resolve absolute path");
+        assert_eq!(path.unwrap(), rustc_path);
     }
 
     #[test]
