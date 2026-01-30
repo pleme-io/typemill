@@ -243,6 +243,8 @@ fn _force_plugin_linkage() {
 
 ## Test Coverage Requirements
 
+> **Note:** For detailed standards and examples, see **[testing_standards.md](testing_standards.md)**.
+
 | Category | Minimum Tests | What to Test |
 |----------|---------------|--------------|
 | **Symbol extraction** | 10+ | Functions, classes, structs, enums, edge cases, unicode, syntax errors |

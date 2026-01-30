@@ -1,4 +1,4 @@
-# Getting Started with Mill
+# Getting Started with TypeMill
 
 **Complete guide from installation to team setup**
 
@@ -32,7 +32,7 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/goobits/mill/main/install.sh | bash
 ```
-This installs Mill to `~/.local/bin/mill` and adds it to your PATH.
+This installs TypeMill to `~/.local/bin/mill` and adds it to your PATH.
 
 ### Option 2: Cargo Install
 
@@ -97,7 +97,7 @@ mill setup --update --interactive  # Interactive mode
 
 ## Starting the Server
 
-Start Mill in MCP (Model Context Protocol) mode:
+Start TypeMill in MCP (Model Context Protocol) mode:
 
 ```bash
 mill start
@@ -108,7 +108,7 @@ mill status
 ```
 You should see:
 ```
-✅ Mill is running (PID: 12345)
+✅ TypeMill is running (PID: 12345)
 ✅ LSP servers configured: typescript-language-server, rust-analyzer
 📁 Config: .typemill/config.json
 ```
@@ -123,9 +123,9 @@ mill stop
 ### Claude Desktop
 
 > [!IMPORTANT] Configuration Required
-> Mill requires configuration in Claude Desktop to enable the MCP connection. Make sure to restart Claude Desktop after adding the configuration.
+> TypeMill requires configuration in Claude Desktop to enable the MCP connection. Make sure to restart Claude Desktop after adding the configuration.
 
-Add Mill to your Claude Desktop MCP configuration:
+Add TypeMill to your Claude Desktop MCP configuration:
 
 **Config file location:**
 - **macOS/Linux:** `~/Library/Application Support/Claude/claude_desktop_config.json`
@@ -146,7 +146,7 @@ Add Mill to your Claude Desktop MCP configuration:
 
 ### Other MCP Clients
 
-Mill works with any MCP-compatible client. See [MCP documentation](https://modelcontextprotocol.io/) for integration details.
+TypeMill works with any MCP-compatible client. See [MCP documentation](https://modelcontextprotocol.io/) for integration details.
 
 ---
 
@@ -158,19 +158,19 @@ Once connected, try these commands with your AI assistant:
 ```
 "Find the definition of the App component in src/App.tsx"
 ```
-Mill uses the `inspect_code` tool (with `include: ["definition"]`) to show the exact location.
+TypeMill uses the `inspect_code` tool (with `include: ["definition"]`) to show the exact location.
 
 ### 2. Show All References
 ```
 "Show me everywhere the Config type is used"
 ```
-Mill uses the `inspect_code` tool (with `include: ["references"]`) to list all usages.
+TypeMill uses the `inspect_code` tool (with `include: ["references"]`) to list all usages.
 
 ### 3. Rename Safely
 ```
 "Rename the function fetchData to loadData and update all references"
 ```
-Mill will:
+TypeMill will:
 1. Show a preview plan (dry run mode - safe default)
 2. Ask for confirmation
 3. Execute the rename and update all imports/references
@@ -369,10 +369,10 @@ mill tool rename_all --target file:src/old.ts --new-name src/new.ts --dry-run fa
 
 ## Need Help?
 
-- **Within Mill:** `mill docs --search "<keyword>"` or `mill doctor`
+- **Within TypeMill:** `mill docs --search "<keyword>"` or `mill doctor`
 - **Online:** [GitHub Issues](https://github.com/goobits/typemill/issues) | [Discussions](https://github.com/goobits/typemill/discussions)
 - **Security:** security@goobits.com (private disclosure)
 
 ---
 
-**🎉 You're ready to use Mill!** Ask your AI assistant to refactor or navigate your codebase with precise LSP-powered intelligence.
+**🎉 You're ready to use TypeMill!** Ask your AI assistant to refactor or navigate your codebase with precise LSP-powered intelligence.

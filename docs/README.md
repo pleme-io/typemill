@@ -39,6 +39,7 @@ For contributors and architects.
 
 **Contributing:**
 - [Development Overview](development/overview.md)
+- [Dev Containers](development/dev-container.md)
 - [Plugin Development](development/plugin-development.md)
 - [Testing Architecture](development/testing.md)
 - [Logging Guidelines](development/logging_guidelines.md)

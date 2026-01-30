@@ -220,4 +220,5 @@ See real test implementations in the codebase:
 ## Related Documentation
 
 - **[Contributor Overview](overview.md)** - Quick start guide for contributors
+- **[Plugin Testing Standards](testing_standards.md)** - Detailed plugin testing requirements
 - **[CI/CD Integration](../operations/cicd.md)** - Running tests in CI pipelines
