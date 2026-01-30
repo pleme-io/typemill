@@ -300,26 +300,46 @@ struct EditStats {
 /// Apply a single text edit to source code
 fn apply_single_edit(source: &mut String, edit: &TextEdit) -> AstResult<EditStats> {
     let lines: Vec<&str> = source.lines().collect();
+    let num_lines = lines.len();
 
     // Validate edit location
-    if edit.location.start_line as usize >= lines.len() {
+    // Allow start_line == num_lines only if appending (start_column == 0)
+    if edit.location.start_line as usize > num_lines
+        || (edit.location.start_line as usize == num_lines && edit.location.start_column > 0)
+    {
         return Err(AstError::transformation(format!(
             "Edit start line {} is beyond source length {}",
             edit.location.start_line,
-            lines.len()
+            num_lines
         )));
     }
 
-    if edit.location.end_line as usize >= lines.len() {
+    // Allow end_line == num_lines only if EOF (end_column == 0)
+    if edit.location.end_line as usize > num_lines
+        || (edit.location.end_line as usize == num_lines && edit.location.end_column > 0)
+    {
         return Err(AstError::transformation(format!(
             "Edit end line {} is beyond source length {}",
             edit.location.end_line,
-            lines.len()
+            num_lines
         )));
     }
 
     // Handle single-line edits
     if edit.location.start_line == edit.location.end_line {
+        // Special case: appending a new line at EOF
+        if edit.location.start_line as usize == num_lines {
+            // Just append the text
+            let mut new_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+            new_lines.push(edit.new_text.clone());
+            *source = new_lines.join("\n");
+
+            return Ok(EditStats {
+                lines_added: edit.new_text.matches('\n').count() as i32 + 1,
+                characters_added: edit.new_text.len() as i32,
+                ..Default::default()
+            });
+        }
         return apply_single_line_edit(source, edit);
     }
 
@@ -331,6 +351,7 @@ fn apply_single_edit(source: &mut String, edit: &TextEdit) -> AstResult<EditStat
 fn apply_single_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<EditStats> {
     let lines: Vec<&str> = source.lines().collect();
     let line_idx = edit.location.start_line as usize;
+    // We already checked bounds in apply_single_edit, so index is valid
     let line = lines[line_idx];
 
     // Validate column positions
@@ -371,8 +392,8 @@ fn apply_single_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edi
     );
 
     // Rebuild the source
-    let mut new_lines = lines.clone();
-    new_lines[line_idx] = &new_line;
+    let mut new_lines: Vec<String> = lines.iter().map(|s| s.to_string()).collect();
+    new_lines[line_idx] = new_line;
 
     // We need to handle this more carefully to avoid lifetime issues
     *source = new_lines.join("\n");
@@ -400,14 +421,14 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
     let end_col = edit.location.end_column as usize;
 
     // Validate positions
-    if start_col > lines[start_line].len() {
+    if start_line < lines.len() && start_col > lines[start_line].len() {
         return Err(AstError::transformation(format!(
             "Start column {} beyond line {} length",
             start_col, start_line
         )));
     }
 
-    if end_col > lines[end_line].len() {
+    if end_line < lines.len() && end_col > lines[end_line].len() {
         return Err(AstError::transformation(format!(
             "End column {} beyond line {} length",
             end_col, end_line
@@ -419,7 +440,9 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
         let mut original_text = String::new();
 
         // First line
-        original_text.push_str(&lines[start_line][start_col..]);
+        if start_line < lines.len() {
+            original_text.push_str(&lines[start_line][start_col..]);
+        }
         if start_line < end_line {
             original_text.push('\n');
         }
@@ -432,10 +455,14 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
 
         // Last line (if different from first)
         if start_line < end_line {
-            original_text.push_str(&lines[end_line][..end_col]);
+            if end_line < lines.len() {
+                original_text.push_str(&lines[end_line][..end_col]);
+            }
         } else {
             // Same line - already handled above, just need to adjust
-            original_text = lines[start_line][start_col..end_col].to_string();
+            if start_line < lines.len() {
+                original_text = lines[start_line][start_col..end_col].to_string();
+            }
         }
 
         if original_text != edit.original_text {
@@ -454,8 +481,18 @@ fn apply_multi_line_edit(source: &mut String, edit: &TextEdit) -> AstResult<Edit
     }
 
     // The edited content
-    let prefix = &lines[start_line][..start_col];
-    let suffix = &lines[end_line][end_col..];
+    let prefix = if start_line < lines.len() {
+        &lines[start_line][..start_col]
+    } else {
+        ""
+    };
+
+    let suffix = if end_line < lines.len() {
+        &lines[end_line][end_col..]
+    } else {
+        ""
+    };
+
     let combined = format!("{}{}{}", prefix, edit.new_text, suffix);
 
     // Split the combined text by newlines and add to new_lines

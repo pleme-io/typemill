@@ -41,6 +41,7 @@ impl RefactorExtractPlanner {
         );
 
         // Validate kind
+        tracing::info!("Validating extract kind: {}", params.kind);
         match params.kind.as_str() {
             "function" | "variable" | "constant" | "module" => {}
             other => {
@@ -53,10 +54,12 @@ impl RefactorExtractPlanner {
 
         match params.kind.as_str() {
             "function" => {
+                tracing::info!("Dispatching to plan_extract_function");
                 self.plan_extract_function(context, &params.source, &params.options)
                     .await
             }
             "variable" => {
+                tracing::info!("Dispatching to plan_extract_variable");
                 self.plan_extract_variable(context, &params.source, &params.options)
                     .await
             }
@@ -79,6 +82,7 @@ impl RefactorExtractPlanner {
         source: &SourceRange,
         options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
+        tracing::info!("RefactorExtractPlanner: calling plan_extract_variable (VERIFICATION)");
         // Convert LSP Range to CodeRange
         let code_range = CodeRange {
             start_line: source.range.start.line,
@@ -107,10 +111,13 @@ impl RefactorExtractPlanner {
             .downcast_ref::<mill_plugin_api::PluginDiscovery>()
             .ok_or_else(|| ServerError::internal("Failed to downcast to PluginDiscovery"))?;
 
-        let edit_plan = mill_ast::refactoring::extract_function::plan_extract_function(
+        let edit_plan = mill_ast::refactoring::extract_variable::plan_extract_variable(
             &file_content,
-            &code_range,
-            &source.name,
+            source.range.start.line,
+            source.range.start.character,
+            source.range.end.line,
+            source.range.end.character,
+            Some(source.name.clone()),
             &source.file_path,
             None,                   // No LSP service - use AST-only approach
             Some(plugin_discovery), // Pass plugin registry
@@ -274,7 +281,7 @@ impl RefactorExtractPlanner {
         _options: &ExtractOptions,
     ) -> ServerResult<ExtractPlan> {
         // Convert EditPlan edits to LSP WorkspaceEdit
-        let workspace_edit = self.convert_to_workspace_edit(&edit_plan)?;
+        let workspace_edit = self.convert_to_workspace_edit(&edit_plan, context).await?;
 
         // Collect all affected files
         let mut affected_files = std::collections::HashSet::new();
@@ -333,7 +340,11 @@ impl RefactorExtractPlanner {
     }
 
     /// Convert EditPlan edits to LSP WorkspaceEdit
-    fn convert_to_workspace_edit(&self, edit_plan: &EditPlan) -> ServerResult<WorkspaceEdit> {
+    async fn convert_to_workspace_edit(
+        &self,
+        edit_plan: &EditPlan,
+        context: &mill_handler_api::ToolHandlerContext,
+    ) -> ServerResult<WorkspaceEdit> {
         let mut changes: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
 
         // Sort edits by priority (highest first) to preserve execution order
@@ -343,9 +354,13 @@ impl RefactorExtractPlanner {
 
         for edit in &sorted_edits {
             let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
+            let abs_path = context
+                .app_state
+                .file_service
+                .to_absolute_path_checked(Path::new(file_path))?;
 
             // Convert file path to file:// URI
-            let uri = url::Url::from_file_path(file_path)
+            let uri = url::Url::from_file_path(abs_path)
                 .map_err(|_| ServerError::internal(format!("Invalid file path: {}", file_path)))?
                 .to_string()
                 .parse::<lsp_types::Uri>()

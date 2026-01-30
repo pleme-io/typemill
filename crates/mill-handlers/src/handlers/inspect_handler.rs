@@ -60,7 +60,14 @@ impl InspectHandler {
         match context.plugin_manager.handle_request(request).await {
             Ok(response) => {
                 if let Some(data) = response.data {
-                    if let Some(symbols) = data.as_array() {
+                    // Extract symbols array - LspAdapterPlugin wraps it in {"symbols": [...]}
+                    let symbols_val = if let Some(obj) = data.as_object() {
+                        obj.get("symbols").unwrap_or(&data)
+                    } else {
+                        &data
+                    };
+
+                    if let Some(symbols) = symbols_val.as_array() {
                         // Search for symbol by name
                         for symbol in symbols {
                             if let Some(name) = symbol.get("name").and_then(|n| n.as_str()) {
@@ -69,6 +76,7 @@ impl InspectHandler {
                                     let position = symbol
                                         .get("selectionRange")
                                         .or_else(|| symbol.get("range"))
+                                        .or_else(|| symbol.get("location").and_then(|l| l.get("range")))
                                         .and_then(|r| r.get("start"));
 
                                     if let Some(pos) = position {
