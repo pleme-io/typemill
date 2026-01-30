@@ -175,7 +175,8 @@ impl LspClient {
         if let Ok(nvm_dir) = std::env::var("NVM_DIR") {
             // First try to read the default alias file to get the current version
             let default_version_path = format!("{}/alias/default", nvm_dir);
-            let default_version = std::fs::read_to_string(&default_version_path)
+            let default_version = tokio::fs::read_to_string(&default_version_path)
+                .await
                 .ok()
                 .map(|s| s.trim().to_string());
 
@@ -185,34 +186,40 @@ impl LspClient {
                     format!("{}/versions/node/{}/bin", nvm_dir, version_alias)
                 } else {
                     // If it's just "22", find the highest v22.x.x version
-                    if let Ok(entries) = std::fs::read_dir(format!("{}/versions/node", nvm_dir)) {
-                        entries
-                            .filter_map(Result::ok)
-                            .filter(|e| {
-                                e.file_name()
-                                    .to_string_lossy()
-                                    .starts_with(&format!("v{}", version_alias))
-                            })
-                            .max_by_key(|e| e.file_name())
-                            .map(|e| format!("{}/bin", e.path().display()))
-                            .unwrap_or_default()
-                    } else {
-                        String::new()
+                    let node_versions_dir = format!("{}/versions/node", nvm_dir);
+                    let mut found_path = String::new();
+
+                    if let Ok(mut entries) = tokio::fs::read_dir(&node_versions_dir).await {
+                        let mut versions = Vec::new();
+                        while let Ok(Some(entry)) = entries.next_entry().await {
+                            let file_name = entry.file_name();
+                            let file_name_str = file_name.to_string_lossy();
+                            if file_name_str.starts_with(&format!("v{}", version_alias)) {
+                                // Store full path for constructing result
+                                versions.push(entry.path());
+                            }
+                        }
+
+                        // Use max_by_key on PathBuf to mimic previous behavior (lexicographical)
+                        if let Some(best_path) = versions.iter().max_by_key(|p| p.file_name().unwrap_or_default().to_os_string()) {
+                            found_path = format!("{}/bin", best_path.display());
+                        }
                     }
+                    found_path
                 };
 
-                if !version_path.is_empty() && std::path::Path::new(&version_path).exists() {
+                if !version_path.is_empty() && tokio::fs::try_exists(&version_path).await.unwrap_or(false) {
                     path_additions.push(version_path);
                 }
             }
         } else if let Some(ref home) = home_dir {
             // Fallback: try common NVM location with default version
             let nvm_default_path = format!("{}/.nvm/alias/default", home);
-            if let Ok(default_version) = std::fs::read_to_string(&nvm_default_path) {
+            if let Ok(default_version) = tokio::fs::read_to_string(&nvm_default_path).await {
                 let version = default_version.trim();
                 if version.starts_with('v') {
                     let bin_path = format!("{}/.nvm/versions/node/{}/bin", home, version);
-                    if std::path::Path::new(&bin_path).exists() {
+                    if tokio::fs::try_exists(&bin_path).await.unwrap_or(false) {
                         path_additions.push(bin_path);
                     }
                 }
