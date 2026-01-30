@@ -346,6 +346,16 @@ impl RuntimePluginManager {
         self.plugins.values()
     }
 
+    /// Get all registered plugins with their names
+    pub fn get_plugins_with_names(&self) -> impl Iterator<Item = (&String, &Arc<dyn LanguagePlugin>)> {
+        self.plugins.iter()
+    }
+
+    /// Get the number of registered plugins
+    pub fn plugin_count(&self) -> usize {
+        self.plugins.len()
+    }
+
     /// Get all supported file extensions
     pub fn get_supported_extensions(&self) -> Vec<String> {
         self.extension_map.keys().cloned().collect()

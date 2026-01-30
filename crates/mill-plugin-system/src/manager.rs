@@ -396,33 +396,26 @@ impl PluginManager {
     /// Get all tool definitions from all registered plugins
     pub async fn get_all_tool_definitions(&self) -> Vec<Value> {
         let registry = self.registry.read().await;
-        let mut all_tools = Vec::new();
-
-        for plugin in registry.get_all_plugins() {
-            let tools = plugin.tool_definitions();
-            all_tools.extend(tools);
-        }
-
-        all_tools
+        registry
+            .get_all_plugins()
+            .flat_map(|plugin| plugin.tool_definitions())
+            .collect()
     }
 
     /// Shutdown all plugins gracefully
     #[instrument(skip(self))]
     pub async fn shutdown(&self) -> PluginResult<()> {
         let registry = self.registry.read().await;
-        let plugin_names = registry.get_plugin_names();
 
         // Note: In a real implementation, we'd call shutdown on each plugin
         // This would require either making LanguagePlugin methods async
         // or using a different approach for lifecycle management
 
-        info!("Shutting down {} plugins", plugin_names.len());
+        info!("Shutting down {} plugins", registry.plugin_count());
 
-        for plugin_name in plugin_names {
-            if let Some(_plugin) = registry.get_plugin(&plugin_name) {
-                // plugin.shutdown().await?; // Would need async trait methods
-                debug!("Plugin '{}' shutdown", plugin_name);
-            }
+        for (plugin_name, _plugin) in registry.get_plugins_with_names() {
+            // plugin.shutdown().await?; // Would need async trait methods
+            debug!("Plugin '{}' shutdown", plugin_name);
         }
 
         info!("All plugins shut down successfully");
