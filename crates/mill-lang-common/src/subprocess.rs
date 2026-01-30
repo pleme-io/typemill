@@ -23,6 +23,7 @@ use serde::de::DeserializeOwned;
 use std::io::Write;
 use std::process::{Command, Stdio};
 use tempfile::Builder;
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, warn};
 
 type PluginResult<T> = Result<T, MillError>;
@@ -233,6 +234,127 @@ pub fn run_ast_tool<T: DeserializeOwned>(tool: SubprocessAstTool, source: &str) 
 pub fn run_ast_tool_raw(tool: SubprocessAstTool, source: &str) -> PluginResult<String> {
     let stdout = execute_subprocess(tool, source)?;
     Ok(String::from_utf8_lossy(&stdout).to_string())
+}
+
+/// Execute an AST tool subprocess asynchronously and return raw stdout bytes
+///
+/// Internal helper function that handles the common subprocess execution logic.
+async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec<u8>> {
+    debug!(
+        runtime = %tool.runtime,
+        filename = %tool.temp_filename,
+        "Running subprocess AST tool (async)"
+    );
+
+    // Create temporary directory
+    // Note: This is still synchronous but usually fast. We could spawn_blocking but
+    // for just mkdir it might not be worth the overhead unless heavily contented.
+    let tmp_dir = Builder::new()
+        .prefix(&tool.temp_prefix)
+        .tempdir()
+        .map_err(|e| MillError::internal(format!("Failed to create temp dir: {}", e)))?;
+
+    // Write embedded tool to temporary file
+    let tool_path = tmp_dir.path().join(&tool.temp_filename);
+
+    // Use async file write
+    tokio::fs::write(&tool_path, &tool.embedded_source)
+        .await
+        .map_err(|e| {
+            MillError::internal(format!(
+                "Failed to write {} to temp file: {}",
+                tool.temp_filename, e
+            ))
+        })?;
+
+    // Build command arguments
+    let mut cmd_args = Vec::new();
+
+    // Special handling for Java (requires -jar flag)
+    if tool.runtime == "java" && tool.temp_filename.ends_with(".jar") {
+        cmd_args.push("-jar".to_string());
+    }
+
+    // Special handling for Go (requires "run" subcommand)
+    if tool.runtime == "go" {
+        cmd_args.push("run".to_string());
+    }
+
+    cmd_args.push(tool_path.to_string_lossy().to_string());
+    cmd_args.extend(tool.args);
+
+    debug!(
+        runtime = %tool.runtime,
+        args = ?cmd_args,
+        "Spawning subprocess (async)"
+    );
+
+    // Spawn subprocess
+    let mut child = tokio::process::Command::new(&tool.runtime)
+        .args(&cmd_args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            MillError::parse(format!(
+                "Failed to spawn {} subprocess. Is {} installed and in PATH? Error: {}",
+                tool.runtime, tool.runtime, e
+            ))
+        })?;
+
+    // Write source code to stdin
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(source.as_bytes()).await.map_err(|e| {
+            MillError::parse(format!(
+                "Failed to write to {} subprocess stdin: {}",
+                tool.runtime, e
+            ))
+        })?;
+    }
+
+    // Wait for subprocess to complete
+    let output = child.wait_with_output().await.map_err(|e| {
+        MillError::parse(format!(
+            "Failed to wait for {} subprocess: {}",
+            tool.runtime, e
+        ))
+    })?;
+
+    // Check exit status
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        warn!(
+            runtime = %tool.runtime,
+            stderr = %stderr,
+            "Subprocess failed (async)"
+        );
+        return Err(MillError::parse(format!(
+            "{} AST tool failed: {}",
+            tool.runtime, stderr
+        )));
+    }
+
+    Ok(output.stdout)
+}
+
+/// Run an AST tool subprocess asynchronously and parse its JSON output
+pub async fn run_ast_tool_async<T: DeserializeOwned>(
+    tool: SubprocessAstTool,
+    source: &str,
+) -> PluginResult<T> {
+    let stdout = execute_subprocess_async(tool, source).await?;
+
+    // Deserialize JSON output
+    serde_json::from_slice(&stdout).map_err(|e| {
+        let stdout_preview = String::from_utf8_lossy(&stdout);
+        warn!(
+            error = %e,
+            stdout_preview = %stdout_preview.chars().take(200).collect::<String>(),
+            "Failed to parse JSON output"
+        );
+        MillError::parse(format!("Failed to parse JSON from AST tool: {}", e))
+    })
 }
 
 #[cfg(test)]
