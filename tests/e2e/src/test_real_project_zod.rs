@@ -982,7 +982,8 @@ async fn test_zod_create_package_execute() {
                     "type": "npm"
                 },
                 "options": {
-                    "dryRun": false
+                    "dryRun": false,
+                    "addToWorkspace": false  // Zod doesn't have a workspace package.json
                 }
             }),
             LARGE_PROJECT_TIMEOUT,
