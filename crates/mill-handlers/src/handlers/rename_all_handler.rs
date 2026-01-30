@@ -42,10 +42,13 @@ impl Default for RenameAllHandler {
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RenameAllParams {
-    /// The target to rename
-    target: RenameAllTarget,
-    /// New name for the target
-    new_name: String,
+    /// The target to rename (single mode)
+    target: Option<RenameAllTarget>,
+    /// Multiple targets (batch mode)
+    #[serde(default)]
+    targets: Option<Vec<RenameAllTarget>>,
+    /// New name for the target (single mode)
+    new_name: Option<String>,
     /// Optional configuration
     #[serde(default)]
     options: RenameAllOptions,
@@ -59,6 +62,9 @@ struct RenameAllTarget {
     kind: String,
     /// Path to the file/directory, or file containing the symbol
     file_path: String,
+    /// New name (required for batch mode, optional for single mode)
+    #[serde(default)]
+    new_name: Option<String>,
     /// Line number for symbol rename (0-based)
     #[serde(default)]
     line: Option<u32>,
@@ -117,7 +123,7 @@ impl RenameAllHandler {
         Ok(RenameTarget {
             kind: target.kind.clone(),
             path: target.file_path.clone(),
-            new_name: None, // Not used in single target mode
+            new_name: target.new_name.clone(),
             selector,
         })
     }
@@ -373,49 +379,87 @@ impl ToolHandler for RenameAllHandler {
             ServerError::invalid_request(format!("Invalid rename_all parameters: {}", e))
         })?;
 
-        debug!(
-            kind = %params.target.kind,
-            file_path = %params.target.file_path,
-            new_name = %params.new_name,
-            dry_run = params.options.dry_run,
-            "Processing rename_all request"
-        );
-
-        // Validate target kind
-        if !["symbol", "file", "directory"].contains(&params.target.kind.as_str()) {
-            return Err(ServerError::invalid_request(format!(
-                "Unsupported target kind: '{}'. Must be one of: symbol, file, directory",
-                params.target.kind
-            )));
-        }
-
-        // Convert to internal format
-        let rename_target = Self::convert_to_rename_target(&params.target)?;
         let rename_options = Self::convert_to_rename_options(&params.options);
 
-        // Call the appropriate rename handler method based on target kind
-        let plan = match params.target.kind.as_str() {
-            "symbol" => {
-                self.rename_service
-                    .plan_symbol_rename(&rename_target, &params.new_name, &rename_options, context)
-                    .await?
+        // Determine mode: Batch or Single
+        let plan = if let Some(targets) = &params.targets {
+            // Batch mode
+            debug!(
+                targets_count = targets.len(),
+                dry_run = params.options.dry_run,
+                "Processing batch rename_all request"
+            );
+
+            // Convert all targets
+            let mut rename_targets = Vec::new();
+            for t in targets {
+                if !["symbol", "file", "directory"].contains(&t.kind.as_str()) {
+                    return Err(ServerError::invalid_request(format!(
+                        "Unsupported target kind: '{}'. Must be one of: symbol, file, directory",
+                        t.kind
+                    )));
+                }
+                rename_targets.push(Self::convert_to_rename_target(t)?);
             }
-            "file" => {
-                self.rename_service
-                    .plan_file_rename(&rename_target, &params.new_name, &rename_options, context)
-                    .await?
+
+            self.rename_service
+                .plan_batch_rename(&rename_targets, &rename_options, context)
+                .await?
+        } else if let Some(target) = &params.target {
+            // Single mode
+            debug!(
+                kind = %target.kind,
+                file_path = %target.file_path,
+                new_name = ?params.new_name,
+                dry_run = params.options.dry_run,
+                "Processing single rename_all request"
+            );
+
+            // Validate target kind
+            if !["symbol", "file", "directory"].contains(&target.kind.as_str()) {
+                return Err(ServerError::invalid_request(format!(
+                    "Unsupported target kind: '{}'. Must be one of: symbol, file, directory",
+                    target.kind
+                )));
             }
-            "directory" => {
-                self.rename_service
-                    .plan_directory_rename(
-                        &rename_target,
-                        &params.new_name,
-                        &rename_options,
-                        context,
-                    )
-                    .await?
+
+            // For single mode, new_name is required in params if not in target (but we'll check later or in handler)
+            // Ideally it should be provided.
+            let new_name = params.new_name.as_ref().or(target.new_name.as_ref()).ok_or_else(|| {
+                ServerError::invalid_request("new_name is required for rename operation")
+            })?;
+
+            // Convert to internal format
+            let rename_target = Self::convert_to_rename_target(target)?;
+
+            // Call the appropriate rename handler method based on target kind
+            match target.kind.as_str() {
+                "symbol" => {
+                    self.rename_service
+                        .plan_symbol_rename(&rename_target, new_name, &rename_options, context)
+                        .await?
+                }
+                "file" => {
+                    self.rename_service
+                        .plan_file_rename(&rename_target, new_name, &rename_options, context)
+                        .await?
+                }
+                "directory" => {
+                    self.rename_service
+                        .plan_directory_rename(
+                            &rename_target,
+                            new_name,
+                            &rename_options,
+                            context,
+                        )
+                        .await?
+                }
+                _ => unreachable!("Target kind already validated"),
             }
-            _ => unreachable!("Target kind already validated"),
+        } else {
+            return Err(ServerError::invalid_request(
+                "Either 'target' (single) or 'targets' (batch) must be provided",
+            ));
         };
 
         // Wrap in RefactorPlan enum
@@ -487,6 +531,7 @@ mod tests {
         let target = RenameAllTarget {
             kind: "file".to_string(),
             file_path: "src/main.rs".to_string(),
+            new_name: None,
             line: None,
             character: None,
         };
@@ -502,6 +547,7 @@ mod tests {
         let target = RenameAllTarget {
             kind: "symbol".to_string(),
             file_path: "src/lib.rs".to_string(),
+            new_name: None,
             line: Some(10),
             character: Some(5),
         };
@@ -520,6 +566,7 @@ mod tests {
         let target = RenameAllTarget {
             kind: "symbol".to_string(),
             file_path: "src/lib.rs".to_string(),
+            new_name: None,
             line: None,
             character: Some(5),
         };

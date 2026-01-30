@@ -336,8 +336,6 @@ impl RenameService {
     }
 
     /// Plan batch rename for multiple targets
-    // TODO: wire up - expose via rename_all tool with targets array
-    #[allow(dead_code)]
     pub(crate) async fn plan_batch_rename(
         &self,
         targets: &[RenameTarget],

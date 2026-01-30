@@ -1662,8 +1662,8 @@ async fn handle_convert_naming(
 
                 targets.push(json!({
                     "kind": target_type,
-                    "path": file_path,
-                    "new_name": new_path.to_str().unwrap(),
+                    "filePath": file_path,
+                    "newName": new_path.to_str().unwrap(),
                 }));
             } else {
                 skipped.push(file_path.clone());
@@ -1689,8 +1689,8 @@ async fn handle_convert_naming(
     for target in &targets {
         println!(
             "  {} → {}",
-            target["path"].as_str().unwrap(),
-            target["new_name"].as_str().unwrap()
+            target["filePath"].as_str().unwrap(),
+            target["newName"].as_str().unwrap()
         );
     }
     if !skipped.is_empty() {
@@ -1718,7 +1718,8 @@ async fn handle_convert_naming(
     let arguments = json!({
         "targets": targets,
         "options": {
-            "scope": "all"  // Update imports, string literals, docs, configs
+            "scope": "all",  // Update imports, string literals, docs, configs
+            "dryRun": false  // Execute immediately
         }
     });
 
@@ -1737,66 +1738,33 @@ async fn handle_convert_naming(
     let message = McpMessage::Request(request);
     let session_info = SessionInfo::default();
 
-    // Execute rename plan
-    println!("📝 Generating rename plan...");
+    // Execute rename
+    println!("🚀 Executing batch rename...");
     match dispatcher.dispatch(message, &session_info).await {
         Ok(McpMessage::Response(response)) => {
             if let Some(result) = response.result {
                 if let Some(content) = result.get("content") {
-                    // Got the plan, now apply it
-                    println!("✅ Plan generated");
-                    println!();
+                    // Success response from rename_all (when dryRun=false) matches WriteResponse format
+                    // content.status should be "success"
+                    let status = content
+                        .get("status")
+                        .and_then(|s| s.as_str())
+                        .unwrap_or("unknown");
 
-                    // Apply the plan
-                    let apply_params = json!({
-                        "name": "DELETED_TOOL",
-                        "arguments": {
-                            "plan": content,
-                            "options": {
-                                "dry_run": false
-                            }
-                        }
-                    });
-
-                    let apply_request = McpRequest {
-                        jsonrpc: "2.0".to_string(),
-                        id: Some(json!(2)),
-                        method: "tools/call".to_string(),
-                        params: Some(apply_params),
-                    };
-
-                    println!("🚀 Applying renames...");
-                    match dispatcher
-                        .dispatch(McpMessage::Request(apply_request), &session_info)
-                        .await
-                    {
-                        Ok(McpMessage::Response(apply_response)) => {
-                            if apply_response.error.is_some() {
-                                eprintln!("❌ Failed to apply renames");
-                                output_error(
-                                    &MillError::internal(format!("{:?}", apply_response.error)),
-                                    format,
-                                );
-                                process::exit(1);
-                            } else {
-                                println!("✅ Successfully renamed {} files!", targets.len());
-                            }
-                        }
-                        Ok(_) => {
-                            eprintln!("❌ Unexpected response type from apply_edit");
-                            process::exit(1);
-                        }
-                        Err(e) => {
-                            eprintln!("❌ Error applying renames: {}", e);
-                            process::exit(1);
-                        }
+                    if status == "success" {
+                        println!("✅ Successfully renamed {} files!", targets.len());
+                        // Could check result.filesChanged count if needed
+                    } else {
+                        eprintln!("❌ Rename operation failed (status: {})", status);
+                        output_result(&result, format);
+                        process::exit(1);
                     }
                 } else {
-                    eprintln!("❌ Plan response missing content");
+                    eprintln!("❌ Response missing content");
                     process::exit(1);
                 }
             } else if let Some(error) = response.error {
-                eprintln!("❌ Failed to generate plan: {:?}", error);
+                eprintln!("❌ Failed to execute rename: {:?}", error);
                 process::exit(1);
             }
         }

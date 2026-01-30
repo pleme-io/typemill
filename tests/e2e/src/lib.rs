@@ -23,6 +23,9 @@ pub mod resilience_tests;
 pub mod test_rename_integration;
 
 #[cfg(test)]
+pub mod test_batch_rename;
+
+#[cfg(test)]
 pub mod test_rename_with_imports;
 
 #[cfg(test)]
