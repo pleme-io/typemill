@@ -126,7 +126,7 @@ pub async fn handle_create_package(
 
     // Handle dry-run mode - preview what would be created
     if params.options.dry_run {
-        return preview_create_package(workspace_root, &params);
+        return preview_create_package(workspace_root, &params).await;
     }
 
     // Get language extension based on the specified language type
@@ -222,7 +222,7 @@ pub async fn handle_create_package(
 
 /// Preview what files would be created for a package without actually creating them.
 /// This implements dry-run mode for create_package.
-fn preview_create_package(
+async fn preview_create_package(
     workspace_root: &Path,
     params: &CreatePackageParams,
 ) -> ServerResult<Value> {
@@ -242,7 +242,11 @@ fn preview_create_package(
     };
 
     // Validate package path doesn't already exist
-    if package_path.exists() {
+    // Use async try_exists to avoid blocking the runtime
+    if tokio::fs::try_exists(&package_path)
+        .await
+        .map_err(|e| ServerError::internal(format!("Failed to check path existence: {}", e)))?
+    {
         return Err(ServerError::invalid_request(format!(
             "Package path already exists: {}",
             package_path.display()
