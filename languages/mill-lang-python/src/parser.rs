@@ -313,45 +313,67 @@ fn infer_python_value_type(value: &str) -> PythonValueType {
 /// Extract symbols from Python source code for code intelligence
 pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     let mut symbols = Vec::new();
-    let functions = extract_python_functions(source)?;
-    for func in functions {
-        symbols.push(Symbol {
-            name: func.name.clone(),
-            kind: SymbolKind::Function,
-            location: mill_plugin_api::SourceLocation {
-                line: func.start_line as usize,
-                column: 0,
-            },
-            end_location: Some(mill_plugin_api::SourceLocation {
-                line: func.end_line as usize,
-                column: 0,
-            }),
-            documentation: None,
-        });
-    }
-    let variables = extract_python_variables(source)?;
-    for var in variables {
-        let kind = if var.is_constant {
-            SymbolKind::Constant
-        } else {
-            SymbolKind::Variable
-        };
-        symbols.push(Symbol {
-            name: var.name.clone(),
-            kind,
-            location: mill_plugin_api::SourceLocation {
-                line: var.line as usize,
-                column: 0,
-            },
-            end_location: Some(mill_plugin_api::SourceLocation {
-                line: var.line as usize,
-                column: 0,
-            }),
-            documentation: None,
-        });
-    }
     let lines: Vec<&str> = source.lines().collect();
+
     for (line_num, line) in lines.iter().enumerate() {
+        // Function definitions
+        if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
+            let name = captures
+                .get(3)
+                .expect("Python function regex should always capture name at index 3")
+                .as_str();
+
+            let end_line =
+                find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
+
+            symbols.push(Symbol {
+                name: name.to_string(),
+                kind: SymbolKind::Function,
+                location: mill_plugin_api::SourceLocation {
+                    line: line_num,
+                    column: 0,
+                },
+                end_location: Some(mill_plugin_api::SourceLocation {
+                    line: end_line as usize,
+                    column: 0,
+                }),
+                documentation: None,
+            });
+            continue;
+        }
+
+        // Variable assignments
+        if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line) {
+            let var_name = captures
+                .get(2)
+                .expect("Python assignment regex should always capture variable name at index 2")
+                .as_str();
+
+            // We optimize by skipping infer_python_value_type since we only need to know if it's constant
+            let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+            let kind = if is_constant {
+                SymbolKind::Constant
+            } else {
+                SymbolKind::Variable
+            };
+
+            symbols.push(Symbol {
+                name: var_name.to_string(),
+                kind,
+                location: mill_plugin_api::SourceLocation {
+                    line: line_num,
+                    column: 0,
+                },
+                end_location: Some(mill_plugin_api::SourceLocation {
+                    line: line_num,
+                    column: 0,
+                }),
+                documentation: None,
+            });
+            continue;
+        }
+
+        // Class definitions
         if let Some(captures) = CLASS_DEF_PATTERN.captures(line.trim()) {
             if let Some(name) = captures.get(1) {
                 let end_line =
