@@ -209,65 +209,79 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
 async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec<u8>> {
     let runtime = tool.runtime.clone();
 
-    // We use spawn_blocking for prepare_subprocess because it performs file I/O
-    // (creating temp dir and writing tool file) which blocks the thread.
-    let (_tmp_dir, _tool_path, cmd_args) = tokio::task::spawn_blocking(move || prepare_subprocess(&tool))
-        .await
-        .map_err(|e| MillError::internal(format!("Task join error: {}", e)))??;
+    // Offload blocking preparation (temp dir creation, file writing) to a blocking thread
+    let (tmp_dir, _tool_path, cmd_args) = tokio::task::spawn_blocking(move || {
+        prepare_subprocess(&tool)
+    })
+    .await
+    .map_err(|e| MillError::internal(format!("Failed to join blocking task: {}", e)))??;
 
-    debug!(
-        runtime = %runtime,
-        args = ?cmd_args,
-        "Spawning async subprocess"
-    );
+    let result = async {
+        debug!(
+            runtime = %runtime,
+            args = ?cmd_args,
+            "Spawning async subprocess"
+        );
 
-    // Spawn subprocess using tokio::process::Command
-    let mut child = tokio::process::Command::new(&runtime)
-        .args(&cmd_args)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| {
+        // Spawn subprocess using tokio::process::Command
+        let mut child = tokio::process::Command::new(&runtime)
+            .args(&cmd_args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| {
+                MillError::parse(format!(
+                    "Failed to spawn async {} subprocess. Is {} installed and in PATH? Error: {}",
+                    runtime, runtime, e
+                ))
+            })?;
+
+        // Write source code to stdin asynchronously
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(source.as_bytes()).await.map_err(|e| {
+                MillError::parse(format!(
+                    "Failed to write to {} subprocess stdin: {}",
+                    runtime, e
+                ))
+            })?;
+        }
+
+        // Wait for subprocess to complete asynchronously
+        let output = child.wait_with_output().await.map_err(|e| {
             MillError::parse(format!(
-                "Failed to spawn async {} subprocess. Is {} installed and in PATH? Error: {}",
-                runtime, runtime, e
-            ))
-        })?;
-
-    // Write source code to stdin asynchronously
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(source.as_bytes()).await.map_err(|e| {
-            MillError::parse(format!(
-                "Failed to write to {} subprocess stdin: {}",
+                "Failed to wait for {} subprocess: {}",
                 runtime, e
             ))
         })?;
+
+        // Check exit status
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            warn!(
+                runtime = %runtime,
+                stderr = %stderr,
+                "Async subprocess failed"
+            );
+            return Err(MillError::parse(format!(
+                "{} AST tool failed: {}",
+                runtime, stderr
+            )));
+        }
+
+        Ok(output.stdout)
     }
+    .await;
 
-    // Wait for subprocess to complete asynchronously
-    let output = child.wait_with_output().await.map_err(|e| {
-        MillError::parse(format!(
-            "Failed to wait for {} subprocess: {}",
-            runtime, e
-        ))
-    })?;
+    // Offload cleanup of temp dir to blocking thread
+    // We move tmp_dir into the closure so it is dropped there
+    tokio::task::spawn_blocking(move || {
+        drop(tmp_dir);
+    })
+    .await
+    .map_err(|e| MillError::internal(format!("Failed to join blocking task for cleanup: {}", e)))?;
 
-    // Check exit status
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        warn!(
-            runtime = %runtime,
-            stderr = %stderr,
-            "Async subprocess failed"
-        );
-        return Err(MillError::parse(format!(
-            "{} AST tool failed: {}",
-            runtime, stderr
-        )));
-    }
-
-    Ok(output.stdout)
+    result
 }
 
 /// Run an AST tool subprocess and parse its JSON output

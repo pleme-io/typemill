@@ -2,9 +2,12 @@
 //!
 //! Handles workspace operations through package.json and pnpm-workspace.yaml manipulation.
 
+use async_trait::async_trait;
+use mill_foundation::protocol::ConsolidationMetadata;
 use mill_plugin_api::WorkspaceSupport;
 use serde_json::{json, Value};
-use tracing::{debug, warn};
+use std::path::Path;
+use tracing::{debug, info, warn};
 
 /// TypeScript workspace support implementation
 pub struct TypeScriptWorkspaceSupport;
@@ -22,6 +25,7 @@ impl Default for TypeScriptWorkspaceSupport {
     }
 }
 
+#[async_trait]
 impl WorkspaceSupport for TypeScriptWorkspaceSupport {
     fn add_workspace_member(&self, content: &str, member: &str) -> String {
         match detect_format(content) {
@@ -107,6 +111,53 @@ impl WorkspaceSupport for TypeScriptWorkspaceSupport {
             }
             WorkspaceFormat::Unknown => content.to_string(),
         }
+    }
+
+    /// Check if a directory is an npm package
+    async fn is_package(&self, dir_path: &Path) -> bool {
+        tokio::fs::try_exists(dir_path.join("package.json"))
+            .await
+            .unwrap_or(false)
+    }
+
+    /// Execute TypeScript-specific post-processing after a consolidation move
+    ///
+    /// Handles npm package consolidation tasks:
+    /// 1. Flatten nested src/ directories
+    /// 2. Merge package.json dependencies
+    /// 3. Update imports across workspace
+    /// 4. Clean up workspace package.json
+    #[allow(clippy::too_many_arguments)]
+    async fn execute_consolidation_post_processing(
+        &self,
+        source_crate_name: &str,
+        target_crate_name: &str,
+        target_module_name: &str,
+        source_crate_path: &Path,
+        target_crate_path: &Path,
+        target_module_path: &Path,
+        project_root: &Path,
+    ) -> Result<(), String> {
+        info!(
+            source_package = %source_crate_name,
+            target_package = %target_crate_name,
+            target_module = %target_module_name,
+            "Executing TypeScript consolidation post-processing"
+        );
+
+        let metadata = ConsolidationMetadata {
+            is_consolidation: true,
+            source_crate_name: source_crate_name.to_string(),
+            target_crate_name: target_crate_name.to_string(),
+            target_module_name: target_module_name.to_string(),
+            source_crate_path: source_crate_path.to_string_lossy().to_string(),
+            target_crate_path: target_crate_path.to_string_lossy().to_string(),
+            target_module_path: target_module_path.to_string_lossy().to_string(),
+        };
+
+        crate::consolidation::execute_consolidation_post_processing(&metadata, project_root)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 

@@ -2,7 +2,7 @@
 
 > **Goal**: Ensure all three primary languages (Rust, TypeScript, Python) have equivalent functionality for core operations.
 
-Last updated: 2026-01-30
+Last updated: 2026-01-31
 
 ---
 
@@ -10,41 +10,41 @@ Last updated: 2026-01-30
 
 ### Extract Dependencies
 
-- [ ] **Python: Add pyproject.toml support to extract_dependencies**
+- [x] **Python: Add pyproject.toml support to extract_dependencies** ✅ DONE
   - Location: `crates/mill-handlers/src/handlers/tools/workspace_extract/`
-  - Create: `pyproject_manifest.rs` (similar to `cargo_manifest.rs` and `package_json.rs`)
-  - Update: `mod.rs` lines 251-259 to detect pyproject.toml
-  - Update: `mod.rs` lines 337-356 to handle `ManifestType::PyProject`
-  - Tests: Add integration tests in `tests/e2e/`
+  - Created: `pyproject_manifest.rs` with PEP 621 and Poetry support
+  - Updated: `mod.rs` to detect and handle `ManifestType::PyProject`
+  - Tests: 10 unit tests added
 
 ### Reference Detector (Cross-Package Reference Detection)
 
-- [ ] **TypeScript: Implement reference_detector**
-  - Location: `languages/mill-lang-typescript/src/`
-  - Create: `reference_detector.rs` (use Rust's as template: `languages/mill-lang-rust/src/reference_detector.rs`)
-  - Update: `lib.rs` to add `reference_detector` field to plugin definition
-  - Should detect: ES6 imports, CommonJS requires, dynamic imports, re-exports
-  - Tests: Add unit tests similar to Rust's (lines 515-662)
+- [x] **TypeScript: Implement reference_detector** ✅ DONE
+  - Location: `languages/mill-lang-typescript/src/reference_detector.rs`
+  - Detects: ES6 imports, CommonJS requires, dynamic imports, re-exports
+  - Tests: 6 unit tests added
 
-- [ ] **Python: Implement reference_detector**
-  - Location: `languages/mill-lang-python/src/`
-  - Create: `reference_detector.rs`
-  - Update: `lib.rs` to add `reference_detector` field to plugin definition
-  - Should detect: `import x`, `from x import y`, relative imports
-  - Tests: Add unit tests
+- [x] **Python: Implement reference_detector** ✅ DONE
+  - Location: `languages/mill-lang-python/src/reference_detector.rs`
+  - Detects: `import x`, `from x import y`, relative imports
+  - Tests: 6 unit tests added
 
 ### Consolidation (Package Merging)
 
-- [ ] **TypeScript: Add npm package consolidation support**
+- [x] **TypeScript: Add npm package consolidation support** ✅ DONE
   - Location: `crates/mill-handlers/src/handlers/rename_ops/directory_rename.rs`
-  - Extend `is_consolidation_move()` to detect package.json
-  - Add dependency merging for package.json (similar to Cargo.toml merging)
-  - Handle: devDependencies, peerDependencies, scripts merging
+  - Added `PackageType::Npm` detection with `find_target_npm_root()`
+  - Created: `languages/mill-lang-typescript/src/consolidation.rs`
+  - Features: dependency merging (dependencies, devDependencies, peerDependencies)
+  - Import updates, workspace cleanup, nested src/ flattening
+  - Tests: 3 unit tests in consolidation.rs + 1 detection test in directory_rename.rs
 
-- [ ] **Python: Add Python package consolidation support**
-  - Extend `is_consolidation_move()` to detect pyproject.toml
-  - Add dependency merging for pyproject.toml
-  - Handle: [project.dependencies], [project.optional-dependencies]
+- [x] **Python: Add Python package consolidation support** ✅ DONE
+  - Location: `crates/mill-handlers/src/handlers/rename_ops/directory_rename.rs`
+  - Added `PackageType::Python` detection with `find_target_python_root()`
+  - Created: `languages/mill-lang-python/src/consolidation.rs`
+  - Features: dependency merging (PEP 621 + Poetry), __init__.py creation
+  - Import updates, workspace cleanup, nested src/ flattening
+  - Tests: 4 unit tests in consolidation.rs + 1 detection test in directory_rename.rs
 
 ---
 
@@ -52,14 +52,15 @@ Last updated: 2026-01-30
 
 ### Test Fixtures
 
-- [ ] **Rust: Add language-specific test fixtures**
-  - Create: `languages/mill-lang-rust/src/test_fixtures.rs`
-  - Model after: `languages/mill-lang-python/src/test_fixtures.rs`
-  - Include: complexity scenarios, refactoring scenarios
+- [x] **Rust: Add language-specific test fixtures** ✅ DONE
+  - Created: `languages/mill-lang-rust/src/test_fixtures.rs`
+  - 14 complexity scenarios (lifetimes, generics, macros, traits, async)
+  - 8 refactoring scenarios
 
-- [ ] **TypeScript: Add language-specific test fixtures**
-  - Create: `languages/mill-lang-typescript/src/test_fixtures.rs`
-  - Include: complexity scenarios, refactoring scenarios
+- [x] **TypeScript: Add language-specific test fixtures** ✅ DONE
+  - Created: `languages/mill-lang-typescript/src/test_fixtures.rs`
+  - 10 complexity scenarios (generics, async/await, JSX, decorators)
+  - 8 refactoring scenarios
 
 ### Real-World Project Tests
 
@@ -74,13 +75,6 @@ Last updated: 2026-01-30
 ---
 
 ## Code Quality
-
-### Dead Code Cleanup
-
-- [ ] **TypeScript: Remove or implement dead code in tsconfig.rs**
-  - Location: `languages/mill-lang-typescript/src/tsconfig.rs`
-  - Methods: `find_nearest` (line 162), `get_base_url` (line 177)
-  - Decision: Implement if needed for path alias resolution, otherwise remove
 
 ### Workspace Support Completeness
 
@@ -130,11 +124,11 @@ Last updated: 2026-01-30
 
 | Category | Rust | TypeScript | Python |
 |----------|------|------------|--------|
-| extract_dependencies | ✅ | ✅ | ⬜ |
-| reference_detector | ✅ | ⬜ | ⬜ |
-| consolidation | ✅ | ⬜ | ⬜ |
+| extract_dependencies | ✅ | ✅ | ✅ |
+| reference_detector | ✅ | ✅ | ✅ |
+| consolidation | ✅ | ✅ | ✅ |
 | workspace_support | ✅ | ✅ | ⚠️ (Hatch incomplete) |
-| test_fixtures | ⬜ | ⬜ | ✅ |
+| test_fixtures | ✅ | ✅ | ✅ |
 | create_package | ✅ | ✅ | ✅ |
 | real-world tests | ⬜ | ✅ (Zod) | ⬜ |
 
@@ -144,9 +138,11 @@ Last updated: 2026-01-30
 
 ## Implementation Order (Recommended)
 
-1. **TypeScript reference_detector** - High impact, enables cross-package renames
-2. **Python reference_detector** - Same impact for Python projects
-3. **Python extract_dependencies** - Completes workspace tooling for Python
-4. **TypeScript consolidation** - Enables monorepo refactoring
-5. **Test fixtures parity** - Improves test coverage
-6. **Real-world project tests** - Validates implementations
+1. ~~**TypeScript reference_detector** - High impact, enables cross-package renames~~ ✅ DONE
+2. ~~**Python reference_detector** - Same impact for Python projects~~ ✅ DONE
+3. ~~**Python extract_dependencies** - Completes workspace tooling for Python~~ ✅ DONE
+4. ~~**TypeScript consolidation** - Enables monorepo refactoring~~ ✅ DONE
+5. ~~**Python consolidation** - Enables monorepo refactoring~~ ✅ DONE
+6. ~~**Test fixtures parity** - Improves test coverage~~ ✅ DONE
+7. **Real-world project tests** - Validates implementations (Rust + Python pending)
+8. **Hatch workspace support** - Low priority, limited adoption

@@ -150,39 +150,6 @@ impl TsConfig {
         Ok(resolved)
     }
 
-    /// Find the nearest tsconfig.json by walking up from a starting path
-    ///
-    /// # Arguments
-    ///
-    /// * `start_path` - Path to start searching from (typically a source file)
-    ///
-    /// # Returns
-    ///
-    /// Path to nearest tsconfig.json, or None if not found
-    pub fn find_nearest(start_path: &Path) -> Option<PathBuf> {
-        let mut current = start_path.parent()?;
-
-        loop {
-            let candidate = current.join("tsconfig.json");
-            if candidate.exists() {
-                return Some(candidate);
-            }
-
-            // Move up one directory
-            current = current.parent()?;
-        }
-    }
-
-    /// Get the base URL as an absolute path
-    pub fn get_base_url(&self, tsconfig_dir: &Path) -> PathBuf {
-        if let Some(ref compiler_options) = self.compiler_options {
-            if let Some(ref base_url) = compiler_options.base_url {
-                return tsconfig_dir.join(base_url);
-            }
-        }
-        // Default to tsconfig directory if no baseUrl specified
-        tsconfig_dir.to_path_buf()
-    }
 }
 
 /// Strip JSON comments from content
