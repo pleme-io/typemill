@@ -205,6 +205,41 @@ pub enum SymbolKind {
     Other,
 }
 
+impl SymbolKind {
+    /// Convert LSP numeric kind to SymbolKind
+    pub fn from_lsp_kind(kind: u64) -> Option<Self> {
+        match kind {
+            1 => Some(SymbolKind::Other),      // File
+            2 => Some(SymbolKind::Module),     // Module
+            3 => Some(SymbolKind::Module),     // Namespace
+            4 => Some(SymbolKind::Module),     // Package
+            5 => Some(SymbolKind::Class),      // Class
+            6 => Some(SymbolKind::Method),     // Method
+            7 => Some(SymbolKind::Field),      // Property
+            8 => Some(SymbolKind::Field),      // Field
+            9 => Some(SymbolKind::Function),   // Constructor (closest match)
+            10 => Some(SymbolKind::Enum),      // Enum
+            11 => Some(SymbolKind::Interface), // Interface
+            12 => Some(SymbolKind::Function),  // Function
+            13 => Some(SymbolKind::Variable),  // Variable
+            14 => Some(SymbolKind::Constant),  // Constant
+            15 => Some(SymbolKind::Other),     // String
+            16 => Some(SymbolKind::Other),     // Number
+            17 => Some(SymbolKind::Other),     // Boolean
+            18 => Some(SymbolKind::Other),     // Array
+            19 => Some(SymbolKind::Other),     // Object
+            20 => Some(SymbolKind::Other),     // Key
+            21 => Some(SymbolKind::Other),     // Null
+            22 => Some(SymbolKind::Other),     // EnumMember
+            23 => Some(SymbolKind::Struct),    // Struct
+            24 => Some(SymbolKind::Other),     // Event
+            25 => Some(SymbolKind::Other),     // Operator
+            26 => Some(SymbolKind::Other),     // TypeParameter
+            _ => None,
+        }
+    }
+}
+
 /// Plugin capability flags
 ///
 /// Indicates which optional features a language plugin supports.

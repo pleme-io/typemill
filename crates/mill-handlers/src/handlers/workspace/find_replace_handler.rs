@@ -493,7 +493,7 @@ async fn apply_plan(
     Ok(modified_files)
 }
 
-/// Apply multiple TextEdits to content in a single pass (optimized O(N) where N is content size + edits size)
+/// Apply multiple TextEdits to content in a single pass (optimized O(N + M) where N is content size, M is edits count)
 fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerError> {
     if edits.is_empty() {
         return Ok(content.to_string());
@@ -511,13 +511,10 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
     let mut result = String::with_capacity(content.len() + sorted_edits.len() * 10);
     let mut last_byte_idx = 0;
 
-    // Pre-calculate line start byte offsets for O(1) lookup
-    let mut line_starts = vec![0];
-    for (i, c) in content.char_indices() {
-        if c == '\n' {
-            line_starts.push(i + 1);
-        }
-    }
+    // Iterator state
+    let mut current_line = 0;
+    let mut current_col = 0;
+    let mut iter = content.char_indices().peekable();
 
     for edit in sorted_edits {
         let start_line = edit.location.start_line as usize;
@@ -525,53 +522,44 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
         let end_line = edit.location.end_line as usize;
         let end_col = edit.location.end_column as usize;
 
-        // Calculate start byte offset
-        let start_byte_idx = if start_line < line_starts.len() {
-            let line_start = line_starts[start_line];
-            let next_line_start = if start_line + 1 < line_starts.len() {
-                line_starts[start_line + 1]
+        // 1. Advance iterator to start position
+        loop {
+            // Check if we reached the target start position
+            if current_line == start_line && current_col == start_col {
+                break;
+            }
+
+            // Check if we passed the target (should not happen with sorted edits unless logic is wrong)
+            if current_line > start_line || (current_line == start_line && current_col > start_col) {
+                // If we are here, it means we advanced past the start point.
+                // However, `last_byte_idx` marks where we have *consumed* up to.
+                // If the previous edit ended *after* this edit starts, that's an overlap.
+                return Err(ServerError::internal(format!(
+                    "Overlapping or invalid edit order detected: target {}:{} reached at {}:{}",
+                    start_line, start_col, current_line, current_col
+                )));
+            }
+
+            if let Some((_, ch)) = iter.next() {
+                if ch == '\n' {
+                    current_line += 1;
+                    current_col = 0;
+                } else {
+                    current_col += 1;
+                }
             } else {
-                content.len()
-            };
-
-            let relative_offset = content[line_start..next_line_start]
-                .char_indices()
-                .nth(start_col)
-                .map(|(i, _)| i)
-                .unwrap_or_else(|| next_line_start - line_start);
-            line_start + relative_offset
-        } else {
-            content.len()
-        };
-
-        // Calculate end byte offset
-        let end_byte_idx = if end_line < line_starts.len() {
-            let line_start = line_starts[end_line];
-            let next_line_start = if end_line + 1 < line_starts.len() {
-                line_starts[end_line + 1]
-            } else {
-                content.len()
-            };
-
-            let relative_offset = content[line_start..next_line_start]
-                .char_indices()
-                .nth(end_col)
-                .map(|(i, _)| i)
-                .unwrap_or_else(|| next_line_start - line_start);
-            line_start + relative_offset
-        } else {
-            content.len()
-        };
-
-        // Validation: start <= end
-        if start_byte_idx > end_byte_idx {
-            return Err(ServerError::internal(format!(
-                "Invalid edit range: start {} > end {}",
-                start_byte_idx, end_byte_idx
-            )));
+                // Reached end of content before edit start
+                return Err(ServerError::internal(format!(
+                    "Edit start position {}:{} is out of bounds (end at {}:{})",
+                    start_line, start_col, current_line, current_col
+                )));
+            }
         }
 
-        // Validation: Ensure monotonic increase (no overlap with previous edit)
+        // Current byte index (start of edit)
+        let start_byte_idx = iter.peek().map(|(i, _)| *i).unwrap_or(content.len());
+
+        // Validate overlap
         if start_byte_idx < last_byte_idx {
             return Err(ServerError::internal(format!(
                 "Overlapping edit detected at byte {} (last was {})",
@@ -579,13 +567,35 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
             )));
         }
 
-        // Append text before the edit
+        // Append text from last_byte_idx up to start_byte_idx
         result.push_str(&content[last_byte_idx..start_byte_idx]);
 
         // Append replacement text
         result.push_str(&edit.new_text);
 
-        last_byte_idx = end_byte_idx;
+        // 2. Advance iterator to end position (skipping replaced content)
+        loop {
+            if current_line == end_line && current_col == end_col {
+                break;
+            }
+
+            if let Some((_, ch)) = iter.next() {
+                if ch == '\n' {
+                    current_line += 1;
+                    current_col = 0;
+                } else {
+                    current_col += 1;
+                }
+            } else {
+                return Err(ServerError::internal(format!(
+                    "Edit end position {}:{} is out of bounds (end at {}:{})",
+                    end_line, end_col, current_line, current_col
+                )));
+            }
+        }
+
+        // Update last_byte_idx to point to the end of the replaced range
+        last_byte_idx = iter.peek().map(|(i, _)| *i).unwrap_or(content.len());
     }
 
     // Append remaining text

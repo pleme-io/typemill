@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import { marked } from 'marked';
-	import { onMount } from 'svelte';
+	import { afterUpdate } from 'svelte';
 	import hljs from 'highlight.js/lib/core';
 	import javascript from 'highlight.js/lib/languages/javascript';
 	import typescript from 'highlight.js/lib/languages/typescript';
@@ -74,10 +74,12 @@
 		}
 	}
 
-	// Apply syntax highlighting after mount
-	onMount(() => {
+	// Apply syntax highlighting after updates
+	afterUpdate(() => {
 		document.querySelectorAll('pre code').forEach((block) => {
-			hljs.highlightElement(block as HTMLElement);
+			if (!block.classList.contains('hljs')) {
+				hljs.highlightElement(block as HTMLElement);
+			}
 		});
 	});
 </script>
@@ -91,15 +93,18 @@
 
 <div class="doc-page">
 	<!-- Breadcrumbs -->
-	<nav class="breadcrumbs">
-		{#each breadcrumbs as crumb, i (crumb.href)}
-			{#if i > 0}<span class="separator">/</span>{/if}
-			{#if i === breadcrumbs.length - 1}
-				<span class="current">{crumb.label}</span>
-			{:else}
-				<a href={crumb.href}>{crumb.label}</a>
-			{/if}
-		{/each}
+	<nav class="breadcrumbs" aria-label="Breadcrumb">
+		<ol>
+			{#each breadcrumbs as crumb, i (crumb.href)}
+				<li>
+					{#if i === breadcrumbs.length - 1}
+						<span class="current" aria-current="page">{crumb.label}</span>
+					{:else}
+						<a href={crumb.href}>{crumb.label}</a>
+					{/if}
+				</li>
+			{/each}
+		</ol>
 	</nav>
 
 	<!-- Markdown Content -->
@@ -123,6 +128,26 @@
 		border-bottom: 1px solid #e5e7eb;
 	}
 
+	.breadcrumbs ol {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.breadcrumbs li {
+		display: flex;
+		align-items: center;
+	}
+
+	.breadcrumbs li:not(:first-child)::before {
+		content: "/";
+		margin: 0 0.5rem;
+		color: #d1d5db;
+	}
+
 	.breadcrumbs a {
 		color: #3b82f6;
 		text-decoration: none;
@@ -130,11 +155,6 @@
 
 	.breadcrumbs a:hover {
 		text-decoration: underline;
-	}
-
-	.breadcrumbs .separator {
-		margin: 0 0.5rem;
-		color: #d1d5db;
 	}
 
 	.breadcrumbs .current {

@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { readFile } from 'fs/promises';
-import { join } from 'path';
+import { join, isAbsolute } from 'path';
 import type { RequestHandler } from './$types';
 
 // Parse frontmatter from markdown content
@@ -36,7 +36,8 @@ export const GET: RequestHandler = async ({ url }) => {
 	}
 
 	// Security: Prevent directory traversal
-	if (path.includes('..') || path.startsWith('/')) {
+	// Check for parent directory references and absolute paths (including Windows drive paths)
+	if (path.includes('..') || isAbsolute(path) || path.startsWith('/')) {
 		throw error(400, 'Invalid path');
 	}
 
