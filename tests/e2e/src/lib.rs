@@ -127,6 +127,12 @@ pub mod test_real_project_rust;
 #[cfg(test)]
 pub mod test_real_project_python;
 
+// Generic refactoring matrix tests (run with --ignored)
+// Configurable tests that run on any codebase (TypeScript, Rust, Python)
+// Run: cargo test -p e2e test_matrix -- --ignored --nocapture
+#[cfg(test)]
+pub mod test_refactoring_matrix;
+
 // SvelteKit path alias tests ($lib, @/ patterns)
 #[cfg(test)]
 pub mod test_sveltekit_path_aliases;

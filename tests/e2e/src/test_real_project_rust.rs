@@ -156,7 +156,11 @@ impl TestStruct {
     ctx.verify_file_contains("src/internal/test_move.rs", "pub fn new")
         .expect("Implementation should be preserved");
 
-    println!("✅ thiserror: Successfully moved Rust module with verified content");
+    // Verify project still compiles after refactoring
+    ctx.verify_rust_compiles()
+        .expect("Project should still compile after move");
+
+    println!("✅ thiserror: Successfully moved Rust module with verified content and build");
 }
 
 #[tokio::test]
@@ -301,7 +305,11 @@ async fn test_oncecell_rename_folder() {
     ctx.verify_file_exists("src/renamed_dir/helpers.rs")
         .expect("helpers.rs should exist");
 
-    println!("✅ once_cell: Successfully renamed Rust module folder with all files");
+    // Verify project still compiles after folder rename
+    ctx.verify_rust_compiles()
+        .expect("Project should still compile after folder rename");
+
+    println!("✅ once_cell: Successfully renamed Rust module folder with build verification");
 }
 
 // ============================================================================
@@ -462,5 +470,9 @@ async fn test_anyhow_move_with_mod_update() {
     ctx.verify_file_contains("src/internal/utils.rs", "pub fn")
         .expect("Function should be public");
 
-    println!("✅ anyhow: Successfully moved Rust module with verified content");
+    // Verify project still compiles after move
+    ctx.verify_rust_compiles()
+        .expect("Project should still compile after move");
+
+    println!("✅ anyhow: Successfully moved Rust module with build verification");
 }
