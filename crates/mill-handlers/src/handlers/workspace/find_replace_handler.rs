@@ -469,31 +469,21 @@ async fn apply_plan(
         let path = PathBuf::from(&file_path);
 
         // Read current content
-        let mut content = context
+        let content = context
             .app_state
             .file_service
             .read_file(&path)
             .await
             .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
 
-        // Apply edits in reverse order (to preserve positions)
-        let mut sorted_edits = edits;
-        sorted_edits.sort_by(|a, b| {
-            b.location
-                .start_line
-                .cmp(&a.location.start_line)
-                .then_with(|| b.location.start_column.cmp(&a.location.start_column))
-        });
-
-        for edit in sorted_edits {
-            content = apply_single_edit(&content, &edit)?;
-        }
+        // Apply edits
+        let new_content = apply_edits(&content, edits)?;
 
         // Write updated content
         context
             .app_state
             .file_service
-            .write_file(&path, &content, false) // false = not dry run
+            .write_file(&path, &new_content, false) // false = not dry run
             .await
             .map_err(|e| ServerError::internal(format!("Failed to write file: {}", e)))?;
 
@@ -503,90 +493,104 @@ async fn apply_plan(
     Ok(modified_files)
 }
 
-/// Convert a character index to a byte index in a UTF-8 string
-fn char_index_to_byte_index(s: &str, char_idx: usize) -> usize {
-    s.char_indices()
-        .nth(char_idx)
-        .map(|(byte_idx, _)| byte_idx)
-        .unwrap_or(s.len())
-}
-
-/// Apply a single TextEdit to content
-fn apply_single_edit(content: &str, edit: &TextEdit) -> Result<String, ServerError> {
-    let lines: Vec<&str> = content.lines().collect();
-
-    let start_line = edit.location.start_line as usize;
-    let end_line = edit.location.end_line as usize;
-
-    if start_line >= lines.len() || end_line >= lines.len() {
-        return Err(ServerError::internal(format!(
-            "Edit range out of bounds: line {} to {}, content has {} lines",
-            start_line,
-            end_line,
-            lines.len()
-        )));
+/// Apply multiple TextEdits to content in a single pass (optimized O(N) where N is content size + edits size)
+fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerError> {
+    if edits.is_empty() {
+        return Ok(content.to_string());
     }
 
-    // Build new content
-    let mut result = String::new();
+    // Sort edits by start position (ascending)
+    let mut sorted_edits = edits;
+    sorted_edits.sort_by(|a, b| {
+        a.location
+            .start_line
+            .cmp(&b.location.start_line)
+            .then_with(|| a.location.start_column.cmp(&b.location.start_column))
+    });
 
-    // Lines before the edit
-    for (i, line) in lines.iter().enumerate() {
-        if i < start_line {
-            result.push_str(line);
-            result.push('\n');
+    let mut result = String::with_capacity(content.len() + sorted_edits.len() * 10);
+    let mut last_byte_idx = 0;
+
+    // Pre-calculate line start byte offsets for O(1) lookup
+    let mut line_starts = vec![0];
+    for (i, c) in content.char_indices() {
+        if c == '\n' {
+            line_starts.push(i + 1);
         }
     }
 
-    // The edited line(s)
-    if start_line == end_line {
-        // Single line edit
-        let line = lines[start_line];
-        let start_char_idx = edit.location.start_column as usize;
-        let end_char_idx = edit.location.end_column as usize;
+    for edit in sorted_edits {
+        let start_line = edit.location.start_line as usize;
+        let start_col = edit.location.start_column as usize;
+        let end_line = edit.location.end_line as usize;
+        let end_col = edit.location.end_column as usize;
 
-        // Convert character indices to byte indices for UTF-8 safety
-        let start_byte = char_index_to_byte_index(line, start_char_idx);
-        let end_byte = char_index_to_byte_index(line, end_char_idx);
+        // Calculate start byte offset
+        let start_byte_idx = if start_line < line_starts.len() {
+            let line_start = line_starts[start_line];
+            let next_line_start = if start_line + 1 < line_starts.len() {
+                line_starts[start_line + 1]
+            } else {
+                content.len()
+            };
 
-        if start_byte > line.len() || end_byte > line.len() {
+            let relative_offset = content[line_start..next_line_start]
+                .char_indices()
+                .nth(start_col)
+                .map(|(i, _)| i)
+                .unwrap_or_else(|| next_line_start - line_start);
+            line_start + relative_offset
+        } else {
+            content.len()
+        };
+
+        // Calculate end byte offset
+        let end_byte_idx = if end_line < line_starts.len() {
+            let line_start = line_starts[end_line];
+            let next_line_start = if end_line + 1 < line_starts.len() {
+                line_starts[end_line + 1]
+            } else {
+                content.len()
+            };
+
+            let relative_offset = content[line_start..next_line_start]
+                .char_indices()
+                .nth(end_col)
+                .map(|(i, _)| i)
+                .unwrap_or_else(|| next_line_start - line_start);
+            line_start + relative_offset
+        } else {
+            content.len()
+        };
+
+        // Validation: start <= end
+        if start_byte_idx > end_byte_idx {
             return Err(ServerError::internal(format!(
-                "Edit byte range out of bounds: {} to {}, line length {}",
-                start_byte,
-                end_byte,
-                line.len()
+                "Invalid edit range: start {} > end {}",
+                start_byte_idx, end_byte_idx
             )));
         }
 
-        result.push_str(&line[..start_byte]);
-        result.push_str(&edit.new_text);
-        result.push_str(&line[end_byte..]);
-        result.push('\n');
-    } else {
-        // Multi-line edit (rare for find/replace)
-        let first_line = lines[start_line];
-        let last_line = lines[end_line];
-
-        let start_byte = char_index_to_byte_index(first_line, edit.location.start_column as usize);
-        let end_byte = char_index_to_byte_index(last_line, edit.location.end_column as usize);
-
-        result.push_str(&first_line[..start_byte]);
-        result.push_str(&edit.new_text);
-        result.push_str(&last_line[end_byte..]);
-        result.push('\n');
-    }
-
-    // Lines after the edit
-    for (i, line) in lines.iter().enumerate() {
-        if i > end_line {
-            result.push_str(line);
-            result.push('\n');
+        // Validation: Ensure monotonic increase (no overlap with previous edit)
+        if start_byte_idx < last_byte_idx {
+            return Err(ServerError::internal(format!(
+                "Overlapping edit detected at byte {} (last was {})",
+                start_byte_idx, last_byte_idx
+            )));
         }
+
+        // Append text before the edit
+        result.push_str(&content[last_byte_idx..start_byte_idx]);
+
+        // Append replacement text
+        result.push_str(&edit.new_text);
+
+        last_byte_idx = end_byte_idx;
     }
 
-    // Remove trailing newline if original didn't have one
-    if !content.ends_with('\n') && result.ends_with('\n') {
-        result.pop();
+    // Append remaining text
+    if last_byte_idx < content.len() {
+        result.push_str(&content[last_byte_idx..]);
     }
 
     Ok(result)
@@ -632,7 +636,7 @@ mod tests {
             description: "test".to_string(),
         };
 
-        let result = apply_single_edit(content, &edit).unwrap();
+        let result = apply_edits(content, vec![edit]).unwrap();
         assert_eq!(result, "hello universe\ngoodbye world\n");
     }
 
@@ -654,7 +658,8 @@ mod tests {
             description: "test".to_string(),
         };
 
-        let result = apply_single_edit(content, &edit).unwrap();
+        let result = apply_edits(content, vec![edit]).unwrap();
         assert_eq!(result, "line1\nreplaced");
     }
+
 }
