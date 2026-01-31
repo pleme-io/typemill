@@ -916,4 +916,53 @@ mod tests {
         // but typically cloning 1000 items once is faster than 1000 lookups + clones.
         assert!(duration_optimized < std::time::Duration::from_secs(1));
     }
+
+    #[tokio::test]
+    async fn test_benchmark_tool_definitions_retrieval() {
+        use std::time::Instant;
+
+        let manager = PluginManager::new();
+        // Register 1000 dummy plugins
+        let count = 1000;
+        for i in 0..count {
+            let name = format!("plugin-{}", i);
+            let plugin = Arc::new(TestPlugin {
+                name: name.clone(),
+                extensions: vec!["txt".to_string()],
+                capabilities: Capabilities::default(),
+                should_fail: false,
+            });
+            manager.register_plugin(&name, plugin).await.unwrap();
+        }
+
+        // Measure inefficient approach (simulating N+1 lookup)
+        let start = Instant::now();
+        let registry = manager.registry.read().await;
+        let mut inefficient_tools = Vec::new();
+
+        // Note: get_plugin_names() returns Vec<String>, so iterating over it is fine with the lock held
+        for name in registry.get_plugin_names() {
+            // This is the N+1 lookup part: for each name, we do a hash lookup
+            if let Some(plugin) = registry.get_plugin(&name) {
+                let tools = plugin.tool_definitions();
+                inefficient_tools.extend(tools);
+            }
+        }
+        drop(registry);
+        let duration_inefficient = start.elapsed();
+
+        // Measure optimized approach (bulk retrieval)
+        let start = Instant::now();
+        let optimized_tools = manager.get_all_tool_definitions().await;
+        let duration_optimized = start.elapsed();
+
+        println!("Inefficient Tool Defs (N+1): {:?}", duration_inefficient);
+        println!("Optimized Tool Defs (Bulk): {:?}", duration_optimized);
+
+        assert_eq!(inefficient_tools.len(), 0); // TestPlugin returns empty tools
+        assert_eq!(optimized_tools.len(), 0);
+
+        // Verification: The optimized approach should be performant.
+        assert!(duration_optimized < std::time::Duration::from_secs(1));
+    }
 }
