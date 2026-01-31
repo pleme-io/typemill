@@ -156,55 +156,112 @@ impl RenameService {
         changes: Vec<lsp_types::DocumentChangeOperation>,
     ) -> Vec<lsp_types::DocumentChangeOperation> {
         use lsp_types::{
-            DocumentChangeOperation, OptionalVersionedTextDocumentIdentifier, TextDocumentEdit,
+            AnnotatedTextEdit, DocumentChangeOperation, OneOf,
+            OptionalVersionedTextDocumentIdentifier, ResourceOp, TextDocumentEdit, TextEdit, Uri,
         };
         use std::collections::HashMap;
 
-        // Separate edits from other operations (rename/create/delete)
+        let mut result = Vec::new();
+        // Buffer for collecting edits by URI
         // Note: Uri has interior mutability but is effectively immutable in LSP protocol
         #[allow(clippy::mutable_key_type)]
-        let mut edits_by_uri: HashMap<lsp_types::Uri, Vec<lsp_types::TextEdit>> = HashMap::new();
-        let mut other_operations = Vec::new();
+        let mut edits_buffer: HashMap<Uri, Vec<OneOf<TextEdit, AnnotatedTextEdit>>> =
+            HashMap::new();
+
+        // Helper to get range from either TextEdit or AnnotatedTextEdit
+        let get_range = |edit: &OneOf<TextEdit, AnnotatedTextEdit>| -> lsp_types::Range {
+            match edit {
+                OneOf::Left(e) => e.range,
+                OneOf::Right(e) => e.text_edit.range,
+            }
+        };
+
+        // Helper to flush edits for a specific URI
+        let flush_uri = |uri: &Uri,
+                         buffer: &mut HashMap<Uri, Vec<OneOf<TextEdit, AnnotatedTextEdit>>>,
+                         out: &mut Vec<DocumentChangeOperation>| {
+            if let Some(mut edits) = buffer.remove(uri) {
+                if !edits.is_empty() {
+                    // Sort edits in reverse order (bottom to top) to prevent position shifts
+                    edits.sort_by(|a, b| {
+                        let range_a = get_range(a);
+                        let range_b = get_range(b);
+                        match range_b.start.line.cmp(&range_a.start.line) {
+                            std::cmp::Ordering::Equal => {
+                                range_b.start.character.cmp(&range_a.start.character)
+                            }
+                            other => other,
+                        }
+                    });
+
+                    out.push(DocumentChangeOperation::Edit(TextDocumentEdit {
+                        text_document: OptionalVersionedTextDocumentIdentifier {
+                            uri: uri.clone(),
+                            version: None,
+                        },
+                        edits,
+                    }));
+                }
+            }
+        };
 
         for change in changes {
             match change {
                 DocumentChangeOperation::Edit(text_doc_edit) => {
-                    let uri = text_doc_edit.text_document.uri.clone();
-                    edits_by_uri
+                    let uri = text_doc_edit.text_document.uri;
+                    edits_buffer
                         .entry(uri)
                         .or_default()
-                        .extend(text_doc_edit.edits.iter().map(|edit_or_annotated| {
-                            match edit_or_annotated {
-                                lsp_types::OneOf::Left(edit) => edit.clone(),
-                                lsp_types::OneOf::Right(annotated) => annotated.text_edit.clone(),
-                            }
-                        }));
+                        .extend(text_doc_edit.edits);
                 }
-                other_op => {
-                    other_operations.push(other_op);
+                DocumentChangeOperation::Op(op) => {
+                    // Identify affected URIs that act as barriers
+                    let affected_uris = match &op {
+                        ResourceOp::Create(c) => vec![&c.uri],
+                        ResourceOp::Delete(d) => vec![&d.uri],
+                        ResourceOp::Rename(r) => vec![&r.old_uri, &r.new_uri],
+                    };
+
+                    // Flush pending edits for these URIs BEFORE the operation
+                    // This ensures edits happen before rename/delete (if applicable)
+                    // or edits happen before create (wait, no, edits before create is impossible usually)
+                    //
+                    // Logic check:
+                    // - Rename A->B:
+                    //   - Flush A: Edits to A must happen before rename. Correct.
+                    //   - Flush B: Edits to B (if any pending) must happen before... wait.
+                    //     If we have pending edits for B, and we are renaming A->B.
+                    //     This implies B existed before (or we are overwriting).
+                    //     If B existed, edits apply to old B. So before overwrite is correct.
+                    //
+                    // - Create A:
+                    //   - Flush A: Edits to A before create?
+                    //     If A didn't exist, we shouldn't have edits for it.
+                    //     If we did (e.g. from previous steps), they are likely invalid or apply to a previous A.
+                    //     Flushing here preserves order.
+                    //
+                    // - Delete A:
+                    //   - Flush A: Edits to A before delete. Correct.
+                    for uri in affected_uris {
+                        flush_uri(uri, &mut edits_buffer, &mut result);
+                    }
+
+                    // Add the operation itself
+                    result.push(DocumentChangeOperation::Op(op));
                 }
             }
         }
 
-        // Rebuild document changes with merged edits
-        let mut result = Vec::new();
+        // Flush all remaining edits in buffer
+        // Note: Hash map iteration order is random, but these files are independent of remaining Ops
+        // and independent of each other (otherwise they would have been flushed by an Op).
+        // To be deterministic for tests, we can sort by URI.
+        let mut remaining_uris: Vec<_> = edits_buffer.keys().cloned().collect();
+        remaining_uris.sort_by(|a, b| a.as_str().cmp(b.as_str()));
 
-        // Add merged text edits (SORTED in reverse order for LSP compliance)
-        for (uri, mut edits) in edits_by_uri {
-            // Sort edits in reverse order (bottom to top) to prevent position shifts
-            edits.sort_by(|a, b| match b.range.start.line.cmp(&a.range.start.line) {
-                std::cmp::Ordering::Equal => b.range.start.character.cmp(&a.range.start.character),
-                other => other,
-            });
-
-            result.push(DocumentChangeOperation::Edit(TextDocumentEdit {
-                text_document: OptionalVersionedTextDocumentIdentifier { uri, version: None },
-                edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
-            }));
+        for uri in remaining_uris {
+            flush_uri(&uri, &mut edits_buffer, &mut result);
         }
-
-        // Add other operations (rename/create/delete) unchanged
-        result.extend(other_operations);
 
         result
     }
@@ -772,12 +829,19 @@ mod tests {
     fn test_dedupe_document_changes_preserves_other_ops() {
         let uri: lsp_types::Uri = "file:///test/file.rs".parse().unwrap();
 
+        // Use non-empty edit so it's not dropped by optimization
         let edit = DocumentChangeOperation::Edit(TextDocumentEdit {
             text_document: OptionalVersionedTextDocumentIdentifier {
                 uri: uri.clone(),
                 version: None,
             },
-            edits: vec![],
+            edits: vec![OneOf::Left(TextEdit {
+                range: Range {
+                    start: Position { line: 0, character: 0 },
+                    end: Position { line: 0, character: 5 },
+                },
+                new_text: "foo".to_string(),
+            })],
         });
 
         let create = DocumentChangeOperation::Op(ResourceOp::Create(lsp_types::CreateFile {
@@ -790,19 +854,104 @@ mod tests {
         let deduped = RenameService::dedupe_document_changes(changes);
 
         assert_eq!(deduped.len(), 2);
-        // Order: Edits then others
-        // The implementation does:
-        // result.push(edits...)
-        // result.extend(other_operations)
-        // So edits come first.
-
+        // Order: Preserved (Create then Edit) as they are independent files
         match &deduped[0] {
-            DocumentChangeOperation::Edit(_) => {},
-            _ => panic!("Expected Edit first"),
+            DocumentChangeOperation::Op(ResourceOp::Create(_)) => {},
+            op => panic!("Expected Create first, but got {:?}", op),
         }
         match &deduped[1] {
-            DocumentChangeOperation::Op(ResourceOp::Create(_)) => {},
-            _ => panic!("Expected Create second"),
+            DocumentChangeOperation::Edit(_) => {},
+            op => panic!("Expected Edit second, but got {:?}", op),
+        }
+    }
+
+    #[test]
+    fn test_dedupe_document_changes_preserves_order_relative_to_rename() {
+        let uri_a: lsp_types::Uri = "file:///test/file_a.rs".parse().unwrap();
+        let uri_b: lsp_types::Uri = "file:///test/file_b.rs".parse().unwrap();
+
+        // Original sequence: Rename A->B, then Edit B
+        // This simulates: rename file, then update content in the new file (e.g. package name)
+        let rename = DocumentChangeOperation::Op(ResourceOp::Rename(lsp_types::RenameFile {
+            old_uri: uri_a.clone(),
+            new_uri: uri_b.clone(),
+            options: None,
+            annotation_id: None,
+        }));
+
+        let edit_b = DocumentChangeOperation::Edit(TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri_b.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Left(TextEdit {
+                range: Range {
+                    start: Position { line: 0, character: 0 },
+                    end: Position { line: 0, character: 5 },
+                },
+                new_text: "updated".to_string(),
+            })],
+        });
+
+        let changes = vec![rename.clone(), edit_b.clone()];
+        let deduped = RenameService::dedupe_document_changes(changes);
+
+        // Expect: Rename A->B, THEN Edit B
+        // Current implementation puts edits first, so it would result in: Edit B, Rename A->B
+        // which is invalid because we can't edit B before it exists.
+
+        assert_eq!(deduped.len(), 2);
+
+        match &deduped[0] {
+            DocumentChangeOperation::Op(ResourceOp::Rename(_)) => {},
+            op => panic!("Expected Rename first, but got {:?}", op),
+        }
+
+        match &deduped[1] {
+            DocumentChangeOperation::Edit(_) => {},
+            op => panic!("Expected Edit second, but got {:?}", op),
+        }
+    }
+
+    #[test]
+    fn test_dedupe_document_changes_preserves_annotations() {
+        use lsp_types::AnnotatedTextEdit;
+
+        let uri: lsp_types::Uri = "file:///test/file.rs".parse().unwrap();
+
+        let edit = DocumentChangeOperation::Edit(TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Right(AnnotatedTextEdit {
+                text_edit: TextEdit {
+                    range: Range {
+                        start: Position { line: 0, character: 0 },
+                        end: Position { line: 0, character: 5 },
+                    },
+                    new_text: "annotated".to_string(),
+                },
+                annotation_id: "test-annotation".to_string(),
+            })],
+        });
+
+        let changes = vec![edit];
+        let deduped = RenameService::dedupe_document_changes(changes);
+
+        assert_eq!(deduped.len(), 1);
+        match &deduped[0] {
+            DocumentChangeOperation::Edit(e) => {
+                assert_eq!(e.edits.len(), 1);
+                match &e.edits[0] {
+                    OneOf::Right(ae) => {
+                        assert_eq!(ae.annotation_id, "test-annotation");
+                        assert_eq!(ae.text_edit.new_text, "annotated");
+                    }
+                    _ => panic!("Expected AnnotatedTextEdit"),
+                }
+            }
+            _ => panic!("Expected Edit"),
         }
     }
 }
