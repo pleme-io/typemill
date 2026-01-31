@@ -151,8 +151,6 @@ impl RenameService {
     ///
     /// When multiple targets in a batch rename modify the same file (e.g., root Cargo.toml),
     /// we need to merge their edits rather than having the last one win.
-    // TODO: wire up - needed for batch rename when multiple targets touch same file
-    #[allow(dead_code)]
     fn dedupe_document_changes(
         changes: Vec<lsp_types::DocumentChangeOperation>,
     ) -> Vec<lsp_types::DocumentChangeOperation> {
@@ -695,5 +693,115 @@ impl RenameService {
             file_checksums: all_file_checksums,
             is_consolidation: false,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use lsp_types::{
+        DocumentChangeOperation, OneOf, OptionalVersionedTextDocumentIdentifier, Position, Range,
+        ResourceOp, TextDocumentEdit, TextEdit,
+    };
+    #[test]
+    fn test_dedupe_document_changes_merges_edits() {
+        let uri: lsp_types::Uri = "file:///test/file.rs".parse().unwrap();
+
+        // Edit 1: line 10
+        let edit1 = TextEdit {
+            range: Range {
+                start: Position { line: 10, character: 0 },
+                end: Position { line: 10, character: 5 },
+            },
+            new_text: "new1".to_string(),
+        };
+
+        // Edit 2: line 5
+        let edit2 = TextEdit {
+            range: Range {
+                start: Position { line: 5, character: 0 },
+                end: Position { line: 5, character: 5 },
+            },
+            new_text: "new2".to_string(),
+        };
+
+        let change1 = DocumentChangeOperation::Edit(TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Left(edit1.clone())],
+        });
+
+        let change2 = DocumentChangeOperation::Edit(TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: None,
+            },
+            edits: vec![OneOf::Left(edit2.clone())],
+        });
+
+        let changes = vec![change1, change2];
+        let deduped = RenameService::dedupe_document_changes(changes);
+
+        assert_eq!(deduped.len(), 1);
+        match &deduped[0] {
+            DocumentChangeOperation::Edit(edit) => {
+                assert_eq!(edit.text_document.uri, uri);
+                assert_eq!(edit.edits.len(), 2);
+
+                // Should be sorted in reverse order (line 10 then line 5)
+                let e1 = match &edit.edits[0] {
+                    OneOf::Left(e) => e,
+                    _ => panic!("Expected TextEdit"),
+                };
+                let e2 = match &edit.edits[1] {
+                    OneOf::Left(e) => e,
+                    _ => panic!("Expected TextEdit"),
+                };
+
+                assert_eq!(e1.range.start.line, 10);
+                assert_eq!(e2.range.start.line, 5);
+            }
+            _ => panic!("Expected Edit operation"),
+        }
+    }
+
+    #[test]
+    fn test_dedupe_document_changes_preserves_other_ops() {
+        let uri: lsp_types::Uri = "file:///test/file.rs".parse().unwrap();
+
+        let edit = DocumentChangeOperation::Edit(TextDocumentEdit {
+            text_document: OptionalVersionedTextDocumentIdentifier {
+                uri: uri.clone(),
+                version: None,
+            },
+            edits: vec![],
+        });
+
+        let create = DocumentChangeOperation::Op(ResourceOp::Create(lsp_types::CreateFile {
+            uri: "file:///test/new.rs".parse().unwrap(),
+            options: None,
+            annotation_id: None,
+        }));
+
+        let changes = vec![create.clone(), edit];
+        let deduped = RenameService::dedupe_document_changes(changes);
+
+        assert_eq!(deduped.len(), 2);
+        // Order: Edits then others
+        // The implementation does:
+        // result.push(edits...)
+        // result.extend(other_operations)
+        // So edits come first.
+
+        match &deduped[0] {
+            DocumentChangeOperation::Edit(_) => {},
+            _ => panic!("Expected Edit first"),
+        }
+        match &deduped[1] {
+            DocumentChangeOperation::Op(ResourceOp::Create(_)) => {},
+            _ => panic!("Expected Create second"),
+        }
     }
 }
