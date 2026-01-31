@@ -75,10 +75,7 @@ impl LanguagePlugin for TypeScriptPlugin {
     impl_language_plugin_basics!();
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
-        let source_owned = source.to_string();
-        let symbols = tokio::task::spawn_blocking(move || parser::extract_symbols(&source_owned))
-            .await
-            .map_err(|e| PluginApiError::internal(format!("Join error: {}", e)))??;
+        let symbols = parser::extract_symbols(source).await?;
 
         Ok(ParsedSource {
             data: serde_json::json!(
@@ -101,10 +98,7 @@ impl LanguagePlugin for TypeScriptPlugin {
     }
 
     async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
-        let source_owned = source.to_string();
-        tokio::task::spawn_blocking(move || parser::list_functions(&source_owned))
-            .await
-            .map_err(|e| PluginApiError::internal(format!("Join error: {}", e)))?
+        parser::list_functions(source).await
     }
 
     // Use macro to generate capability delegation methods

@@ -21,8 +21,10 @@
 use mill_foundation::errors::MillError;
 use serde::de::DeserializeOwned;
 use std::io::Write;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use tempfile::Builder;
+use tempfile::{Builder, TempDir};
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, warn};
 
 type PluginResult<T> = Result<T, MillError>;
@@ -97,14 +99,15 @@ impl SubprocessAstTool {
     }
 }
 
-/// Execute an AST tool subprocess and return raw stdout bytes
-///
-/// Internal helper function that handles the common subprocess execution logic.
-fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec<u8>> {
+/// Prepare the temporary directory and command arguments for the subprocess.
+/// Returns the TempDir (must be kept alive), the tool path, and the command arguments.
+fn prepare_subprocess(
+    tool: &SubprocessAstTool,
+) -> PluginResult<(TempDir, PathBuf, Vec<String>)> {
     debug!(
         runtime = %tool.runtime,
         filename = %tool.temp_filename,
-        "Running subprocess AST tool"
+        "Preparing subprocess AST tool"
     );
 
     // Create temporary directory
@@ -136,7 +139,16 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
     }
 
     cmd_args.push(tool_path.to_string_lossy().to_string());
-    cmd_args.extend(tool.args);
+    cmd_args.extend(tool.args.clone());
+
+    Ok((tmp_dir, tool_path, cmd_args))
+}
+
+/// Execute an AST tool subprocess and return raw stdout bytes
+///
+/// Internal helper function that handles the common subprocess execution logic.
+fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec<u8>> {
+    let (_tmp_dir, _tool_path, cmd_args) = prepare_subprocess(&tool)?;
 
     debug!(
         runtime = %tool.runtime,
@@ -193,6 +205,67 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
     Ok(output.stdout)
 }
 
+/// Execute an AST tool subprocess asynchronously and return raw stdout bytes
+async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec<u8>> {
+    // We can use the synchronous prepare_subprocess because temp file creation is fast
+    // and usually in-memory (tmpfs).
+    let (_tmp_dir, _tool_path, cmd_args) = prepare_subprocess(&tool)?;
+
+    debug!(
+        runtime = %tool.runtime,
+        args = ?cmd_args,
+        "Spawning async subprocess"
+    );
+
+    // Spawn subprocess using tokio::process::Command
+    let mut child = tokio::process::Command::new(&tool.runtime)
+        .args(&cmd_args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| {
+            MillError::parse(format!(
+                "Failed to spawn async {} subprocess. Is {} installed and in PATH? Error: {}",
+                tool.runtime, tool.runtime, e
+            ))
+        })?;
+
+    // Write source code to stdin asynchronously
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(source.as_bytes()).await.map_err(|e| {
+            MillError::parse(format!(
+                "Failed to write to {} subprocess stdin: {}",
+                tool.runtime, e
+            ))
+        })?;
+    }
+
+    // Wait for subprocess to complete asynchronously
+    let output = child.wait_with_output().await.map_err(|e| {
+        MillError::parse(format!(
+            "Failed to wait for {} subprocess: {}",
+            tool.runtime, e
+        ))
+    })?;
+
+    // Check exit status
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        warn!(
+            runtime = %tool.runtime,
+            stderr = %stderr,
+            "Async subprocess failed"
+        );
+        return Err(MillError::parse(format!(
+            "{} AST tool failed: {}",
+            tool.runtime, stderr
+        )));
+    }
+
+    Ok(output.stdout)
+}
+
 /// Run an AST tool subprocess and parse its JSON output
 ///
 /// # Arguments
@@ -213,6 +286,27 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
 /// - Failed to deserialize JSON output
 pub fn run_ast_tool<T: DeserializeOwned>(tool: SubprocessAstTool, source: &str) -> PluginResult<T> {
     let stdout = execute_subprocess(tool, source)?;
+
+    // Deserialize JSON output
+    serde_json::from_slice(&stdout).map_err(|e| {
+        let stdout_preview = String::from_utf8_lossy(&stdout);
+        warn!(
+            error = %e,
+            stdout_preview = %stdout_preview.chars().take(200).collect::<String>(),
+            "Failed to parse JSON output"
+        );
+        MillError::parse(format!("Failed to parse JSON from AST tool: {}", e))
+    })
+}
+
+/// Run an AST tool subprocess asynchronously and parse its JSON output
+///
+/// This uses `tokio::process::Command` to avoid blocking the thread while waiting for the subprocess.
+pub async fn run_ast_tool_async<T: DeserializeOwned>(
+    tool: SubprocessAstTool,
+    source: &str,
+) -> PluginResult<T> {
+    let stdout = execute_subprocess_async(tool, source).await?;
 
     // Deserialize JSON output
     serde_json::from_slice(&stdout).map_err(|e| {
