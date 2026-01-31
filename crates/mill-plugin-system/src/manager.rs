@@ -223,7 +223,8 @@ impl PluginManager {
     /// Get metadata for all plugins
     pub async fn get_all_metadata(&self) -> HashMap<String, PluginMetadata> {
         let registry = self.registry.read().await;
-        // Use optimized bulk retrieval from registry to avoid N+1 queries
+        // Use optimized bulk retrieval from registry to avoid N+1 queries.
+        // This replaces the previous inefficient loop that performed N lookups.
         registry.get_all_metadata()
     }
 
@@ -915,5 +916,12 @@ mod tests {
         // We don't assert strict "faster than" to avoid flakiness in CI environments,
         // but typically cloning 1000 items once is faster than 1000 lookups + clones.
         assert!(duration_optimized < std::time::Duration::from_secs(1));
+
+        // Ensure optimized path is actually faster (with some buffer for noise)
+        // If the optimized path is slower, we have a regression or the "inefficient" simulation is invalid.
+        if duration_inefficient > std::time::Duration::from_millis(1) {
+             assert!(duration_optimized < duration_inefficient, "Optimized path should be faster than inefficient path ({} vs {})",
+                duration_optimized.as_micros(), duration_inefficient.as_micros());
+        }
     }
 }
