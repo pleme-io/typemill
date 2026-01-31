@@ -26,6 +26,8 @@ pub mod workspace_extract;
 
 #[cfg(test)]
 pub mod perf_benchmark;
+#[cfg(test)]
+pub mod perf_benchmark_extract;
 
 // Re-export handlers
 pub use advanced::AdvancedToolsHandler;

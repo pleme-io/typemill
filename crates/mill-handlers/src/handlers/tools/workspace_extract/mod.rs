@@ -14,7 +14,6 @@
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::fs;
 use std::path::Path;
 use tracing::{debug, error, warn};
 
@@ -297,14 +296,20 @@ pub async fn handle_extract_dependencies(
     let target_path = resolve_path(workspace_root, &params.target_manifest)?;
 
     // Validate files exist
-    if !source_path.exists() {
+    if !tokio::fs::try_exists(&source_path)
+        .await
+        .map_err(|e| ServerError::internal(format!("Failed to check path existence: {}", e)))?
+    {
         return Err(ServerError::invalid_request(format!(
             "Source manifest not found: {}",
             source_path.display()
         )));
     }
 
-    if !target_path.exists() {
+    if !tokio::fs::try_exists(&target_path)
+        .await
+        .map_err(|e| ServerError::internal(format!("Failed to check path existence: {}", e)))?
+    {
         return Err(ServerError::invalid_request(format!(
             "Target manifest not found: {}",
             target_path.display()
@@ -312,12 +317,12 @@ pub async fn handle_extract_dependencies(
     }
 
     // Read manifests
-    let source_content = fs::read_to_string(&source_path).map_err(|e| {
+    let source_content = tokio::fs::read_to_string(&source_path).await.map_err(|e| {
         error!(error = %e, source_path = %source_path.display(), "Failed to read source manifest");
         ServerError::internal(format!("Failed to read source manifest: {}", e))
     })?;
 
-    let target_content = fs::read_to_string(&target_path).map_err(|e| {
+    let target_content = tokio::fs::read_to_string(&target_path).await.map_err(|e| {
         error!(error = %e, target_path = %target_path.display(), "Failed to read target manifest");
         ServerError::internal(format!("Failed to read target manifest: {}", e))
     })?;
@@ -359,7 +364,7 @@ pub async fn handle_extract_dependencies(
     let target_updated = if let (false, Some(updated)) =
         (params.options.dry_run, &extraction_result.updated_content)
     {
-        fs::write(&target_path, updated).map_err(|e| {
+        tokio::fs::write(&target_path, updated).await.map_err(|e| {
             error!(error = %e, target_path = %target_path.display(), "Failed to write target manifest");
             ServerError::internal(format!("Failed to write target manifest: {}", e))
         })?;
