@@ -202,12 +202,19 @@ impl SearchHandler {
         symbols.into_iter().skip(offset).take(limit).collect()
     }
 
-    /// Find a representative file in the workspace with the given extension
-    async fn find_representative_file(
+    /// Find representative files for multiple extensions in a single pass
+    async fn find_representative_files(
         workspace_path: &std::path::Path,
-        extension: &str,
-    ) -> Option<PathBuf> {
+        extensions: &std::collections::HashSet<String>,
+    ) -> std::collections::HashMap<String, PathBuf> {
         use tokio::fs;
+
+        let mut results = std::collections::HashMap::new();
+        let mut remaining_extensions = extensions.clone();
+
+        if remaining_extensions.is_empty() {
+            return results;
+        }
 
         // First, try to find a file in common source directories
         let common_dirs = ["src", "lib", "packages", "apps", "."];
@@ -219,15 +226,24 @@ impl SearchHandler {
                 workspace_path.join(dir)
             };
 
-            if search_path.is_dir() {
-                // Look for files with the target extension
-                if let Ok(mut entries) = fs::read_dir(&search_path).await {
-                    while let Ok(Some(entry)) = entries.next_entry().await {
-                        let path = entry.path();
-                        if path.is_file() {
-                            if let Some(ext) = path.extension() {
-                                if ext == extension {
-                                    return Some(path);
+            // Use tokio fs metadata
+            if let Ok(metadata) = fs::metadata(&search_path).await {
+                if metadata.is_dir() {
+                    if let Ok(mut entries) = fs::read_dir(&search_path).await {
+                        while let Ok(Some(entry)) = entries.next_entry().await {
+                            let path = entry.path();
+                            // Check file extension
+                            if let Ok(file_type) = entry.file_type().await {
+                                if file_type.is_file() {
+                                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                        if remaining_extensions.contains(ext) {
+                                            results.insert(ext.to_string(), path.clone());
+                                            remaining_extensions.remove(ext);
+                                            if remaining_extensions.is_empty() {
+                                                return results;
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -237,19 +253,34 @@ impl SearchHandler {
         }
 
         // Fall back to recursive search (limited depth)
-        Box::pin(Self::find_file_recursive(workspace_path, extension, 3)).await
+        if !remaining_extensions.is_empty() {
+            let found = Box::pin(Self::find_files_recursive(
+                workspace_path,
+                &remaining_extensions,
+                3,
+            ))
+            .await;
+            for (ext, path) in found {
+                results.insert(ext, path);
+            }
+        }
+
+        results
     }
 
-    async fn find_file_recursive(
+    async fn find_files_recursive(
         dir: &std::path::Path,
-        extension: &str,
+        extensions: &std::collections::HashSet<String>,
         max_depth: u32,
-    ) -> Option<PathBuf> {
+    ) -> std::collections::HashMap<String, PathBuf> {
         use tokio::fs;
+        let mut results = std::collections::HashMap::new();
 
         if max_depth == 0 {
-            return None;
+            return results;
         }
+
+        let mut needed_extensions = extensions.clone();
 
         if let Ok(mut entries) = fs::read_dir(dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
@@ -262,23 +293,37 @@ impl SearchHandler {
                     }
                 }
 
-                if path.is_file() {
-                    if let Some(ext) = path.extension() {
-                        if ext == extension {
-                            return Some(path);
+                if let Ok(file_type) = entry.file_type().await {
+                    if file_type.is_file() {
+                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                            if needed_extensions.contains(ext) {
+                                results.insert(ext.to_string(), path.clone());
+                                needed_extensions.remove(ext);
+                            }
+                        }
+                    } else if file_type.is_dir() {
+                        if !needed_extensions.is_empty() {
+                            let found_in_subdir = Box::pin(Self::find_files_recursive(
+                                &path,
+                                &needed_extensions,
+                                max_depth - 1,
+                            ))
+                            .await;
+                            for (ext, p) in found_in_subdir {
+                                results.insert(ext.clone(), p);
+                                needed_extensions.remove(&ext);
+                            }
                         }
                     }
-                } else if path.is_dir() {
-                    if let Some(found) =
-                        Box::pin(Self::find_file_recursive(&path, extension, max_depth - 1)).await
-                    {
-                        return Some(found);
-                    }
+                }
+
+                if needed_extensions.is_empty() {
+                    break;
                 }
             }
         }
 
-        None
+        results
     }
 
     /// Perform workspace-wide symbol search across all plugins
@@ -289,6 +334,7 @@ impl SearchHandler {
         workspace_path: PathBuf,
         kind_filter: Option<SymbolKind>,
     ) -> ServerResult<(Vec<Value>, u64, Option<Vec<String>>)> {
+        use std::collections::HashSet;
         use std::time::Instant;
 
         debug!("search_workspace_symbols: Starting multi-plugin workspace search");
@@ -318,70 +364,85 @@ impl SearchHandler {
             }
         }
 
-        // Parallelize plugin queries
+        // 1. Gather required extensions
+        let mut plugin_extensions: Vec<(String, String)> = Vec::new();
+        let mut unique_extensions: HashSet<String> = HashSet::new();
+
+        for plugin_name in &plugin_names {
+            if let Some(plugin) = context.plugin_manager.get_plugin_by_name(plugin_name).await {
+                if let Some(ext) = plugin.supported_extensions().first() {
+                    plugin_extensions.push((plugin_name.clone(), ext.clone()));
+                    unique_extensions.insert(ext.clone());
+                }
+            }
+        }
+
+        // 2. Find representative files in single pass
+        let representative_files =
+            Self::find_representative_files(&workspace_path, &unique_extensions).await;
+
+        debug!(
+            found_count = representative_files.len(),
+            requested_count = unique_extensions.len(),
+            "Finished finding representative files"
+        );
+
+        // 3. Parallelize plugin queries
         let mut futures = Vec::new();
 
-        for plugin_name in plugin_names {
+        for (plugin_name, ext) in plugin_extensions {
             let plugin_manager = context.plugin_manager.clone();
-            let workspace_path = workspace_path.clone();
+            // let workspace_path = workspace_path.clone();
             let search_args = search_args.clone();
-            let plugin_name_owned = plugin_name.clone();
+
+            // Look up the file path found previously
+            let file_path_opt = representative_files.get(&ext).cloned();
 
             futures.push(async move {
                 let mut symbols = Vec::new();
                 let mut warning = None;
 
-                if let Some(plugin) = plugin_manager.get_plugin_by_name(&plugin_name_owned).await {
-                    // Get supported extensions for this plugin
-                    let extensions = plugin.supported_extensions();
-                    if let Some(ext) = extensions.first() {
-                         // Find a real file in the workspace with this extension
-                        // This is necessary to establish project context for LSP servers
-                        if let Some(file_path) = Self::find_representative_file(&workspace_path, ext).await {
-                             debug!(
-                                plugin = %plugin_name_owned,
-                                representative_file = %file_path.display(),
-                                "Found representative file for plugin"
-                            );
+                // We re-fetch the plugin here. It's fast (read lock).
+                if let Some(plugin) = plugin_manager.get_plugin_by_name(&plugin_name).await {
+                    if let Some(file_path) = file_path_opt {
+                        debug!(
+                            plugin = %plugin_name,
+                            representative_file = %file_path.display(),
+                            "Found representative file for plugin"
+                        );
 
-                            // Use the internal plugin method name with the real file path
-                            let mut request = mill_plugin_system::PluginRequest::new(
-                                "search_workspace_symbols".to_string(),
-                                file_path,
-                            );
-                            request = request.with_params(search_args);
+                        let mut request = mill_plugin_system::PluginRequest::new(
+                            "search_workspace_symbols".to_string(),
+                            file_path,
+                        );
+                        request = request.with_params(search_args);
 
-                            // Try to get symbols from this plugin
-                            match plugin.handle_request(request).await {
-                                Ok(response) => {
-                                    if let Some(Value::Array(data_symbols)) = response.data {
-                                        if let Some(kind) = kind_filter {
-                                            symbols.extend(
-                                                data_symbols
-                                                    .into_iter()
-                                                    .filter(|s| Self::check_symbol_kind(s, kind)),
-                                            );
-                                        } else {
-                                            symbols.extend(data_symbols);
-                                        }
+                        // Try to get symbols from this plugin
+                        match plugin.handle_request(request).await {
+                            Ok(response) => {
+                                if let Some(Value::Array(data_symbols)) = response.data {
+                                    if let Some(kind) = kind_filter {
+                                        symbols.extend(
+                                            data_symbols
+                                                .into_iter()
+                                                .filter(|s| Self::check_symbol_kind(s, kind)),
+                                        );
+                                    } else {
+                                        symbols.extend(data_symbols);
                                     }
                                 }
-                                Err(e) => {
-                                    warn!(
-                                        plugin = %plugin_name_owned,
-                                        error = %e,
-                                        "Plugin query failed"
-                                    );
-                                    warning = Some(format!("{}: {}", plugin_name_owned, e));
-                                }
                             }
-                        } else {
-                            debug!(
-                                plugin = %plugin_name_owned,
-                                extension = %ext,
-                                "No files found with extension, skipping plugin"
-                            );
+                            Err(e) => {
+                                warn!(plugin = %plugin_name, error = %e, "Plugin query failed");
+                                warning = Some(format!("{}: {}", plugin_name, e));
+                            }
                         }
+                    } else {
+                        debug!(
+                            plugin = %plugin_name,
+                            extension = %ext,
+                            "No files found with extension, skipping plugin"
+                        );
                     }
                 }
                 (symbols, warning)

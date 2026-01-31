@@ -44,8 +44,14 @@ async fn test_search_code_basics() {
 
     // Create a proper TypeScript project with tsconfig.json (required for workspace/symbol)
     workspace.create_file("package.json", r#"{"name": "test", "private": true}"#);
-    workspace.create_file("tsconfig.json", r#"{"compilerOptions": {"target": "ES2020", "module": "commonjs", "strict": true}}"#);
-    workspace.create_file("src/main.ts", "export function testFunction() { return 42; }");
+    workspace.create_file(
+        "tsconfig.json",
+        r#"{"compilerOptions": {"target": "ES2020", "module": "commonjs", "strict": true}}"#,
+    );
+    workspace.create_file(
+        "src/main.ts",
+        "export function testFunction() { return 42; }",
+    );
 
     // Run mill setup to configure LSP
     let mill_path = std::env::var("CARGO_MANIFEST_DIR")
@@ -98,7 +104,10 @@ async fn test_search_code_basics() {
                 "search_code tool should be registered. Got: {}",
                 err_str
             );
-            println!("search_code returned expected LSP/timeout error: {}", err_str);
+            println!(
+                "search_code returned expected LSP/timeout error: {}",
+                err_str
+            );
         }
     }
 }

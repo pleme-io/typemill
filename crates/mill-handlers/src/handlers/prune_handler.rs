@@ -398,8 +398,8 @@ mod tests {
     #[test]
     fn test_extract_files_from_doc_changes_duplicates() {
         use lsp_types::{
-            DocumentChangeOperation, DocumentChanges, OneOf, OptionalVersionedTextDocumentIdentifier,
-            TextDocumentEdit, Uri,
+            DocumentChangeOperation, DocumentChanges, OneOf,
+            OptionalVersionedTextDocumentIdentifier, TextDocumentEdit, Uri,
         };
         use std::str::FromStr;
 

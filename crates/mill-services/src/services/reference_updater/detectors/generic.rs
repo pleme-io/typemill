@@ -115,7 +115,9 @@ pub(crate) async fn find_generic_affected_files(
                     );
 
                     // Check if imports reference either the old path (pre-move) or new path (post-move)
-                    if all_imports.contains(&old_path_clone) || all_imports.contains(&new_path_clone) {
+                    if all_imports.contains(&old_path_clone)
+                        || all_imports.contains(&new_path_clone)
+                    {
                         return Some(file_clone);
                     }
 
@@ -146,7 +148,8 @@ pub(crate) async fn find_generic_affected_files(
                         }
                     }
                     None
-                }).await;
+                })
+                .await;
 
                 match result {
                     Ok(Some(f)) => Some(f),
@@ -380,7 +383,8 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        ).await;
+        )
+        .await;
 
         println!("DEBUG: Old path: {}", old_path.display());
         println!("DEBUG: New path: {}", new_path.display());
@@ -433,7 +437,8 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.yml")),
@@ -484,7 +489,8 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("config.toml")),
@@ -531,7 +537,8 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("README.md")),
@@ -590,7 +597,8 @@ export function main() {
             plugins,
             &plugin_map,
             None,
-        ).await;
+        )
+        .await;
 
         assert!(
             affected.iter().any(|p| p.ends_with("main.rs")),

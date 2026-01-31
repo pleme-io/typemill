@@ -210,8 +210,9 @@ impl PrunePlanner {
 
                 // Convert Uri to Path via Url
                 let url_str = file_uri.as_str();
-                let url = Url::parse(url_str)
-                    .map_err(|e| ServerError::internal(format!("Failed to parse URI as URL: {}", e)))?;
+                let url = Url::parse(url_str).map_err(|e| {
+                    ServerError::internal(format!("Failed to parse URI as URL: {}", e))
+                })?;
 
                 let path = url
                     .to_file_path()

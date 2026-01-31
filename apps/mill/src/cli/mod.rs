@@ -1348,11 +1348,11 @@ async fn handle_tool_command(
 
         // Auto-start daemon if not running to cache project state
         if !is_daemon_running(&socket_path).await {
-             eprintln!("🚀 Auto-starting mill daemon for persistent project state...");
-             if let Err(e) = start_background_daemon().await {
-                 eprintln!("⚠️  Failed to auto-start daemon: {}", e);
-                 // Fall through to in-process execution
-             }
+            eprintln!("🚀 Auto-starting mill daemon for persistent project state...");
+            if let Err(e) = start_background_daemon().await {
+                eprintln!("⚠️  Failed to auto-start daemon: {}", e);
+                // Fall through to in-process execution
+            }
         }
 
         if is_daemon_running(&socket_path).await {

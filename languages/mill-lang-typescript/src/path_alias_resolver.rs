@@ -136,9 +136,7 @@ impl TypeScriptPathAliasResolver {
         // IndexMap iteration preserves insertion order, so patterns are tried
         // in the order they appear in tsconfig.json
         for (pattern, replacements) in paths {
-            if let Some(resolved) =
-                self.try_match_pattern(specifier, pattern, replacements)
-            {
+            if let Some(resolved) = self.try_match_pattern(specifier, pattern, replacements) {
                 return Some(resolved);
             }
         }
@@ -170,7 +168,8 @@ impl TypeScriptPathAliasResolver {
                     // Substitute captured string into replacement
                     // Replacement is an absolute PathBuf, so we convert to string and replace *
                     let resolved_path_str = if let Some(star_idx) = replacement_str.find('*') {
-                        let mut result = String::with_capacity(replacement_str.len() + captured.len());
+                        let mut result =
+                            String::with_capacity(replacement_str.len() + captured.len());
                         result.push_str(&replacement_str[..star_idx]);
                         result.push_str(captured);
                         result.push_str(&replacement_str[star_idx + 1..]);
@@ -191,7 +190,8 @@ impl TypeScriptPathAliasResolver {
                 if let Some(replacement) = replacements.first() {
                     let replacement_str = replacement.to_string_lossy();
                     let resolved_path_str = if let Some(star_idx) = replacement_str.find('*') {
-                        let mut result = String::with_capacity(replacement_str.len() + captured.len());
+                        let mut result =
+                            String::with_capacity(replacement_str.len() + captured.len());
                         result.push_str(&replacement_str[..star_idx]);
                         result.push_str(captured);
                         result.push_str(&replacement_str[star_idx + 1..]);
@@ -378,9 +378,9 @@ impl TypeScriptPathAliasResolver {
                 if let Ok(relative) = path_to_check.strip_prefix(replacement_prefix_path) {
                     let relative_str = relative.to_string_lossy();
                     let captured = if !replacement_suffix.is_empty() {
-                         relative_str.strip_suffix(replacement_suffix)?
+                        relative_str.strip_suffix(replacement_suffix)?
                     } else {
-                         &relative_str
+                        &relative_str
                     };
 
                     let alias = if captured.is_empty() {
@@ -391,12 +391,12 @@ impl TypeScriptPathAliasResolver {
                     return Some(alias);
                 }
             } else {
-                 // No wildcard in replacement (unusual)
-                 if let Ok(relative) = path_to_check.strip_prefix(replacement) {
+                // No wildcard in replacement (unusual)
+                if let Ok(relative) = path_to_check.strip_prefix(replacement) {
                     let relative_str = relative.to_string_lossy();
                     let alias = format!("{}{}{}", pattern_prefix, relative_str, pattern_suffix);
                     return Some(alias);
-                 }
+                }
             }
         } else {
             // Exact match
@@ -537,12 +537,16 @@ mod tests {
         let root = temp_dir.path();
 
         let jsconfig_path = root.join("jsconfig.json");
-        std::fs::write(&jsconfig_path, r#"{
+        std::fs::write(
+            &jsconfig_path,
+            r#"{
             "compilerOptions": {
                 "baseUrl": ".",
                 "paths": { "@/*": ["src/*"] }
             }
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
 
         let test_file = root.join("test.js");
         std::fs::write(&test_file, "").unwrap();
@@ -560,20 +564,28 @@ mod tests {
         let root = temp_dir.path();
 
         // jsconfig says @ -> js/*
-        std::fs::write(root.join("jsconfig.json"), r#"{
+        std::fs::write(
+            root.join("jsconfig.json"),
+            r#"{
             "compilerOptions": {
                 "baseUrl": ".",
                 "paths": { "@/*": ["js/*"] }
             }
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
 
         // tsconfig says @ -> ts/*
-        std::fs::write(root.join("tsconfig.json"), r#"{
+        std::fs::write(
+            root.join("tsconfig.json"),
+            r#"{
             "compilerOptions": {
                 "baseUrl": ".",
                 "paths": { "@/*": ["ts/*"] }
             }
-        }"#).unwrap();
+        }"#,
+        )
+        .unwrap();
 
         let test_file = root.join("test.ts");
         std::fs::write(&test_file, "").unwrap();

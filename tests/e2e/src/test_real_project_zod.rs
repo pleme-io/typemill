@@ -982,7 +982,9 @@ async fn test_zod_create_package_dry_run() {
     );
 
     // Verify packageInfo is populated in changes
-    let package_info = changes.get("packageInfo").expect("packageInfo should exist");
+    let package_info = changes
+        .get("packageInfo")
+        .expect("packageInfo should exist");
     assert!(
         package_info.get("name").is_some(),
         "packageInfo.name should exist"
@@ -998,7 +1000,10 @@ async fn test_zod_create_package_dry_run() {
         "new-pkg-dry should NOT exist after dry run"
     );
 
-    println!("✅ Successfully dry-run create_package with {} predicted files", files_changed.len());
+    println!(
+        "✅ Successfully dry-run create_package with {} predicted files",
+        files_changed.len()
+    );
 }
 
 /// Test: Execute create package
@@ -1037,10 +1042,7 @@ async fn test_zod_create_package_execute() {
     );
 
     // Package should be created
-    assert!(
-        pkg_path.exists(),
-        "new-pkg-exec should exist after execute"
-    );
+    assert!(pkg_path.exists(), "new-pkg-exec should exist after execute");
     assert!(
         pkg_path.join("package.json").exists(),
         "package.json should exist"
@@ -1128,7 +1130,9 @@ async fn test_zod_workflow_extract_and_move() {
         .expect("extract_dependencies should succeed");
 
     // Verify lodash was added
-    let new_pkg = ctx.workspace.read_file("packages/new-workflow/package.json");
+    let new_pkg = ctx
+        .workspace
+        .read_file("packages/new-workflow/package.json");
     assert!(new_pkg.contains("lodash"), "Should have lodash dependency");
 
     // Step 3: Move a file to the new package
@@ -1163,7 +1167,9 @@ async fn test_zod_workflow_extract_and_move() {
     assert!(dest_file.exists(), "Dest file should exist");
 
     // Verify content is preserved
-    let helpers_content = ctx.workspace.read_file("packages/new-workflow/src/helpers.ts");
+    let helpers_content = ctx
+        .workspace
+        .read_file("packages/new-workflow/src/helpers.ts");
     assert!(helpers_content.contains("formatName"));
     assert!(helpers_content.contains("trim()"));
 

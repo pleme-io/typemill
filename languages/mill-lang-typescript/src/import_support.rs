@@ -315,13 +315,19 @@ pub(crate) fn rewrite_imports_for_move_with_context(
 
                         // Check if the resolved path is inside the old_path directory
                         // (for directory moves) or equals old_path (for file moves)
-                        let is_affected = if old_path.is_dir()
-                            || old_path.to_string_lossy().contains("src/")
-                        {
+                        // Determine if this is a directory move:
+                        // - old_path.is_dir() if directory exists on disk
+                        // - OR old_path has no extension (indicating a directory path even if not on disk)
+                        let is_directory_move = old_path.is_dir()
+                            || (old_path.extension().is_none() && !old_path.is_file());
+
+                        let is_affected = if is_directory_move {
                             // Directory move: check if resolved path is inside old directory
                             resolved_path.starts_with(old_path)
                         } else {
                             // File move: check if resolved path equals old file (with or without extension)
+                            // Resolved path may not have extension (e.g., $lib/utils/helpers resolves to src/lib/utils/helpers)
+                            // but old_path has extension (e.g., src/lib/utils/helpers.ts)
                             resolved_path == old_path
                                 || resolved_path.with_extension("") == old_path.with_extension("")
                         };
@@ -331,18 +337,17 @@ pub(crate) fn rewrite_imports_for_move_with_context(
                         }
 
                         // Calculate the new path after the move
-                        let new_resolved_path =
-                            if old_path.is_dir() || old_path.to_string_lossy().contains("src/") {
-                                // For directory moves, preserve the relative structure within
-                                if let Ok(relative) = resolved_path.strip_prefix(old_path) {
-                                    new_path.join(relative)
-                                } else {
-                                    continue;
-                                }
+                        let new_resolved_path = if is_directory_move {
+                            // For directory moves, preserve the relative structure within
+                            if let Ok(relative) = resolved_path.strip_prefix(old_path) {
+                                new_path.join(relative)
                             } else {
-                                // For file moves, use the new path directly
-                                new_path.to_path_buf()
-                            };
+                                continue;
+                            }
+                        } else {
+                            // For file moves, use the new path directly
+                            new_path.to_path_buf()
+                        };
 
                         // Try to convert the new path back to an alias
                         if let Some(new_alias) =
@@ -573,7 +578,8 @@ fn rewrite_internal_imports(
                 }
 
                 // 3. require('spec')
-                let req_pattern = format!(r"require\s*\(\s*{}{}{}\s*\)", quote, escaped_spec, quote);
+                let req_pattern =
+                    format!(r"require\s*\(\s*{}{}{}\s*\)", quote, escaped_spec, quote);
                 if let Ok(re) = regex::Regex::new(&req_pattern) {
                     let replacement = format!("require({}{}{})", quote, safe_new_spec, quote);
                     let new = re.replace_all(&new_content, replacement.as_str());
@@ -715,17 +721,15 @@ mod tests {
         let importing_file = PathBuf::from("/tmp/src/components/Button.ts");
         let content = "import { User } from '../models/User';";
 
-        let (updated, changes) = rewrite_internal_imports(
-            content,
-            &old_root,
-            &new_root,
-            &importing_file,
-            None,
-            None
-        );
+        let (updated, changes) =
+            rewrite_internal_imports(content, &old_root, &new_root, &importing_file, None, None);
 
         assert_eq!(changes, 1);
-        assert!(updated.contains("from '../../models/User'"), "Got: {}", updated);
+        assert!(
+            updated.contains("from '../../models/User'"),
+            "Got: {}",
+            updated
+        );
     }
 
     #[test]
@@ -1027,6 +1031,161 @@ import { helper } from "./helper";
         assert!(
             updated.contains("$lib/helpers") || !updated.contains("$lib/utils"),
             "Should update $lib import"
+        );
+    }
+
+    #[test]
+    fn test_rewrite_path_alias_file_move_within_same_mapping() {
+        use crate::path_alias_resolver::TypeScriptPathAliasResolver;
+        use tempfile::TempDir;
+
+        // Test moving a single FILE within the same alias mapping (SvelteKit scenario)
+        // This is different from directory moves - we're moving helpers.ts to string/helpers.ts
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        let tsconfig_content = r#"{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": ["src/lib/*"]
+    }
+  }
+}"#;
+        std::fs::write(project_root.join("tsconfig.json"), tsconfig_content).unwrap();
+
+        // Create directory structure
+        std::fs::create_dir_all(project_root.join("src/lib/utils")).unwrap();
+        std::fs::create_dir_all(project_root.join("src/lib/utils/string")).unwrap();
+        std::fs::create_dir_all(project_root.join("src/lib/components")).unwrap();
+
+        // Create the file being moved
+        std::fs::write(
+            project_root.join("src/lib/utils/helpers.ts"),
+            "export function formatDate() {}",
+        )
+        .unwrap();
+
+        // Source file that imports from $lib
+        let source = r#"<script lang="ts">
+import { formatDate } from '$lib/utils/helpers';
+
+export let date: Date;
+</script>
+
+<span>{formatDate(date)}</span>"#;
+
+        let importing_file = project_root.join("src/lib/components/DateDisplay.svelte");
+        std::fs::write(&importing_file, source).unwrap();
+
+        // Move helpers.ts to utils/string/helpers.ts (FILE move, not directory)
+        let old_path = project_root.join("src/lib/utils/helpers.ts");
+        let new_path = project_root.join("src/lib/utils/string/helpers.ts");
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        let (updated, changes) = rewrite_imports_for_move_with_context(
+            source,
+            &old_path,
+            &new_path,
+            &importing_file,
+            Some(&resolver),
+            Some(project_root),
+        );
+
+        // Should update the import to the new path
+        assert!(
+            changes >= 1,
+            "Should update at least one import, got {} changes. Updated content:\n{}",
+            changes,
+            updated
+        );
+        assert!(
+            updated.contains("$lib/utils/string/helpers"),
+            "Should update to new $lib path. Actual content:\n{}",
+            updated
+        );
+        assert!(
+            !updated.contains("from '$lib/utils/helpers'"),
+            "Should not contain old import path"
+        );
+    }
+
+    #[test]
+    fn test_rewrite_path_alias_file_move_out_of_lib() {
+        use crate::path_alias_resolver::TypeScriptPathAliasResolver;
+        use tempfile::TempDir;
+
+        // Test moving a file OUT of $lib - should convert to relative import
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        let tsconfig_content = r#"{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": ["src/lib/*"]
+    }
+  }
+}"#;
+        std::fs::write(project_root.join("tsconfig.json"), tsconfig_content).unwrap();
+
+        // Create directory structure
+        std::fs::create_dir_all(project_root.join("src/lib/utils")).unwrap();
+        std::fs::create_dir_all(project_root.join("src/server")).unwrap();
+        std::fs::create_dir_all(project_root.join("src/routes/api")).unwrap();
+
+        // Create the file being moved
+        std::fs::write(
+            project_root.join("src/lib/utils/api.ts"),
+            "export async function fetchData() {}",
+        )
+        .unwrap();
+
+        // Source file that imports from $lib
+        let source = r#"import { fetchData } from '$lib/utils/api';
+
+export async function GET() {
+    const data = await fetchData('/api/data');
+    return new Response(JSON.stringify(data));
+}"#;
+
+        let importing_file = project_root.join("src/routes/api/+server.ts");
+        std::fs::write(&importing_file, source).unwrap();
+
+        // Move api.ts outside of $lib to src/server/
+        let old_path = project_root.join("src/lib/utils/api.ts");
+        let new_path = project_root.join("src/server/api.ts");
+
+        let resolver = TypeScriptPathAliasResolver::new();
+
+        let (updated, changes) = rewrite_imports_for_move_with_context(
+            source,
+            &old_path,
+            &new_path,
+            &importing_file,
+            Some(&resolver),
+            Some(project_root),
+        );
+
+        // Should update the import (either to relative or stay as alias if there's a pattern)
+        assert!(
+            changes >= 1,
+            "Should update at least one import, got {} changes. Updated content:\n{}",
+            changes,
+            updated
+        );
+        // Should NOT still have the old $lib/utils/api import
+        assert!(
+            !updated.contains("$lib/utils/api"),
+            "Should not contain old $lib import. Actual content:\n{}",
+            updated
+        );
+        // Should have some form of new import (relative or different alias)
+        assert!(
+            updated.contains("server/api") || updated.contains("../"),
+            "Should have updated import path. Actual content:\n{}",
+            updated
         );
     }
 }

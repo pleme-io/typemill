@@ -137,10 +137,7 @@ pub fn convert_edit_plan_to_workspace_edit(
             new_text: edit.new_text.clone(),
         };
 
-        changes_map
-            .entry(uri_str)
-            .or_default()
-            .push(lsp_edit);
+        changes_map.entry(uri_str).or_default().push(lsp_edit);
     }
 
     let mut document_changes = Vec::new();

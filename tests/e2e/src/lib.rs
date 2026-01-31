@@ -111,6 +111,10 @@ pub mod test_cross_platform;
 #[cfg(test)]
 pub mod test_real_project_zod;
 
+// SvelteKit path alias tests ($lib, @/ patterns)
+#[cfg(test)]
+pub mod test_sveltekit_path_aliases;
+
 // User scenario tests (cloning real repos)
 #[cfg(test)]
 pub mod user_scenario_test;

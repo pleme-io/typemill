@@ -1,10 +1,9 @@
-
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
-    use tempfile::TempDir;
-    use std::path::{Path, PathBuf};
     use crate::tsconfig::TsConfig;
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use tempfile::TempDir;
 
     fn create_file(path: &Path, content: &str) {
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();

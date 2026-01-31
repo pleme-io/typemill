@@ -2,14 +2,16 @@
 //!
 //! Handles detection of affected files for TypeScript/JavaScript file moves and renames.
 //! Detects ES6 imports, CommonJS requires, dynamic imports, and re-exports.
+//! Also handles path alias imports ($lib, @/, ~, etc.) via tsconfig.json resolution.
 
 use async_trait::async_trait;
-use mill_plugin_api::ReferenceDetector;
+use mill_plugin_api::{path_alias_resolver::PathAliasResolver, ReferenceDetector};
 use regex::Regex;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
 
 use crate::constants::{DYNAMIC_IMPORT_RE, ES6_IMPORT_RE, REQUIRE_RE};
+use crate::path_alias_resolver::TypeScriptPathAliasResolver;
 
 /// TypeScript/JavaScript reference detector implementation
 #[derive(Default)]
@@ -23,30 +25,41 @@ impl TypeScriptReferenceDetector {
 
     /// Check if a module path references the target file
     ///
-    /// Handles both relative paths (./foo, ../bar) and compares against
-    /// the expected relative path from the importing file to the target.
+    /// Handles both relative paths (./foo, ../bar) and path aliases ($lib, @/, ~/)
+    /// by comparing against the expected path from the importing file to the target.
     fn module_path_matches(
         module_path: &str,
         old_path: &Path,
         importing_file: &Path,
         project_root: &Path,
     ) -> bool {
-        // Skip node_modules and external packages
-        if !module_path.starts_with('.') && !module_path.starts_with('/') {
-            return false;
-        }
-
         // Get the directory containing the importing file
         let importing_dir = importing_file.parent().unwrap_or(project_root);
 
-        // Resolve the module path relative to the importing file
+        // Resolve the module path to an absolute path
         let resolved_path = if module_path.starts_with("./") || module_path.starts_with("../") {
-            importing_dir.join(module_path)
+            // Relative import
+            Some(importing_dir.join(module_path))
         } else if module_path.starts_with('/') {
             // Absolute path from project root
-            project_root.join(module_path.trim_start_matches('/'))
+            Some(project_root.join(module_path.trim_start_matches('/')))
+        } else if module_path.starts_with('$')
+            || module_path.starts_with('@')
+            || module_path.starts_with('~')
+        {
+            // Path alias import ($lib, @/, ~/) - resolve using path alias resolver
+            let resolver = TypeScriptPathAliasResolver::new();
+            resolver
+                .resolve_alias(module_path, importing_file, project_root)
+                .map(PathBuf::from)
         } else {
+            // External package (node_modules) - skip
             return false;
+        };
+
+        let resolved_path = match resolved_path {
+            Some(p) => p,
+            None => return false,
         };
 
         // Normalize the resolved path

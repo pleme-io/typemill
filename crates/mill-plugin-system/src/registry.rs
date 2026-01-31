@@ -347,7 +347,9 @@ impl RuntimePluginManager {
     }
 
     /// Get all registered plugins with their names
-    pub fn get_plugins_with_names(&self) -> impl Iterator<Item = (&String, &Arc<dyn LanguagePlugin>)> {
+    pub fn get_plugins_with_names(
+        &self,
+    ) -> impl Iterator<Item = (&String, &Arc<dyn LanguagePlugin>)> {
         self.plugins.iter()
     }
 

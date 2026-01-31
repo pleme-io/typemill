@@ -90,8 +90,7 @@ pub static VARIABLE_ASSIGN_PATTERN: Lazy<Regex> = Lazy::new(|| {
 /// Matches: `class ClassName`
 /// Captures: name
 pub static CLASS_DEF_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^class\s+(\w+)")
-        .expect("Python class definition pattern should be valid")
+    Regex::new(r"^class\s+(\w+)").expect("Python class definition pattern should be valid")
 });
 
 // === Helper Functions ===

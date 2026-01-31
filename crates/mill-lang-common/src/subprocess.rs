@@ -101,9 +101,7 @@ impl SubprocessAstTool {
 
 /// Prepare the temporary directory and command arguments for the subprocess.
 /// Returns the TempDir (must be kept alive), the tool path, and the command arguments.
-fn prepare_subprocess(
-    tool: &SubprocessAstTool,
-) -> PluginResult<(TempDir, PathBuf, Vec<String>)> {
+fn prepare_subprocess(tool: &SubprocessAstTool) -> PluginResult<(TempDir, PathBuf, Vec<String>)> {
     debug!(
         runtime = %tool.runtime,
         filename = %tool.temp_filename,

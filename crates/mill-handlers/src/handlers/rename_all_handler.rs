@@ -425,9 +425,13 @@ impl ToolHandler for RenameAllHandler {
 
             // For single mode, new_name is required in params if not in target (but we'll check later or in handler)
             // Ideally it should be provided.
-            let new_name = params.new_name.as_ref().or(target.new_name.as_ref()).ok_or_else(|| {
-                ServerError::invalid_request("new_name is required for rename operation")
-            })?;
+            let new_name = params
+                .new_name
+                .as_ref()
+                .or(target.new_name.as_ref())
+                .ok_or_else(|| {
+                    ServerError::invalid_request("new_name is required for rename operation")
+                })?;
 
             // Convert to internal format
             let rename_target = Self::convert_to_rename_target(target)?;
@@ -446,12 +450,7 @@ impl ToolHandler for RenameAllHandler {
                 }
                 "directory" => {
                     self.rename_service
-                        .plan_directory_rename(
-                            &rename_target,
-                            new_name,
-                            &rename_options,
-                            context,
-                        )
+                        .plan_directory_rename(&rename_target, new_name, &rename_options, context)
                         .await?
                 }
                 _ => unreachable!("Target kind already validated"),
