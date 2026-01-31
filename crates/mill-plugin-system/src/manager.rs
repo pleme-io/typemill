@@ -921,8 +921,12 @@ mod tests {
         // Ensure optimized path is actually faster (with some buffer for noise)
         // If the optimized path is slower, we have a regression or the "inefficient" simulation is invalid.
         if duration_inefficient > std::time::Duration::from_millis(1) {
-             assert!(duration_optimized < duration_inefficient, "Optimized path should be faster than inefficient path ({} vs {})",
-                duration_optimized.as_micros(), duration_inefficient.as_micros());
+            assert!(
+                duration_optimized < duration_inefficient,
+                "Optimized path should be faster than inefficient path ({} vs {})",
+                duration_optimized.as_micros(),
+                duration_inefficient.as_micros()
+            );
         }
     }
 

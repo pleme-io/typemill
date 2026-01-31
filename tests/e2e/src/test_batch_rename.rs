@@ -36,20 +36,34 @@ async fn test_batch_rename_files() {
             })
         },
         |ws| {
-             assert!(!ws.file_exists("file1.txt"), "file1.txt should be gone");
-             assert!(ws.file_exists("file1_renamed.txt"), "file1_renamed.txt should exist");
-             assert_eq!(ws.read_file("file1_renamed.txt"), "content1");
+            assert!(!ws.file_exists("file1.txt"), "file1.txt should be gone");
+            assert!(
+                ws.file_exists("file1_renamed.txt"),
+                "file1_renamed.txt should exist"
+            );
+            assert_eq!(ws.read_file("file1_renamed.txt"), "content1");
 
-             assert!(!ws.file_exists("file2.txt"), "file2.txt should be gone");
-             assert!(ws.file_exists("file2_renamed.txt"), "file2_renamed.txt should exist");
-             assert_eq!(ws.read_file("file2_renamed.txt"), "content2");
+            assert!(!ws.file_exists("file2.txt"), "file2.txt should be gone");
+            assert!(
+                ws.file_exists("file2_renamed.txt"),
+                "file2_renamed.txt should exist"
+            );
+            assert_eq!(ws.read_file("file2_renamed.txt"), "content2");
 
-             assert!(!ws.file_exists("subdir/file3.txt"), "subdir/file3.txt should be gone");
-             assert!(ws.file_exists("subdir/file3_renamed.txt"), "subdir/file3_renamed.txt should exist");
-             assert_eq!(ws.read_file("subdir/file3_renamed.txt"), "content3");
-             Ok(())
-        }
-    ).await.unwrap();
+            assert!(
+                !ws.file_exists("subdir/file3.txt"),
+                "subdir/file3.txt should be gone"
+            );
+            assert!(
+                ws.file_exists("subdir/file3_renamed.txt"),
+                "subdir/file3_renamed.txt should exist"
+            );
+            assert_eq!(ws.read_file("subdir/file3_renamed.txt"), "content3");
+            Ok(())
+        },
+    )
+    .await
+    .unwrap();
 }
 
 #[tokio::test]
@@ -77,14 +91,16 @@ async fn test_batch_rename_directories() {
             })
         },
         |ws| {
-             assert!(!ws.file_exists("dir1/file1.txt"));
-             assert!(ws.file_exists("dir1_new/file1.txt"));
-             assert_eq!(ws.read_file("dir1_new/file1.txt"), "content1");
+            assert!(!ws.file_exists("dir1/file1.txt"));
+            assert!(ws.file_exists("dir1_new/file1.txt"));
+            assert_eq!(ws.read_file("dir1_new/file1.txt"), "content1");
 
-             assert!(!ws.file_exists("dir2/file2.txt"));
-             assert!(ws.file_exists("dir2_new/file2.txt"));
-             assert_eq!(ws.read_file("dir2_new/file2.txt"), "content2");
-             Ok(())
-        }
-    ).await.unwrap();
+            assert!(!ws.file_exists("dir2/file2.txt"));
+            assert!(ws.file_exists("dir2_new/file2.txt"));
+            assert_eq!(ws.read_file("dir2_new/file2.txt"), "content2");
+            Ok(())
+        },
+    )
+    .await
+    .unwrap();
 }

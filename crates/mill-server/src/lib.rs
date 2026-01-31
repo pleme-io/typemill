@@ -383,118 +383,118 @@ pub fn spawn_operation_worker(
             .process_with(move |op, stats| {
                 let project_root = project_root.clone();
                 async move {
-                tracing::debug!(
-                    operation_id = %op.id,
-                    operation_type = ?op.operation_type,
-                    file_path = %op.file_path.display(),
-                    "Executing queued operation"
-                );
+                    tracing::debug!(
+                        operation_id = %op.id,
+                        operation_type = ?op.operation_type,
+                        file_path = %op.file_path.display(),
+                        "Executing queued operation"
+                    );
 
-                // Security check: Validate path before any operation
-                let valid_path = match validate_path(&project_root, &op.file_path).await {
-                    Ok(p) => p,
-                    Err(e) => {
-                        let mut stats_guard = stats.lock().await;
-                        stats_guard.failed_operations += 1;
-                        tracing::error!(
-                            operation_id = %op.id,
-                            error = %e,
-                            "Security check failed: Path traversal prevented"
-                        );
-                        return Err(e);
-                    }
-                };
-
-                // Use valid_path instead of op.file_path for subsequent operations
-                let result = match op.operation_type {
-                    OperationType::CreateDir => {
-                        fs::create_dir_all(&valid_path).await.map_err(|e| {
-                            ServerError::internal(format!("Failed to create directory: {}", e))
-                        })?;
-                        Ok(Value::Null)
-                    }
-                    OperationType::CreateFile | OperationType::Write => {
-                        let content = op
-                            .params
-                            .get("content")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
-
-                        // Write and explicitly sync to disk to avoid caching issues
-                        let mut file = fs::File::create(&valid_path).await.map_err(|e| {
-                            ServerError::internal(format!("Failed to create file: {}", e))
-                        })?;
-
-                        file.write_all(content.as_bytes()).await.map_err(|e| {
-                            ServerError::internal(format!("Failed to write content: {}", e))
-                        })?;
-
-                        // CRITICAL: Sync file to disk BEFORE updating stats
-                        file.sync_all().await.map_err(|e| {
-                            ServerError::internal(format!("Failed to sync file: {}", e))
-                        })?;
-
-                        Ok(Value::Null)
-                    }
-                    OperationType::Delete => {
-                        if valid_path.exists() {
-                            fs::remove_file(&valid_path).await.map_err(|e| {
-                                ServerError::internal(format!("Failed to delete file: {}", e))
-                            })?;
+                    // Security check: Validate path before any operation
+                    let valid_path = match validate_path(&project_root, &op.file_path).await {
+                        Ok(p) => p,
+                        Err(e) => {
+                            let mut stats_guard = stats.lock().await;
+                            stats_guard.failed_operations += 1;
+                            tracing::error!(
+                                operation_id = %op.id,
+                                error = %e,
+                                "Security check failed: Path traversal prevented"
+                            );
+                            return Err(e);
                         }
-                        Ok(Value::Null)
-                    }
-                    OperationType::Rename => {
-                        let new_path_str = op
-                            .params
-                            .get("new_path")
-                            .and_then(|v| v.as_str())
-                            .ok_or_else(|| {
-                            ServerError::internal("Missing 'new_path' parameter for Rename")
-                        })?;
-                        let new_path = Path::new(new_path_str);
+                    };
 
-                        // Also validate new_path
-                        let valid_new_path = validate_path(&project_root, new_path).await?;
+                    // Use valid_path instead of op.file_path for subsequent operations
+                    let result = match op.operation_type {
+                        OperationType::CreateDir => {
+                            fs::create_dir_all(&valid_path).await.map_err(|e| {
+                                ServerError::internal(format!("Failed to create directory: {}", e))
+                            })?;
+                            Ok(Value::Null)
+                        }
+                        OperationType::CreateFile | OperationType::Write => {
+                            let content = op
+                                .params
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
 
-                        fs::rename(&valid_path, valid_new_path).await.map_err(|e| {
-                            ServerError::internal(format!("Failed to rename file: {}", e))
-                        })?;
-                        Ok(Value::Null)
-                    }
-                    _ => Err(ServerError::internal(format!(
-                        "Unsupported operation type in worker: {:?}",
-                        op.operation_type
-                    ))),
-                };
+                            // Write and explicitly sync to disk to avoid caching issues
+                            let mut file = fs::File::create(&valid_path).await.map_err(|e| {
+                                ServerError::internal(format!("Failed to create file: {}", e))
+                            })?;
 
-                // Update stats AFTER all I/O is complete (including sync_all)
-                let mut stats_guard = stats.lock().await;
-                match &result {
-                    Ok(_) => {
-                        stats_guard.completed_operations += 1;
-                        tracing::info!(
-                            operation_id = %op.id,
-                            operation_type = ?op.operation_type,
-                            completed = stats_guard.completed_operations,
-                            "Operation executed successfully"
-                        );
+                            file.write_all(content.as_bytes()).await.map_err(|e| {
+                                ServerError::internal(format!("Failed to write content: {}", e))
+                            })?;
+
+                            // CRITICAL: Sync file to disk BEFORE updating stats
+                            file.sync_all().await.map_err(|e| {
+                                ServerError::internal(format!("Failed to sync file: {}", e))
+                            })?;
+
+                            Ok(Value::Null)
+                        }
+                        OperationType::Delete => {
+                            if valid_path.exists() {
+                                fs::remove_file(&valid_path).await.map_err(|e| {
+                                    ServerError::internal(format!("Failed to delete file: {}", e))
+                                })?;
+                            }
+                            Ok(Value::Null)
+                        }
+                        OperationType::Rename => {
+                            let new_path_str = op
+                                .params
+                                .get("new_path")
+                                .and_then(|v| v.as_str())
+                                .ok_or_else(|| {
+                                ServerError::internal("Missing 'new_path' parameter for Rename")
+                            })?;
+                            let new_path = Path::new(new_path_str);
+
+                            // Also validate new_path
+                            let valid_new_path = validate_path(&project_root, new_path).await?;
+
+                            fs::rename(&valid_path, valid_new_path).await.map_err(|e| {
+                                ServerError::internal(format!("Failed to rename file: {}", e))
+                            })?;
+                            Ok(Value::Null)
+                        }
+                        _ => Err(ServerError::internal(format!(
+                            "Unsupported operation type in worker: {:?}",
+                            op.operation_type
+                        ))),
+                    };
+
+                    // Update stats AFTER all I/O is complete (including sync_all)
+                    let mut stats_guard = stats.lock().await;
+                    match &result {
+                        Ok(_) => {
+                            stats_guard.completed_operations += 1;
+                            tracing::info!(
+                                operation_id = %op.id,
+                                operation_type = ?op.operation_type,
+                                completed = stats_guard.completed_operations,
+                                "Operation executed successfully"
+                            );
+                        }
+                        Err(e) => {
+                            stats_guard.failed_operations += 1;
+                            tracing::error!(
+                                operation_id = %op.id,
+                                operation_type = ?op.operation_type,
+                                error = %e,
+                                failed = stats_guard.failed_operations,
+                                "Operation execution failed"
+                            );
+                        }
                     }
-                    Err(e) => {
-                        stats_guard.failed_operations += 1;
-                        tracing::error!(
-                            operation_id = %op.id,
-                            operation_type = ?op.operation_type,
-                            error = %e,
-                            failed = stats_guard.failed_operations,
-                            "Operation execution failed"
-                        );
-                    }
+                    drop(stats_guard); // Explicitly release lock
+
+                    result
                 }
-                drop(stats_guard); // Explicitly release lock
-
-                result
-            }
             })
             .await;
     });

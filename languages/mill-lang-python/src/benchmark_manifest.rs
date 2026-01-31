@@ -1,8 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::manifest::parse_setup_py;
-    use std::time::Instant;
     use std::io::Write;
+    use std::time::Instant;
     use tempfile::NamedTempFile;
 
     #[tokio::test]
@@ -30,7 +30,8 @@ setup(
     }}
 )
 "#
-        ).unwrap();
+        )
+        .unwrap();
 
         let path = file.path().to_path_buf();
 
@@ -47,6 +48,9 @@ setup(
         let duration = start.elapsed();
 
         println!("Time taken for {} iterations: {:?}", iterations, duration);
-        println!("Average time per iteration: {:?}", duration / iterations as u32);
+        println!(
+            "Average time per iteration: {:?}",
+            duration / iterations as u32
+        );
     }
 }

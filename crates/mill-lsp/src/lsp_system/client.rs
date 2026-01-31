@@ -201,14 +201,19 @@ impl LspClient {
                         }
 
                         // Use max_by_key on PathBuf to mimic previous behavior (lexicographical)
-                        if let Some(best_path) = versions.iter().max_by_key(|p| p.file_name().unwrap_or_default().to_os_string()) {
+                        if let Some(best_path) = versions
+                            .iter()
+                            .max_by_key(|p| p.file_name().unwrap_or_default().to_os_string())
+                        {
                             found_path = format!("{}/bin", best_path.display());
                         }
                     }
                     found_path
                 };
 
-                if !version_path.is_empty() && tokio::fs::try_exists(&version_path).await.unwrap_or(false) {
+                if !version_path.is_empty()
+                    && tokio::fs::try_exists(&version_path).await.unwrap_or(false)
+                {
                     path_additions.push(version_path);
                 }
             }

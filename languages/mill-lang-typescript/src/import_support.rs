@@ -573,7 +573,8 @@ fn rewrite_internal_imports(
                 }
 
                 // 3. require('spec')
-                let req_pattern = format!(r"require\s*\(\s*{}{}{}\s*\)", quote, escaped_spec, quote);
+                let req_pattern =
+                    format!(r"require\s*\(\s*{}{}{}\s*\)", quote, escaped_spec, quote);
                 if let Ok(re) = regex::Regex::new(&req_pattern) {
                     let replacement = format!("require({}{}{})", quote, safe_new_spec, quote);
                     let new = re.replace_all(&new_content, replacement.as_str());
@@ -715,17 +716,15 @@ mod tests {
         let importing_file = PathBuf::from("/tmp/src/components/Button.ts");
         let content = "import { User } from '../models/User';";
 
-        let (updated, changes) = rewrite_internal_imports(
-            content,
-            &old_root,
-            &new_root,
-            &importing_file,
-            None,
-            None
-        );
+        let (updated, changes) =
+            rewrite_internal_imports(content, &old_root, &new_root, &importing_file, None, None);
 
         assert_eq!(changes, 1);
-        assert!(updated.contains("from '../../models/User'"), "Got: {}", updated);
+        assert!(
+            updated.contains("from '../../models/User'"),
+            "Got: {}",
+            updated
+        );
     }
 
     #[test]

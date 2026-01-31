@@ -128,8 +128,10 @@ version = "0.1.0"
 serde = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 common = { path = "../common" }
-"#
-        ).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         fs::write(
             &target_path,
@@ -141,8 +143,10 @@ version = "0.1.0"
 [dependencies]
 log = "0.4"
 serde = "1.0"
-"#
-        ).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         merge_cargo_dependencies(&source_path, &target_path)
             .await
@@ -175,8 +179,10 @@ version = "0.1.0"
 [dependencies]
 target-crate = "0.1.0"
 other-dep = "1.0"
-"#
-        ).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         fs::write(
             &target_path,
@@ -186,8 +192,10 @@ name = "target-crate"
 version = "0.1.0"
 
 [dependencies]
-"#
-        ).await.unwrap();
+"#,
+        )
+        .await
+        .unwrap();
 
         merge_cargo_dependencies(&source_path, &target_path)
             .await
@@ -197,10 +205,15 @@ version = "0.1.0"
         let doc = content.parse::<toml_edit::DocumentMut>().unwrap();
 
         // Check dependencies table specifically
-        let deps = doc["dependencies"].as_table().expect("Should have dependencies table");
+        let deps = doc["dependencies"]
+            .as_table()
+            .expect("Should have dependencies table");
 
         // Should NOT contain self-dependency
-        assert!(!deps.contains_key("target-crate"), "Should skip self-dependency");
+        assert!(
+            !deps.contains_key("target-crate"),
+            "Should skip self-dependency"
+        );
 
         // Should contain other dependency
         assert!(deps.contains_key("other-dep"), "Should contain other-dep");

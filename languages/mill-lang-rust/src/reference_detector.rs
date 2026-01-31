@@ -48,14 +48,16 @@ impl ReferenceDetector for RustReferenceDetector {
 
         // Canonicalize paths to handle symlinks (e.g., /var vs /private/var on macOS)
         // Use tokio::fs for async canonicalization
-        let canonical_project = tokio::fs::canonicalize(project_root).await.unwrap_or_else(|e| {
-            tracing::warn!(
-                error = %e,
-                project_root = %project_root.display(),
-                "Failed to canonicalize project_root"
-            );
-            project_root.to_path_buf()
-        });
+        let canonical_project = tokio::fs::canonicalize(project_root)
+            .await
+            .unwrap_or_else(|e| {
+                tracing::warn!(
+                    error = %e,
+                    project_root = %project_root.display(),
+                    "Failed to canonicalize project_root"
+                );
+                project_root.to_path_buf()
+            });
 
         let canonical_old = tokio::fs::canonicalize(old_path).await.unwrap_or_else(|e| {
             tracing::warn!(
@@ -305,7 +307,8 @@ impl ReferenceDetector for RustReferenceDetector {
                                         new_module = %new_module_name,
                                         "Found parent lib.rs with mod declaration that needs updating"
                                     );
-                                    let canonical_lib_rs = tokio::fs::canonicalize(&lib_rs).await.unwrap_or(lib_rs);
+                                    let canonical_lib_rs =
+                                        tokio::fs::canonicalize(&lib_rs).await.unwrap_or(lib_rs);
                                     if !affected.contains(&canonical_lib_rs) {
                                         affected.push(canonical_lib_rs);
                                     }
@@ -342,7 +345,8 @@ impl ReferenceDetector for RustReferenceDetector {
                                         new_module = %new_module_name,
                                         "Found parent mod.rs with mod declaration that needs updating"
                                     );
-                                    let canonical_mod_rs = tokio::fs::canonicalize(&mod_rs).await.unwrap_or(mod_rs);
+                                    let canonical_mod_rs =
+                                        tokio::fs::canonicalize(&mod_rs).await.unwrap_or(mod_rs);
                                     if !affected.contains(&canonical_mod_rs) {
                                         affected.push(canonical_mod_rs);
                                     }
@@ -439,7 +443,8 @@ impl ReferenceDetector for RustReferenceDetector {
 
                                 // Extract the last component of the module path (the module name being renamed)
                                 // e.g., "mylib::handlers::refactor::common" → "common"
-                                let old_module_name = old_module_path.split("::").last().unwrap_or("");
+                                let old_module_name =
+                                    old_module_path.split("::").last().unwrap_or("");
 
                                 // Check for relative imports like "use super::common::" or "use self::common::"
                                 if !old_module_name.is_empty() {
@@ -460,7 +465,9 @@ impl ReferenceDetector for RustReferenceDetector {
                                 // Check for crate:: prefixed imports (e.g., "use crate::utils::helpers::process")
                                 // Extract the suffix after the crate name from old_module_path
                                 // e.g., "mylib::core::types" → "core::types"
-                                if let Some((_crate_name, suffix)) = old_module_path.split_once("::") {
+                                if let Some((_crate_name, suffix)) =
+                                    old_module_path.split_once("::")
+                                {
                                     let crate_pattern = format!("crate::{}::", suffix);
                                     if trimmed.contains(&crate_pattern) {
                                         return true;
@@ -492,11 +499,11 @@ impl ReferenceDetector for RustReferenceDetector {
                 }
 
                 while let Some(res) = set.join_next().await {
-                     if let Ok(Some(file)) = res {
+                    if let Ok(Some(file)) = res {
                         if !affected.contains(&file) {
                             affected.push(file);
                         }
-                     }
+                    }
                 }
 
                 tracing::info!(
@@ -643,7 +650,9 @@ mod tests {
 
         // Verify: lib.rs should be in the affected files
         let lib_rs = project_root.join("src/lib.rs");
-        let canonical_lib_rs = tokio::fs::canonicalize(&lib_rs).await.unwrap_or(lib_rs.clone());
+        let canonical_lib_rs = tokio::fs::canonicalize(&lib_rs)
+            .await
+            .unwrap_or(lib_rs.clone());
         assert!(
             affected.contains(&canonical_lib_rs),
             "lib.rs should be detected as affected (has crate-relative import). Affected files: {:?}",
@@ -652,7 +661,9 @@ mod tests {
 
         // Verify: utils/mod.rs should also be affected (parent file)
         let mod_rs = project_root.join("src/utils/mod.rs");
-        let canonical_mod_rs = tokio::fs::canonicalize(&mod_rs).await.unwrap_or(mod_rs.clone());
+        let canonical_mod_rs = tokio::fs::canonicalize(&mod_rs)
+            .await
+            .unwrap_or(mod_rs.clone());
         assert!(
             affected.contains(&canonical_mod_rs),
             "utils/mod.rs should be detected as affected (parent file). Affected files: {:?}",

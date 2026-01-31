@@ -15,7 +15,8 @@ use crate::constants::{
 };
 use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport, SourceLocation};
 use mill_lang_common::{
-    parse_import_alias, parse_with_fallback, run_ast_tool_async, ImportGraphBuilder, SubprocessAstTool,
+    parse_import_alias, parse_with_fallback, run_ast_tool_async, ImportGraphBuilder,
+    SubprocessAstTool,
 };
 use mill_plugin_api::{PluginApiError, PluginResult, Symbol, SymbolKind};
 use std::path::Path;
@@ -160,7 +161,7 @@ pub(crate) fn parse_source_code(source: &str) -> PluginResult<PythonParseResult>
 
         // Function definitions
         if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
-             let _indent_str = captures
+            let _indent_str = captures
                 .get(1)
                 .expect("Python function regex should always capture indent at index 1")
                 .as_str();
@@ -277,16 +278,16 @@ pub(crate) fn parse_source_code(source: &str) -> PluginResult<PythonParseResult>
 
     // Close remaining scopes
     for (_, _, scope_data, mut symbol) in active_scopes.into_iter().rev() {
-         symbol.end_location = Some(mill_plugin_api::SourceLocation {
-             line: last_line_idx as usize,
-             column: 0,
-         });
-         symbols.push(symbol);
+        symbol.end_location = Some(mill_plugin_api::SourceLocation {
+            line: last_line_idx as usize,
+            column: 0,
+        });
+        symbols.push(symbol);
 
-         if let ScopeData::Function(mut func) = scope_data {
-             func.end_line = last_line_idx;
-             functions.push(func);
-         }
+        if let ScopeData::Function(mut func) = scope_data {
+            func.end_line = last_line_idx;
+            functions.push(func);
+        }
     }
 
     // Sort functions by start_line to maintain expected order
@@ -730,5 +731,4 @@ variable = "value"
         assert!(has_class, "Should extract class");
         assert!(has_variable, "Should extract variable");
     }
-
 }

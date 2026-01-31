@@ -967,7 +967,9 @@ mod tests {
         let lib_rs = dir.path().join("lib.rs");
         fs::write(&lib_rs, "// lib.rs content").await.unwrap();
 
-        rename_lib_rs_to_mod_rs(dir.path().to_str().unwrap()).await.unwrap();
+        rename_lib_rs_to_mod_rs(dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
         assert!(!lib_rs.exists(), "lib.rs should be removed");
         assert!(dir.path().join("mod.rs").exists(), "mod.rs should exist");
@@ -984,10 +986,15 @@ mod tests {
         let file1 = src_dir.join("file1.rs");
         fs::write(&file1, "fn file1() {}").await.unwrap();
 
-        flatten_nested_src_directory(dir.path().to_str().unwrap()).await.unwrap();
+        flatten_nested_src_directory(dir.path().to_str().unwrap())
+            .await
+            .unwrap();
 
         assert!(!src_dir.exists(), "src/ should be removed");
-        assert!(dir.path().join("file1.rs").exists(), "file1.rs should be moved up");
+        assert!(
+            dir.path().join("file1.rs").exists(),
+            "file1.rs should be moved up"
+        );
     }
 
     #[tokio::test]
@@ -999,10 +1006,15 @@ mod tests {
 
         fs::write(&lib_rs, "pub mod existing;\n").await.unwrap();
 
-        add_module_declaration_to_target_lib_rs(dir.path().to_str().unwrap(), "new_mod").await.unwrap();
+        add_module_declaration_to_target_lib_rs(dir.path().to_str().unwrap(), "new_mod")
+            .await
+            .unwrap();
 
         let content = fs::read_to_string(&lib_rs).await.unwrap();
-        assert!(content.contains("pub mod new_mod;"), "Should contain new module declaration");
+        assert!(
+            content.contains("pub mod new_mod;"),
+            "Should contain new module declaration"
+        );
     }
 
     #[tokio::test]
@@ -1015,7 +1027,9 @@ mod tests {
         let mut fixed = 0;
         let mut replacements = 0;
 
-        fix_self_imports_in_file(&file_path, "my_crate", &mut fixed, &mut replacements).await.unwrap();
+        fix_self_imports_in_file(&file_path, "my_crate", &mut fixed, &mut replacements)
+            .await
+            .unwrap();
 
         assert_eq!(fixed, 1, "Should fix 1 file");
         assert_eq!(replacements, 3, "Should make 3 replacements");

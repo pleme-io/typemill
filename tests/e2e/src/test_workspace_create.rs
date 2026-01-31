@@ -233,10 +233,7 @@ async fn test_create_package_dry_run() {
     let changes = content.get("changes").expect("Changes should exist");
 
     // Check dryRun flag
-    assert_eq!(
-        changes.get("dryRun").and_then(|v| v.as_bool()),
-        Some(true)
-    );
+    assert_eq!(changes.get("dryRun").and_then(|v| v.as_bool()), Some(true));
 
     // Verify expected files are listed
     let created_files = changes

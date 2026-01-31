@@ -81,7 +81,10 @@ impl TsConfig {
     ) -> Result<ResolvedTsConfig> {
         let canonical_path = std::fs::canonicalize(path).unwrap_or(path.to_path_buf());
         if !visited.insert(canonical_path.clone()) {
-            return Err(anyhow::anyhow!("Circular extends dependency detected: {:?}", path));
+            return Err(anyhow::anyhow!(
+                "Circular extends dependency detected: {:?}",
+                path
+            ));
         }
 
         let config = Self::from_file(&canonical_path)?;
@@ -95,13 +98,13 @@ impl TsConfig {
             if extends_path.exists() {
                 Self::load_and_merge_recursive(&extends_path, visited)?
             } else {
-                 // Fallback: start with empty config if extended file not found
-                 // (or maybe it's in node_modules, but we skip that for now)
-                 ResolvedTsConfig {
-                     base_url: config_dir.to_path_buf(),
-                     paths: IndexMap::new(),
-                     raw_base_url: None,
-                 }
+                // Fallback: start with empty config if extended file not found
+                // (or maybe it's in node_modules, but we skip that for now)
+                ResolvedTsConfig {
+                    base_url: config_dir.to_path_buf(),
+                    paths: IndexMap::new(),
+                    raw_base_url: None,
+                }
             }
         } else {
             // No extends: start with default empty config
@@ -113,7 +116,8 @@ impl TsConfig {
         };
 
         // 2. Determine effective raw baseUrl (local overrides parent)
-        let local_base_url_str = config.compiler_options
+        let local_base_url_str = config
+            .compiler_options
             .as_ref()
             .and_then(|opts| opts.base_url.clone());
 
@@ -133,17 +137,15 @@ impl TsConfig {
         // 4. Resolve and merge paths
         if let Some(compiler_options) = config.compiler_options {
             if let Some(paths) = compiler_options.paths {
-                 for (pattern, replacements) in paths {
-                     let abs_replacements: Vec<PathBuf> = replacements
-                         .into_iter()
-                         .map(|r| {
-                             effective_base_url.join(r)
-                         })
-                         .collect();
+                for (pattern, replacements) in paths {
+                    let abs_replacements: Vec<PathBuf> = replacements
+                        .into_iter()
+                        .map(|r| effective_base_url.join(r))
+                        .collect();
 
-                     // Child paths override parent paths (merge by key)
-                     resolved.paths.insert(pattern, abs_replacements);
-                 }
+                    // Child paths override parent paths (merge by key)
+                    resolved.paths.insert(pattern, abs_replacements);
+                }
             }
         }
 
@@ -330,20 +332,26 @@ mod tests {
         // /app/tsconfig.json (extends: "../config/base.json")
 
         let config_dir = root.join("config");
-        create_file(&config_dir.join("base.json"), r#"{
+        create_file(
+            &config_dir.join("base.json"),
+            r#"{
             "compilerOptions": {
                 "baseUrl": ".",
                 "paths": { "base/*": ["base-lib/*"] }
             }
-        }"#);
+        }"#,
+        );
 
         let app_dir = root.join("app");
-        create_file(&app_dir.join("tsconfig.json"), r#"{
+        create_file(
+            &app_dir.join("tsconfig.json"),
+            r#"{
             "extends": "../config/base.json",
             "compilerOptions": {
                 "paths": { "app/*": ["app-lib/*"] }
             }
-        }"#);
+        }"#,
+        );
 
         let resolved = TsConfig::load_and_merge(&app_dir.join("tsconfig.json")).unwrap();
 

@@ -226,9 +226,11 @@ impl DirectLspAdapter {
                                 // If still not found, try src directory
                                 if warmup_file.is_none() {
                                     let src_dir = root_dir.join("src");
-                                    let src_exists = tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
+                                    let src_exists =
+                                        tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
                                     let is_dir = if src_exists {
-                                        tokio::fs::metadata(&src_dir).await
+                                        tokio::fs::metadata(&src_dir)
+                                            .await
                                             .map(|m| m.is_dir())
                                             .unwrap_or(false)
                                     } else {
@@ -236,7 +238,8 @@ impl DirectLspAdapter {
                                     };
 
                                     if is_dir {
-                                        if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
+                                        if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await
+                                        {
                                             while let Ok(Some(entry)) = entries.next_entry().await {
                                                 let path = entry.path();
                                                 let is_file = match entry.file_type().await {
