@@ -102,11 +102,56 @@ impl Default for ScopeConfig {
 
 fn default_excludes() -> Vec<String> {
     vec![
+        // Build and cache directories
         "**/target/**".into(),
         "**/node_modules/**".into(),
         "**/.git/**".into(),
         "**/build/**".into(),
         "**/dist/**".into(),
+        "**/.svelte-kit/**".into(),
+        "**/.next/**".into(),
+        "**/.output/**".into(),
+        "**/coverage/**".into(),
+        "**/.turbo/**".into(),
+        // Binary image files
+        "**/*.png".into(),
+        "**/*.jpg".into(),
+        "**/*.jpeg".into(),
+        "**/*.gif".into(),
+        "**/*.ico".into(),
+        "**/*.webp".into(),
+        "**/*.svg".into(),
+        "**/*.bmp".into(),
+        // Font files
+        "**/*.woff".into(),
+        "**/*.woff2".into(),
+        "**/*.ttf".into(),
+        "**/*.otf".into(),
+        "**/*.eot".into(),
+        // Archive files
+        "**/*.zip".into(),
+        "**/*.tar".into(),
+        "**/*.gz".into(),
+        "**/*.rar".into(),
+        "**/*.7z".into(),
+        // Media files
+        "**/*.mp3".into(),
+        "**/*.mp4".into(),
+        "**/*.wav".into(),
+        "**/*.avi".into(),
+        "**/*.mov".into(),
+        // Other binary files
+        "**/*.pdf".into(),
+        "**/*.exe".into(),
+        "**/*.dll".into(),
+        "**/*.so".into(),
+        "**/*.dylib".into(),
+        "**/*.wasm".into(),
+        // Lock files (shouldn't be modified by find/replace)
+        "**/package-lock.json".into(),
+        "**/yarn.lock".into(),
+        "**/pnpm-lock.yaml".into(),
+        "**/Cargo.lock".into(),
     ]
 }
 

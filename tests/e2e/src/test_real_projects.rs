@@ -222,11 +222,9 @@ impl RealProjectContext {
         }
     }
 
-    /// Verify TypeScript project compiles after refactoring
-    pub fn verify_typescript_compiles(&self) -> Result<(), String> {
-        println!("🔍 Verifying TypeScript project compiles...");
-
-        // Try npx tsc first, fall back to tsc
+    /// Count TypeScript errors in the project
+    /// Returns (error_count, error_output) - useful for comparing before/after refactoring
+    pub fn count_typescript_errors(&self) -> (usize, String) {
         let output = Command::new("npx")
             .args(["tsc", "--noEmit", "--skipLibCheck"])
             .current_dir(self.workspace.path())
@@ -236,21 +234,33 @@ impl RealProjectContext {
                     .args(["--noEmit", "--skipLibCheck"])
                     .current_dir(self.workspace.path())
                     .output()
-            })
-            .map_err(|e| format!("Failed to run tsc: {}", e))?;
+            });
 
-        if output.status.success() {
+        match output {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+                // Count "error TS" occurrences - each represents a TypeScript error
+                let error_count = stdout.matches("error TS").count();
+                (error_count, stdout)
+            }
+            Err(e) => (usize::MAX, format!("Failed to run tsc: {}", e)),
+        }
+    }
+
+    /// Verify TypeScript project compiles after refactoring
+    pub fn verify_typescript_compiles(&self) -> Result<(), String> {
+        println!("🔍 Verifying TypeScript project compiles...");
+
+        let (error_count, error_output) = self.count_typescript_errors();
+
+        if error_count == 0 {
             println!("✅ TypeScript project compiles successfully");
             Ok(())
         } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            // TypeScript errors go to stdout
-            if stdout.is_empty() {
-                Err(format!("TypeScript compilation failed:\n{}", stderr))
-            } else {
-                Err(format!("TypeScript compilation failed:\n{}", stdout))
-            }
+            Err(format!(
+                "TypeScript compilation failed ({} errors):\n{}",
+                error_count, error_output
+            ))
         }
     }
 

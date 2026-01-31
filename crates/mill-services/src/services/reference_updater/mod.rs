@@ -992,18 +992,32 @@ pub async fn find_project_files_with_map(
             if dir.is_dir() {
                 if let Some(dir_name) = dir.file_name() {
                     const IGNORED_DIRS: &[&str] = &[
+                        // Build and cache directories
                         ".build",
+                        ".cache",
                         ".git",
                         ".next",
+                        ".output",
                         ".pytest_cache",
+                        ".svelte-kit",
                         ".tox",
+                        ".turbo",
                         ".venv",
                         "__pycache__",
                         "build",
+                        "coverage",
                         "dist",
                         "node_modules",
                         "target",
                         "venv",
+                        // Test and example directories (typically don't need import updates)
+                        "__tests__",
+                        "e2e",
+                        "fixtures",
+                        "playgrounds",
+                        "test",
+                        "test-apps",
+                        "tests",
                     ];
                     let name = dir_name.to_string_lossy();
                     if IGNORED_DIRS.contains(&name.as_ref()) {

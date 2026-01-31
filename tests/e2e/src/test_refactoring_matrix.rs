@@ -60,78 +60,190 @@ pub struct FileTemplate {
 }
 
 // ============================================================================
-// Predefined Configurations
+// Shared File Templates (DRY)
 // ============================================================================
 
-pub const TYPESCRIPT_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
-    repo_url: "https://github.com/colinhacks/zod.git",
-    project_name: "zod",
-    source_dir: "src",
-    file_ext: "ts",
-    build_verify: BuildVerification::TypeScript,
-    file_template: FileTemplate {
-        simple_module: r#"export const value = 42;
+/// TypeScript file templates
+pub const TS_TEMPLATES: FileTemplate = FileTemplate {
+    simple_module: r#"export const value = 42;
 "#,
-        export_module: r#"export function helper(): string {
+    export_module: r#"export function helper(): string {
     return "helper";
 }
 
 export const CONSTANT = "constant-value";
 "#,
-        import_template: r#"import { helper, CONSTANT } from "./{import_path}";
+    import_template: r#"import { helper, CONSTANT } from "./{import_path}";
 
 export function useHelper(): string {
     return helper() + CONSTANT;
 }
 "#,
-    },
 };
 
-pub const RUST_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
-    repo_url: "https://github.com/dtolnay/thiserror.git",
-    project_name: "thiserror",
-    source_dir: "src",
-    file_ext: "rs",
-    build_verify: BuildVerification::Rust,
-    file_template: FileTemplate {
-        simple_module: r#"pub const VALUE: i32 = 42;
+/// Rust file templates
+pub const RS_TEMPLATES: FileTemplate = FileTemplate {
+    simple_module: r#"pub const VALUE: i32 = 42;
 "#,
-        export_module: r#"pub fn helper() -> &'static str {
+    export_module: r#"pub fn helper() -> &'static str {
     "helper"
 }
 
 pub const CONSTANT: &str = "constant-value";
 "#,
-        import_template: r#"use super::{import_path}::{helper, CONSTANT};
+    import_template: r#"use super::{import_path}::{helper, CONSTANT};
 
 pub fn use_helper() -> String {
     format!("{}{}", helper(), CONSTANT)
 }
 "#,
-    },
 };
 
-pub const PYTHON_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+/// Python file templates
+pub const PY_TEMPLATES: FileTemplate = FileTemplate {
+    simple_module: r#"VALUE = 42
+"#,
+    export_module: r#"def helper() -> str:
+    return "helper"
+
+CONSTANT = "constant-value"
+"#,
+    import_template: r#"from .{import_path} import helper, CONSTANT
+
+def use_helper() -> str:
+    return helper() + CONSTANT
+"#,
+};
+
+// ============================================================================
+// TypeScript Configurations (Diverse Structures)
+// ============================================================================
+
+/// Zod - Schema validation library (monorepo with packages/)
+pub const TS_ZOD_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/colinhacks/zod.git",
+    project_name: "zod",
+    source_dir: "src",
+    file_ext: "ts",
+    build_verify: BuildVerification::TypeScript,
+    file_template: TS_TEMPLATES,
+};
+
+/// ky - HTTP client (small, clean TypeScript structure)
+pub const TS_KY_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/sindresorhus/ky.git",
+    project_name: "ky",
+    source_dir: "source",
+    file_ext: "ts",
+    build_verify: BuildVerification::TypeScript,
+    file_template: TS_TEMPLATES,
+};
+
+/// SvelteKit - Framework monorepo (tests path handling in large projects)
+pub const TS_SVELTEKIT_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/sveltejs/kit.git",
+    project_name: "sveltekit",
+    source_dir: "packages/kit/src",
+    file_ext: "ts",
+    build_verify: BuildVerification::None, // Complex monorepo build, skip verification
+    file_template: TS_TEMPLATES,
+};
+
+/// nanoid - Unique ID generator (flat structure, minimal)
+pub const TS_NANOID_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/ai/nanoid.git",
+    project_name: "nanoid",
+    source_dir: ".",
+    file_ext: "ts",
+    build_verify: BuildVerification::TypeScript,
+    file_template: TS_TEMPLATES,
+};
+
+/// ts-pattern - Pattern matching (packages/ structure)
+pub const TS_PATTERN_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/gvergnaud/ts-pattern.git",
+    project_name: "ts-pattern",
+    source_dir: "src",
+    file_ext: "ts",
+    build_verify: BuildVerification::TypeScript,
+    file_template: TS_TEMPLATES,
+};
+
+// ============================================================================
+// Rust Configurations (Diverse Structures)
+// ============================================================================
+
+/// thiserror - Error derive macro (proc-macro workspace)
+pub const RS_THISERROR_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/dtolnay/thiserror.git",
+    project_name: "thiserror",
+    source_dir: "src",
+    file_ext: "rs",
+    build_verify: BuildVerification::Rust,
+    file_template: RS_TEMPLATES,
+};
+
+/// once_cell - Lazy initialization (single lib crate)
+pub const RS_ONCECELL_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/matklad/once_cell.git",
+    project_name: "once_cell",
+    source_dir: "src",
+    file_ext: "rs",
+    build_verify: BuildVerification::Rust,
+    file_template: RS_TEMPLATES,
+};
+
+/// anyhow - Error handling (lib + tests structure)
+pub const RS_ANYHOW_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/dtolnay/anyhow.git",
+    project_name: "anyhow",
+    source_dir: "src",
+    file_ext: "rs",
+    build_verify: BuildVerification::Rust,
+    file_template: RS_TEMPLATES,
+};
+
+// ============================================================================
+// Python Configurations (Diverse Structures)
+// ============================================================================
+
+/// httpx - HTTP client (standard package structure)
+pub const PY_HTTPX_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
     repo_url: "https://github.com/encode/httpx.git",
     project_name: "httpx",
     source_dir: "httpx",
     file_ext: "py",
     build_verify: BuildVerification::Python,
-    file_template: FileTemplate {
-        simple_module: r#"VALUE = 42
-"#,
-        export_module: r#"def helper() -> str:
-    return "helper"
-
-CONSTANT = "constant-value"
-"#,
-        import_template: r#"from .{import_path} import helper, CONSTANT
-
-def use_helper() -> str:
-    return helper() + CONSTANT
-"#,
-    },
+    file_template: PY_TEMPLATES,
 };
+
+/// rich - Terminal formatting (deeply nested modules)
+pub const PY_RICH_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/Textualize/rich.git",
+    project_name: "rich",
+    source_dir: "rich",
+    file_ext: "py",
+    build_verify: BuildVerification::Python,
+    file_template: PY_TEMPLATES,
+};
+
+/// pydantic - Data validation (src/ layout)
+pub const PY_PYDANTIC_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/pydantic/pydantic.git",
+    project_name: "pydantic",
+    source_dir: "pydantic",
+    file_ext: "py",
+    build_verify: BuildVerification::Python,
+    file_template: PY_TEMPLATES,
+};
+
+// ============================================================================
+// Legacy Aliases (backwards compatibility)
+// ============================================================================
+
+pub const TYPESCRIPT_CONFIG: RefactoringTestConfig = TS_ZOD_CONFIG;
+pub const RUST_CONFIG: RefactoringTestConfig = RS_THISERROR_CONFIG;
+pub const PYTHON_CONFIG: RefactoringTestConfig = PY_HTTPX_CONFIG;
 
 // ============================================================================
 // Test Runner
@@ -151,6 +263,8 @@ pub struct RefactoringMatrixRunner {
     pub config: RefactoringTestConfig,
     pub ctx: RealProjectContext,
     pub results: Vec<MatrixTestResult>,
+    /// Baseline error count before any tests run (for comparative verification)
+    pub baseline_errors: usize,
 }
 
 impl RefactoringMatrixRunner {
@@ -160,6 +274,7 @@ impl RefactoringMatrixRunner {
             config,
             ctx,
             results: Vec::new(),
+            baseline_errors: 0,
         }
     }
 
@@ -168,11 +283,63 @@ impl RefactoringMatrixRunner {
         self.ctx.ensure_warmed_up().await
     }
 
-    /// Verify the project builds
+    /// Record baseline error count before tests
+    pub fn record_baseline(&mut self) {
+        match self.config.build_verify {
+            BuildVerification::TypeScript => {
+                let (count, _) = self.ctx.count_typescript_errors();
+                self.baseline_errors = count;
+                if count > 0 {
+                    println!(
+                        "📊 Baseline: {} pre-existing TypeScript errors (will compare against this)",
+                        count
+                    );
+                }
+            }
+            _ => {
+                self.baseline_errors = 0;
+            }
+        }
+    }
+
+    /// Count current errors (for TypeScript)
+    fn count_current_errors(&self) -> usize {
+        match self.config.build_verify {
+            BuildVerification::TypeScript => {
+                let (count, _) = self.ctx.count_typescript_errors();
+                count
+            }
+            _ => 0,
+        }
+    }
+
+    /// Verify the project builds (comparative: checks we didn't ADD errors)
     pub fn verify_build(&self) -> Result<(), String> {
         match self.config.build_verify {
             BuildVerification::Rust => self.ctx.verify_rust_compiles(),
-            BuildVerification::TypeScript => self.ctx.verify_typescript_compiles(),
+            BuildVerification::TypeScript => {
+                let (current_errors, error_output) = self.ctx.count_typescript_errors();
+                if current_errors <= self.baseline_errors {
+                    if current_errors == 0 {
+                        println!("✅ TypeScript project compiles successfully");
+                    } else {
+                        println!(
+                            "✅ TypeScript: {} errors (same as baseline, no regressions)",
+                            current_errors
+                        );
+                    }
+                    Ok(())
+                } else {
+                    let new_errors = current_errors - self.baseline_errors;
+                    Err(format!(
+                        "Refactoring INTRODUCED {} new TypeScript errors (was: {}, now: {}):\n{}",
+                        new_errors,
+                        self.baseline_errors,
+                        current_errors,
+                        error_output.chars().take(2000).collect::<String>()
+                    ))
+                }
+            }
             BuildVerification::Python => Ok(()), // Python doesn't have a full project build
             BuildVerification::None => Ok(()),
         }
@@ -181,7 +348,20 @@ impl RefactoringMatrixRunner {
     /// Record a test result
     fn record(&mut self, name: &str, result: Result<(), String>) {
         let build_result = if result.is_ok() {
-            Some(self.verify_build().is_ok())
+            match self.verify_build() {
+                Ok(()) => Some(true),
+                Err(e) => {
+                    // Print build errors so we can diagnose issues
+                    println!("  ⚠️  Build verification failed after {}:", name);
+                    // Truncate long error messages for readability
+                    let error_preview: String = e.chars().take(500).collect();
+                    println!("      {}", error_preview);
+                    if e.len() > 500 {
+                        println!("      ... (truncated, {} more chars)", e.len() - 500);
+                    }
+                    Some(false)
+                }
+            }
         } else {
             None
         };
@@ -586,15 +766,16 @@ impl RefactoringMatrixRunner {
             let src_dir = self.config.source_dir;
             let ext = self.config.file_ext;
 
-            self.ctx.create_test_file(
-                &format!("{}/top_level.{}", src_dir, ext),
-                self.config.file_template.simple_module,
-            );
+            let rel_path = format!("{}/top_level.{}", src_dir, ext);
+            self.ctx.create_test_file(&rel_path, self.config.file_template.simple_module);
+
+            // Verify file was actually created (debug step)
+            self.ctx.verify_file_exists(&rel_path)?;
 
             let dest_dir = self.ctx.absolute_path(&format!("{}/x/y/z", src_dir));
             std::fs::create_dir_all(&dest_dir).ok();
 
-            let source = self.ctx.absolute_path(&format!("{}/top_level.{}", src_dir, ext));
+            let source = self.ctx.absolute_path(&rel_path);
             let dest = self.ctx.absolute_path(&format!("{}/x/y/z/buried.{}", src_dir, ext));
 
             self.ctx
@@ -628,12 +809,13 @@ impl RefactoringMatrixRunner {
             let src_dir = self.config.source_dir;
             let ext = self.config.file_ext;
 
-            self.ctx.create_test_file(
-                &format!("{}/to_delete.{}", src_dir, ext),
-                self.config.file_template.simple_module,
-            );
+            let rel_path = format!("{}/to_delete.{}", src_dir, ext);
+            self.ctx.create_test_file(&rel_path, self.config.file_template.simple_module);
 
-            let file_path = self.ctx.absolute_path(&format!("{}/to_delete.{}", src_dir, ext));
+            // Verify file was actually created (debug step)
+            self.ctx.verify_file_exists(&rel_path)?;
+
+            let file_path = self.ctx.absolute_path(&rel_path);
 
             self.ctx
                 .call_tool(
@@ -673,7 +855,11 @@ impl RefactoringMatrixRunner {
         }
         println!("✅ LSP ready\n");
 
-        // Initial build verification
+        // Record baseline errors BEFORE any tests (for comparative verification)
+        println!("📊 Recording baseline build state...");
+        self.record_baseline();
+
+        // Initial build verification (now uses comparative baseline)
         println!("🔍 Verifying initial build...");
         match self.verify_build() {
             Ok(()) => println!("✅ Initial build passes\n"),
@@ -723,57 +909,199 @@ impl RefactoringMatrixRunner {
 // Test Entry Points
 // ============================================================================
 
-/// TypeScript matrix test (Zod)
+/// Helper to run matrix and assert minimum pass rate
+async fn run_matrix_test(config: RefactoringTestConfig, min_pass_rate: f64) {
+    let mut runner = RefactoringMatrixRunner::new(config);
+    runner.run_all().await;
+
+    let passed = runner.results.iter().filter(|r| r.passed).count();
+    let total = runner.results.len();
+    let pass_rate = passed as f64 / total as f64;
+
+    assert!(
+        pass_rate >= min_pass_rate,
+        "Pass rate {:.0}% below threshold {:.0}% ({}/{})",
+        pass_rate * 100.0,
+        min_pass_rate * 100.0,
+        passed,
+        total
+    );
+}
+
+// ============================================================================
+// TypeScript Matrix Tests
+// ============================================================================
+
+/// TypeScript: Zod (monorepo structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_zod() {
+    run_matrix_test(TS_ZOD_CONFIG, 0.5).await;
+}
+
+/// TypeScript: ky (small HTTP client, clean structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_ky() {
+    run_matrix_test(TS_KY_CONFIG, 0.5).await;
+}
+
+/// TypeScript: SvelteKit (monorepo stress test)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_sveltekit() {
+    run_matrix_test(TS_SVELTEKIT_CONFIG, 0.5).await;
+}
+
+/// TypeScript: nanoid (flat/minimal structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_nanoid() {
+    run_matrix_test(TS_NANOID_CONFIG, 0.5).await;
+}
+
+/// TypeScript: ts-pattern (packages/ structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_pattern() {
+    run_matrix_test(TS_PATTERN_CONFIG, 0.5).await;
+}
+
+// ============================================================================
+// Rust Matrix Tests
+// ============================================================================
+
+/// Rust: thiserror (proc-macro workspace)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_rs_thiserror() {
+    run_matrix_test(RS_THISERROR_CONFIG, 0.5).await;
+}
+
+/// Rust: once_cell (single lib crate)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_rs_oncecell() {
+    run_matrix_test(RS_ONCECELL_CONFIG, 0.5).await;
+}
+
+/// Rust: anyhow (lib + tests structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_rs_anyhow() {
+    run_matrix_test(RS_ANYHOW_CONFIG, 0.5).await;
+}
+
+// ============================================================================
+// Python Matrix Tests
+// ============================================================================
+
+/// Python: httpx (standard package structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_py_httpx() {
+    run_matrix_test(PY_HTTPX_CONFIG, 0.5).await;
+}
+
+/// Python: rich (deeply nested modules)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_py_rich() {
+    run_matrix_test(PY_RICH_CONFIG, 0.5).await;
+}
+
+/// Python: pydantic (complex data validation)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_py_pydantic() {
+    run_matrix_test(PY_PYDANTIC_CONFIG, 0.5).await;
+}
+
+// ============================================================================
+// Legacy Test Aliases (backwards compatibility)
+// ============================================================================
+
+/// Legacy: TypeScript matrix (runs Zod)
 #[tokio::test]
 #[serial]
 #[ignore]
 async fn test_matrix_typescript() {
-    let mut runner = RefactoringMatrixRunner::new(TYPESCRIPT_CONFIG);
-    runner.run_all().await;
-
-    // Assert overall pass rate
-    let passed = runner.results.iter().filter(|r| r.passed).count();
-    let total = runner.results.len();
-    assert!(
-        passed >= total / 2,
-        "Less than 50% of tests passed ({}/{})",
-        passed,
-        total
-    );
+    run_matrix_test(TYPESCRIPT_CONFIG, 0.5).await;
 }
 
-/// Rust matrix test (thiserror)
+/// Legacy: Rust matrix (runs thiserror)
 #[tokio::test]
 #[serial]
 #[ignore]
 async fn test_matrix_rust() {
-    let mut runner = RefactoringMatrixRunner::new(RUST_CONFIG);
-    runner.run_all().await;
-
-    let passed = runner.results.iter().filter(|r| r.passed).count();
-    let total = runner.results.len();
-    assert!(
-        passed >= total / 2,
-        "Less than 50% of tests passed ({}/{})",
-        passed,
-        total
-    );
+    run_matrix_test(RUST_CONFIG, 0.5).await;
 }
 
-/// Python matrix test (httpx)
+/// Legacy: Python matrix (runs httpx)
 #[tokio::test]
 #[serial]
 #[ignore]
 async fn test_matrix_python() {
-    let mut runner = RefactoringMatrixRunner::new(PYTHON_CONFIG);
-    runner.run_all().await;
+    run_matrix_test(PYTHON_CONFIG, 0.5).await;
+}
 
-    let passed = runner.results.iter().filter(|r| r.passed).count();
-    let total = runner.results.len();
+// ============================================================================
+// Isolated Single-Operation Tests (for debugging)
+// ============================================================================
+
+/// Run a single operation for focused debugging
+/// Usage: cargo test -p e2e test_isolated_single -- --ignored --nocapture
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_isolated_single_file_rename_zod() {
+    let mut runner = RefactoringMatrixRunner::new(TS_ZOD_CONFIG);
+
+    println!("\n{}", "=".repeat(60));
+    println!("  ISOLATED TEST: file_rename on Zod");
+    println!("{}\n", "=".repeat(60));
+
+    // Warmup
+    println!("🔥 Warming up LSP...");
+    if let Err(e) = runner.warmup().await {
+        panic!("LSP warmup failed: {}", e);
+    }
+
+    // Record baseline BEFORE testing (critical for comparative verification)
+    println!("\n📊 Recording baseline build state...");
+    runner.record_baseline();
+    println!("  Baseline errors: {}", runner.baseline_errors);
+
+    // Initial build check (now uses comparative baseline)
+    println!("\n📋 INITIAL BUILD STATE:");
+    match runner.verify_build() {
+        Ok(()) => println!("  ✅ Project builds cleanly (or matches baseline)"),
+        Err(e) => println!("  ⚠️  Build issues:\n{}", e),
+    }
+
+    // Run ONLY the file rename test
+    println!("\n🧪 Running single test: file_rename");
+    runner.test_file_rename().await;
+
+    // Print what happened
+    runner.print_summary();
+
+    // Assert
+    let result = &runner.results[0];
+    assert!(result.passed, "file_rename operation failed: {:?}", result.error);
     assert!(
-        passed >= total / 2,
-        "Less than 50% of tests passed ({}/{})",
-        passed,
-        total
+        result.build_passed == Some(true),
+        "Build verification failed after file_rename - refactoring introduced new errors"
     );
 }
