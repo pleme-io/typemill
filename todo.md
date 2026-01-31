@@ -2,7 +2,7 @@
 
 > **Goal**: Ensure all three primary languages (Rust, TypeScript, Python) have equivalent functionality for core operations.
 
-Last updated: 2026-01-30
+Last updated: 2026-01-31
 
 ---
 
@@ -30,16 +30,21 @@ Last updated: 2026-01-30
 
 ### Consolidation (Package Merging)
 
-- [ ] **TypeScript: Add npm package consolidation support**
+- [x] **TypeScript: Add npm package consolidation support** ✅ DONE
   - Location: `crates/mill-handlers/src/handlers/rename_ops/directory_rename.rs`
-  - Extend `is_consolidation_move()` to detect package.json
-  - Add dependency merging for package.json (similar to Cargo.toml merging)
-  - Handle: devDependencies, peerDependencies, scripts merging
+  - Added `PackageType::Npm` detection with `find_target_npm_root()`
+  - Created: `languages/mill-lang-typescript/src/consolidation.rs`
+  - Features: dependency merging (dependencies, devDependencies, peerDependencies)
+  - Import updates, workspace cleanup, nested src/ flattening
+  - Tests: 3 unit tests in consolidation.rs + 1 detection test in directory_rename.rs
 
-- [ ] **Python: Add Python package consolidation support**
-  - Extend `is_consolidation_move()` to detect pyproject.toml
-  - Add dependency merging for pyproject.toml
-  - Handle: [project.dependencies], [project.optional-dependencies]
+- [x] **Python: Add Python package consolidation support** ✅ DONE
+  - Location: `crates/mill-handlers/src/handlers/rename_ops/directory_rename.rs`
+  - Added `PackageType::Python` detection with `find_target_python_root()`
+  - Created: `languages/mill-lang-python/src/consolidation.rs`
+  - Features: dependency merging (PEP 621 + Poetry), __init__.py creation
+  - Import updates, workspace cleanup, nested src/ flattening
+  - Tests: 4 unit tests in consolidation.rs + 1 detection test in directory_rename.rs
 
 ---
 
@@ -121,7 +126,7 @@ Last updated: 2026-01-30
 |----------|------|------------|--------|
 | extract_dependencies | ✅ | ✅ | ✅ |
 | reference_detector | ✅ | ✅ | ✅ |
-| consolidation | ✅ | ⬜ | ⬜ |
+| consolidation | ✅ | ✅ | ✅ |
 | workspace_support | ✅ | ✅ | ⚠️ (Hatch incomplete) |
 | test_fixtures | ✅ | ✅ | ✅ |
 | create_package | ✅ | ✅ | ✅ |
@@ -133,9 +138,11 @@ Last updated: 2026-01-30
 
 ## Implementation Order (Recommended)
 
-1. **TypeScript reference_detector** - High impact, enables cross-package renames
-2. **Python reference_detector** - Same impact for Python projects
-3. **Python extract_dependencies** - Completes workspace tooling for Python
-4. **TypeScript consolidation** - Enables monorepo refactoring
-5. **Test fixtures parity** - Improves test coverage
-6. **Real-world project tests** - Validates implementations
+1. ~~**TypeScript reference_detector** - High impact, enables cross-package renames~~ ✅ DONE
+2. ~~**Python reference_detector** - Same impact for Python projects~~ ✅ DONE
+3. ~~**Python extract_dependencies** - Completes workspace tooling for Python~~ ✅ DONE
+4. ~~**TypeScript consolidation** - Enables monorepo refactoring~~ ✅ DONE
+5. ~~**Python consolidation** - Enables monorepo refactoring~~ ✅ DONE
+6. ~~**Test fixtures parity** - Improves test coverage~~ ✅ DONE
+7. **Real-world project tests** - Validates implementations (Rust + Python pending)
+8. **Hatch workspace support** - Low priority, limited adoption

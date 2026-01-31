@@ -9,6 +9,7 @@
 //! - Path alias resolution (@alias/path support)
 //!
 //! This plugin supports TypeScript and JavaScript with typescript-language-server as the LSP server.
+pub mod consolidation;
 mod constants;
 pub mod import_support;
 pub mod imports;

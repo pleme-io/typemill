@@ -10,6 +10,7 @@
 //! - Manifest support (requirements.txt, pyproject.toml, setup.py, Pipfile)
 //! - Refactoring operations (extract function, inline variable, extract variable)
 
+pub mod consolidation;
 pub mod constants;
 pub mod import_support;
 pub mod lsp_installer;

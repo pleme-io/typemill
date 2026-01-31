@@ -2,9 +2,12 @@
 //!
 //! Handles workspace operations through pyproject.toml manipulation.
 
+use async_trait::async_trait;
+use mill_foundation::protocol::ConsolidationMetadata;
 use mill_plugin_api::WorkspaceSupport;
+use std::path::Path;
 use toml_edit::{value, Array, DocumentMut, Item, Table};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 /// Python workspace support implementation
 pub struct PythonWorkspaceSupport;
@@ -22,6 +25,7 @@ impl Default for PythonWorkspaceSupport {
     }
 }
 
+#[async_trait]
 impl WorkspaceSupport for PythonWorkspaceSupport {
     fn add_workspace_member(&self, content: &str, member: &str) -> String {
         match add_workspace_member_impl(content, member) {
@@ -65,6 +69,54 @@ impl WorkspaceSupport for PythonWorkspaceSupport {
                 content.to_string()
             }
         }
+    }
+
+    /// Check if a directory is a Python package
+    async fn is_package(&self, dir_path: &Path) -> bool {
+        tokio::fs::try_exists(dir_path.join("pyproject.toml"))
+            .await
+            .unwrap_or(false)
+    }
+
+    /// Execute Python-specific post-processing after a consolidation move
+    ///
+    /// Handles Python package consolidation tasks:
+    /// 1. Flatten nested src/ directories
+    /// 2. Ensure __init__.py exists
+    /// 3. Merge pyproject.toml dependencies
+    /// 4. Update imports across workspace
+    /// 5. Clean up workspace pyproject.toml
+    #[allow(clippy::too_many_arguments)]
+    async fn execute_consolidation_post_processing(
+        &self,
+        source_crate_name: &str,
+        target_crate_name: &str,
+        target_module_name: &str,
+        source_crate_path: &Path,
+        target_crate_path: &Path,
+        target_module_path: &Path,
+        project_root: &Path,
+    ) -> Result<(), String> {
+        info!(
+            source_package = %source_crate_name,
+            target_package = %target_crate_name,
+            target_module = %target_module_name,
+            "Executing Python consolidation post-processing"
+        );
+
+        let metadata = ConsolidationMetadata {
+            is_consolidation: true,
+            source_crate_name: source_crate_name.to_string(),
+            target_crate_name: target_crate_name.to_string(),
+            target_module_name: target_module_name.to_string(),
+            source_crate_path: source_crate_path.to_string_lossy().to_string(),
+            target_crate_path: target_crate_path.to_string_lossy().to_string(),
+            target_module_path: target_module_path.to_string_lossy().to_string(),
+        };
+
+        crate::consolidation::execute_consolidation_post_processing(&metadata, project_root)
+            .await
+            .map_err(|e| e.to_string())
     }
 }
 

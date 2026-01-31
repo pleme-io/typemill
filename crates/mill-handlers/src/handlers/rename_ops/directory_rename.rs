@@ -6,6 +6,14 @@ use mill_foundation::planning::{PlanMetadata, PlanSummary, PlanWarning, RenamePl
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
 
+/// Detected package type for consolidation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PackageType {
+    Cargo,
+    Npm,
+    Python,
+}
+
 impl RenameService {
     /// Helper to find the crate root (parent of src/) for a path
     async fn find_target_crate_root(path: &Path) -> Option<PathBuf> {
@@ -24,20 +32,70 @@ impl RenameService {
         None
     }
 
-    /// Auto-detect if this is a consolidation move
+    /// Helper to find the npm package root (parent of src/) for a path
+    async fn find_target_npm_root(path: &Path) -> Option<PathBuf> {
+        for p in path.ancestors() {
+            if p.file_name().and_then(|n| n.to_str()) == Some("src") {
+                if let Some(parent) = p.parent() {
+                    if tokio::fs::try_exists(parent.join("package.json"))
+                        .await
+                        .unwrap_or(false)
+                    {
+                        return Some(parent.to_path_buf());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Helper to find the Python package root (parent of src/) for a path
+    async fn find_target_python_root(path: &Path) -> Option<PathBuf> {
+        for p in path.ancestors() {
+            if p.file_name().and_then(|n| n.to_str()) == Some("src") {
+                if let Some(parent) = p.parent() {
+                    if tokio::fs::try_exists(parent.join("pyproject.toml"))
+                        .await
+                        .unwrap_or(false)
+                    {
+                        return Some(parent.to_path_buf());
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Auto-detect if this is a consolidation move and what package type
     ///
-    /// Detects when moving a Rust crate into another crate's src/ directory.
-    /// Pattern: crates/source-crate → crates/target-crate/src/module
-    async fn is_consolidation_move(old_path: &Path, new_path: &Path) -> bool {
-        // Check if source is a Cargo package
-        let has_source_cargo = tokio::fs::try_exists(old_path.join("Cargo.toml"))
+    /// Detects when moving a package into another package's src/ directory.
+    /// Supports: Rust (Cargo.toml), TypeScript/JS (package.json), Python (pyproject.toml)
+    async fn detect_consolidation_type(old_path: &Path, new_path: &Path) -> Option<PackageType> {
+        // Check for Rust/Cargo consolidation
+        let has_cargo = tokio::fs::try_exists(old_path.join("Cargo.toml"))
             .await
             .unwrap_or(false);
+        if has_cargo && Self::find_target_crate_root(new_path).await.is_some() {
+            return Some(PackageType::Cargo);
+        }
 
-        // Check if target path is inside another crate's src/ directory
-        let has_target_crate = Self::find_target_crate_root(new_path).await.is_some();
+        // Check for npm/TypeScript consolidation
+        let has_package_json = tokio::fs::try_exists(old_path.join("package.json"))
+            .await
+            .unwrap_or(false);
+        if has_package_json && Self::find_target_npm_root(new_path).await.is_some() {
+            return Some(PackageType::Npm);
+        }
 
-        has_source_cargo && has_target_crate
+        // Check for Python consolidation
+        let has_pyproject = tokio::fs::try_exists(old_path.join("pyproject.toml"))
+            .await
+            .unwrap_or(false);
+        if has_pyproject && Self::find_target_python_root(new_path).await.is_some() {
+            return Some(PackageType::Python);
+        }
+
+        None
     }
 
     /// Generate plan for directory rename using FileService
@@ -67,35 +125,52 @@ impl RenameService {
             workspace_root.join(new_name)
         };
 
-        // Determine if this is a consolidation (explicit flag or auto-detect)
-        let is_consolidation = match options.consolidate {
-            Some(val) => val,
-            None => Self::is_consolidation_move(&old_path, &new_path).await,
+        // Determine if this is a consolidation and what package type
+        let consolidation_type = if let Some(true) = options.consolidate {
+            // Explicit consolidation flag, detect type
+            Self::detect_consolidation_type(&old_path, &new_path).await
+        } else if options.consolidate == Some(false) {
+            None
+        } else {
+            // Auto-detect
+            Self::detect_consolidation_type(&old_path, &new_path).await
         };
 
-        if is_consolidation {
+        let is_consolidation = consolidation_type.is_some();
+
+        if let Some(pkg_type) = consolidation_type {
+            let manifest_name = match pkg_type {
+                PackageType::Cargo => "Cargo.toml",
+                PackageType::Npm => "package.json",
+                PackageType::Python => "pyproject.toml",
+            };
+
             info!(
                 old_path = %old_path.display(),
                 new_path = %new_path.display(),
-                "Detected consolidation move - will merge Cargo.toml and update imports"
+                package_type = ?pkg_type,
+                "Detected consolidation move - will merge {} and update imports",
+                manifest_name
             );
 
-            // Validate that consolidation won't create circular dependencies
-            // Find target crate root (the parent of src/ directory)
-            let target_crate_root =
-                Self::find_target_crate_root(&new_path)
-                    .await
-                    .ok_or_else(|| mill_foundation::errors::MillError::InvalidRequest {
-                        message: "Could not find target crate root for consolidation".to_string(),
-                        parameter: Some("newName".to_string()),
-                    })?;
+            // For Cargo consolidation, validate circular dependencies
+            if pkg_type == PackageType::Cargo {
+                // Validate that consolidation won't create circular dependencies
+                // Find target crate root (the parent of src/ directory)
+                let target_crate_root =
+                    Self::find_target_crate_root(&new_path)
+                        .await
+                        .ok_or_else(|| mill_foundation::errors::MillError::InvalidRequest {
+                            message: "Could not find target crate root for consolidation".to_string(),
+                            parameter: Some("newName".to_string()),
+                        })?;
 
-            // Validate circular dependencies using Rust-specific analysis
-            debug!(
-                source = %old_path.display(),
-                target = %target_crate_root.display(),
-                "Validating consolidation for circular dependencies"
-            );
+                // Validate circular dependencies using Rust-specific analysis
+                debug!(
+                    source = %old_path.display(),
+                    target = %target_crate_root.display(),
+                    "Validating consolidation for circular dependencies"
+                );
 
             #[cfg(feature = "lang-rust")]
             {
@@ -151,18 +226,33 @@ impl RenameService {
                     "Rust language support not available, skipping circular dependency validation"
                 );
             }
-        }
+            } // end if pkg_type == PackageType::Cargo
+        } // end if let Some(pkg_type) = consolidation_type
 
         // Get scope configuration from options
         let mut rename_scope = options.to_rename_scope();
 
-        // For consolidation moves, exclude Cargo.toml files from generic path updates
-        // The semantic Cargo.toml changes (merging dependencies, updating workspace members)
+        // For consolidation moves, exclude manifest files from generic path updates
+        // The semantic changes (merging dependencies, updating workspace members)
         // are handled during execution, not in the plan
-        if is_consolidation {
-            rename_scope
-                .exclude_patterns
-                .push("**/Cargo.toml".to_string());
+        if let Some(pkg_type) = consolidation_type {
+            match pkg_type {
+                PackageType::Cargo => {
+                    rename_scope
+                        .exclude_patterns
+                        .push("**/Cargo.toml".to_string());
+                }
+                PackageType::Npm => {
+                    rename_scope
+                        .exclude_patterns
+                        .push("**/package.json".to_string());
+                }
+                PackageType::Python => {
+                    rename_scope
+                        .exclude_patterns
+                        .push("**/pyproject.toml".to_string());
+                }
+            }
         }
 
         // Get concrete AppState to access move_service()
@@ -231,9 +321,29 @@ impl RenameService {
             deleted_files: files_to_move,
         };
 
-        // Add warning if this is a Cargo package
+        // Add warning if this is a package
         let mut warnings = Vec::new();
-        if is_cargo_package {
+        if let Some(pkg_type) = consolidation_type {
+            let (code, message) = match pkg_type {
+                PackageType::Cargo => (
+                    "CARGO_PACKAGE_RENAME",
+                    "Renaming a Cargo package will update workspace members and dependencies",
+                ),
+                PackageType::Npm => (
+                    "NPM_PACKAGE_RENAME",
+                    "Renaming an npm package will update workspace members and dependencies",
+                ),
+                PackageType::Python => (
+                    "PYTHON_PACKAGE_RENAME",
+                    "Renaming a Python package will update workspace members and dependencies",
+                ),
+            };
+            warnings.push(PlanWarning {
+                code: code.to_string(),
+                message: message.to_string(),
+                candidates: None,
+            });
+        } else if is_cargo_package {
             warnings.push(PlanWarning {
                 code: "CARGO_PACKAGE_RENAME".to_string(),
                 message: "Renaming a Cargo package will update workspace members and dependencies"
@@ -243,32 +353,71 @@ impl RenameService {
         }
 
         // Add consolidation-specific warning
-        if is_consolidation {
-            let target_crate_root = Self::find_target_crate_root(&new_path)
-                .await
-                .map(|p| p.display().to_string())
-                .unwrap_or_else(|| "target crate".to_string());
-
+        if let Some(pkg_type) = consolidation_type {
             let module_name = new_path
                 .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("module");
 
+            let (target_root, manual_step) = match pkg_type {
+                PackageType::Cargo => {
+                    let root = Self::find_target_crate_root(&new_path)
+                        .await
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|| "target crate".to_string());
+                    let step = format!(
+                        "After consolidation, manually add 'pub mod {};' to {}/src/lib.rs to expose the consolidated code",
+                        module_name, root
+                    );
+                    (root, step)
+                }
+                PackageType::Npm => {
+                    let root = Self::find_target_npm_root(&new_path)
+                        .await
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|| "target package".to_string());
+                    let step = format!(
+                        "After consolidation, manually add 'export * from './{}'/' to {}/src/index.ts to expose the consolidated code",
+                        module_name, root
+                    );
+                    (root, step)
+                }
+                PackageType::Python => {
+                    let root = Self::find_target_python_root(&new_path)
+                        .await
+                        .map(|p| p.display().to_string())
+                        .unwrap_or_else(|| "target package".to_string());
+                    let step = format!(
+                        "After consolidation, manually add 'from .{} import *' to {}/src/__init__.py to expose the consolidated code",
+                        module_name, root
+                    );
+                    (root, step)
+                }
+            };
+
             warnings.push(PlanWarning {
                 code: "CONSOLIDATION_MANUAL_STEP".to_string(),
-                message: format!(
-                    "After consolidation, manually add 'pub mod {};' to {}/src/lib.rs to expose the consolidated code",
-                    module_name, target_crate_root
-                ),
+                message: manual_step,
                 candidates: None,
             });
+
+            debug!(target_root = %target_root, "Consolidation target root");
         }
+
+        // Determine language for metadata
+        let language = match consolidation_type {
+            Some(PackageType::Cargo) => "rust",
+            Some(PackageType::Npm) => "typescript",
+            Some(PackageType::Python) => "python",
+            None if is_cargo_package => "rust",
+            None => "unknown",
+        };
 
         // Build metadata
         let metadata = PlanMetadata {
             plan_version: "1.0".to_string(),
             kind: "rename".to_string(),
-            language: "rust".to_string(), // Assume Rust for directory renames with Cargo
+            language: language.to_string(),
             estimated_impact: super::utils::estimate_impact(files_to_move),
             created_at: chrono::Utc::now().to_rfc3339(),
         };
@@ -296,7 +445,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[tokio::test]
-    async fn test_is_consolidation_move() {
+    async fn test_cargo_consolidation_detection() {
         // Setup directory structure
         let temp_dir = TempDir::new().unwrap();
         let root = temp_dir.path();
@@ -316,11 +465,104 @@ mod tests {
         // Case 1: True consolidation
         let old_path = src_crate.clone();
         let new_path = target_src.join("module_name");
-        assert!(RenameService::is_consolidation_move(&old_path, &new_path).await);
+        let result = RenameService::detect_consolidation_type(&old_path, &new_path).await;
+        assert_eq!(result, Some(PackageType::Cargo));
 
         // Case 2: Not consolidation (no cargo.toml in source)
         let other_dir = root.join("other_dir");
         fs::create_dir(&other_dir).unwrap();
-        assert!(!RenameService::is_consolidation_move(&other_dir, &new_path).await);
+        let result = RenameService::detect_consolidation_type(&other_dir, &new_path).await;
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn test_npm_consolidation_detection() {
+        // Setup directory structure
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create source npm package
+        let src_pkg = root.join("source_pkg");
+        fs::create_dir(&src_pkg).unwrap();
+        fs::write(src_pkg.join("package.json"), r#"{"name": "source"}"#).unwrap();
+
+        // Create target npm package
+        let target_pkg = root.join("target_pkg");
+        fs::create_dir(&target_pkg).unwrap();
+        fs::write(target_pkg.join("package.json"), r#"{"name": "target"}"#).unwrap();
+        let target_src = target_pkg.join("src");
+        fs::create_dir(&target_src).unwrap();
+
+        // Case 1: True npm consolidation
+        let old_path = src_pkg.clone();
+        let new_path = target_src.join("module_name");
+        let result = RenameService::detect_consolidation_type(&old_path, &new_path).await;
+        assert_eq!(result, Some(PackageType::Npm));
+
+        // Case 2: Not consolidation (no package.json in source)
+        let other_dir = root.join("other_dir");
+        fs::create_dir(&other_dir).unwrap();
+        let result = RenameService::detect_consolidation_type(&other_dir, &new_path).await;
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn test_python_consolidation_detection() {
+        // Setup directory structure
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create source Python package
+        let src_pkg = root.join("source_pkg");
+        fs::create_dir(&src_pkg).unwrap();
+        fs::write(src_pkg.join("pyproject.toml"), r#"[project]
+name = "source"
+"#).unwrap();
+
+        // Create target Python package
+        let target_pkg = root.join("target_pkg");
+        fs::create_dir(&target_pkg).unwrap();
+        fs::write(target_pkg.join("pyproject.toml"), r#"[project]
+name = "target"
+"#).unwrap();
+        let target_src = target_pkg.join("src");
+        fs::create_dir(&target_src).unwrap();
+
+        // Case 1: True Python consolidation
+        let old_path = src_pkg.clone();
+        let new_path = target_src.join("module_name");
+        let result = RenameService::detect_consolidation_type(&old_path, &new_path).await;
+        assert_eq!(result, Some(PackageType::Python));
+
+        // Case 2: Not consolidation (no pyproject.toml in source)
+        let other_dir = root.join("other_dir");
+        fs::create_dir(&other_dir).unwrap();
+        let result = RenameService::detect_consolidation_type(&other_dir, &new_path).await;
+        assert_eq!(result, None);
+    }
+
+    #[tokio::test]
+    async fn test_consolidation_priority() {
+        // If a directory has multiple manifest files, Cargo takes priority
+        let temp_dir = TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create source with both Cargo.toml and package.json
+        let src = root.join("source");
+        fs::create_dir(&src).unwrap();
+        fs::write(src.join("Cargo.toml"), "[package]").unwrap();
+        fs::write(src.join("package.json"), r#"{"name": "source"}"#).unwrap();
+
+        // Create Cargo target
+        let target_cargo = root.join("target_cargo");
+        fs::create_dir(&target_cargo).unwrap();
+        fs::write(target_cargo.join("Cargo.toml"), "[package]").unwrap();
+        let target_src = target_cargo.join("src");
+        fs::create_dir(&target_src).unwrap();
+
+        // Should detect as Cargo consolidation (takes priority)
+        let new_path = target_src.join("module");
+        let result = RenameService::detect_consolidation_type(&src, &new_path).await;
+        assert_eq!(result, Some(PackageType::Cargo));
     }
 }
