@@ -254,6 +254,8 @@ pub struct RefactoringMatrixRunner {
     pub config: RefactoringTestConfig,
     pub ctx: RealProjectContext,
     pub results: Vec<MatrixTestResult>,
+    /// Baseline error count before any tests run (for comparative verification)
+    pub baseline_errors: usize,
 }
 
 impl RefactoringMatrixRunner {
@@ -263,6 +265,7 @@ impl RefactoringMatrixRunner {
             config,
             ctx,
             results: Vec::new(),
+            baseline_errors: 0,
         }
     }
 
@@ -271,11 +274,63 @@ impl RefactoringMatrixRunner {
         self.ctx.ensure_warmed_up().await
     }
 
-    /// Verify the project builds
+    /// Record baseline error count before tests
+    pub fn record_baseline(&mut self) {
+        match self.config.build_verify {
+            BuildVerification::TypeScript => {
+                let (count, _) = self.ctx.count_typescript_errors();
+                self.baseline_errors = count;
+                if count > 0 {
+                    println!(
+                        "📊 Baseline: {} pre-existing TypeScript errors (will compare against this)",
+                        count
+                    );
+                }
+            }
+            _ => {
+                self.baseline_errors = 0;
+            }
+        }
+    }
+
+    /// Count current errors (for TypeScript)
+    fn count_current_errors(&self) -> usize {
+        match self.config.build_verify {
+            BuildVerification::TypeScript => {
+                let (count, _) = self.ctx.count_typescript_errors();
+                count
+            }
+            _ => 0,
+        }
+    }
+
+    /// Verify the project builds (comparative: checks we didn't ADD errors)
     pub fn verify_build(&self) -> Result<(), String> {
         match self.config.build_verify {
             BuildVerification::Rust => self.ctx.verify_rust_compiles(),
-            BuildVerification::TypeScript => self.ctx.verify_typescript_compiles(),
+            BuildVerification::TypeScript => {
+                let (current_errors, error_output) = self.ctx.count_typescript_errors();
+                if current_errors <= self.baseline_errors {
+                    if current_errors == 0 {
+                        println!("✅ TypeScript project compiles successfully");
+                    } else {
+                        println!(
+                            "✅ TypeScript: {} errors (same as baseline, no regressions)",
+                            current_errors
+                        );
+                    }
+                    Ok(())
+                } else {
+                    let new_errors = current_errors - self.baseline_errors;
+                    Err(format!(
+                        "Refactoring INTRODUCED {} new TypeScript errors (was: {}, now: {}):\n{}",
+                        new_errors,
+                        self.baseline_errors,
+                        current_errors,
+                        error_output.chars().take(2000).collect::<String>()
+                    ))
+                }
+            }
             BuildVerification::Python => Ok(()), // Python doesn't have a full project build
             BuildVerification::None => Ok(()),
         }
@@ -284,7 +339,20 @@ impl RefactoringMatrixRunner {
     /// Record a test result
     fn record(&mut self, name: &str, result: Result<(), String>) {
         let build_result = if result.is_ok() {
-            Some(self.verify_build().is_ok())
+            match self.verify_build() {
+                Ok(()) => Some(true),
+                Err(e) => {
+                    // Print build errors so we can diagnose issues
+                    println!("  ⚠️  Build verification failed after {}:", name);
+                    // Truncate long error messages for readability
+                    let error_preview: String = e.chars().take(500).collect();
+                    println!("      {}", error_preview);
+                    if e.len() > 500 {
+                        println!("      ... (truncated, {} more chars)", e.len() - 500);
+                    }
+                    Some(false)
+                }
+            }
         } else {
             None
         };
@@ -776,7 +844,11 @@ impl RefactoringMatrixRunner {
         }
         println!("✅ LSP ready\n");
 
-        // Initial build verification
+        // Record baseline errors BEFORE any tests (for comparative verification)
+        println!("📊 Recording baseline build state...");
+        self.record_baseline();
+
+        // Initial build verification (now uses comparative baseline)
         println!("🔍 Verifying initial build...");
         match self.verify_build() {
             Ok(()) => println!("✅ Initial build passes\n"),
@@ -963,4 +1035,54 @@ async fn test_matrix_rust() {
 #[ignore]
 async fn test_matrix_python() {
     run_matrix_test(PYTHON_CONFIG, 0.5).await;
+}
+
+// ============================================================================
+// Isolated Single-Operation Tests (for debugging)
+// ============================================================================
+
+/// Run a single operation for focused debugging
+/// Usage: cargo test -p e2e test_isolated_single -- --ignored --nocapture
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_isolated_single_file_rename_zod() {
+    let mut runner = RefactoringMatrixRunner::new(TS_ZOD_CONFIG);
+
+    println!("\n{}", "=".repeat(60));
+    println!("  ISOLATED TEST: file_rename on Zod");
+    println!("{}\n", "=".repeat(60));
+
+    // Warmup
+    println!("🔥 Warming up LSP...");
+    if let Err(e) = runner.warmup().await {
+        panic!("LSP warmup failed: {}", e);
+    }
+
+    // Record baseline BEFORE testing (critical for comparative verification)
+    println!("\n📊 Recording baseline build state...");
+    runner.record_baseline();
+    println!("  Baseline errors: {}", runner.baseline_errors);
+
+    // Initial build check (now uses comparative baseline)
+    println!("\n📋 INITIAL BUILD STATE:");
+    match runner.verify_build() {
+        Ok(()) => println!("  ✅ Project builds cleanly (or matches baseline)"),
+        Err(e) => println!("  ⚠️  Build issues:\n{}", e),
+    }
+
+    // Run ONLY the file rename test
+    println!("\n🧪 Running single test: file_rename");
+    runner.test_file_rename().await;
+
+    // Print what happened
+    runner.print_summary();
+
+    // Assert
+    let result = &runner.results[0];
+    assert!(result.passed, "file_rename operation failed: {:?}", result.error);
+    assert!(
+        result.build_passed == Some(true),
+        "Build verification failed after file_rename - refactoring introduced new errors"
+    );
 }
