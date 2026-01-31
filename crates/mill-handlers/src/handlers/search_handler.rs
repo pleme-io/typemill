@@ -304,10 +304,19 @@ impl SearchHandler {
             "search_workspace_symbols: Found registered plugins"
         );
 
-        let search_args = json!({
+        let mut search_args = json!({
             "query": query,
             "workspacePath": workspace_path.to_string_lossy()
         });
+
+        if let Some(kind) = kind_filter {
+            if let Value::Object(map) = &mut search_args {
+                map.insert(
+                    "kind".to_string(),
+                    serde_json::to_value(kind).unwrap_or(Value::Null),
+                );
+            }
+        }
 
         // Parallelize plugin queries
         let mut futures = Vec::new();
