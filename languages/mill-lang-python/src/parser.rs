@@ -15,20 +15,20 @@ use crate::constants::{
 };
 use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport, SourceLocation};
 use mill_lang_common::{
-    parse_import_alias, parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool,
+    parse_import_alias, parse_with_fallback, run_ast_tool_async, ImportGraphBuilder, SubprocessAstTool,
 };
 use mill_plugin_api::{PluginApiError, PluginResult, Symbol, SymbolKind};
 use std::path::Path;
 use tracing::debug;
 /// List all function names in Python source code using Python's native AST parser.
 /// This function spawns a Python subprocess to perform the parsing.
-pub(crate) fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+pub(crate) async fn list_functions(source: &str) -> PluginResult<Vec<String>> {
     const AST_TOOL_PY: &str = include_str!("../resources/ast_tool.py");
     let tool = SubprocessAstTool::new("python3")
         .with_embedded_str(AST_TOOL_PY)
         .with_temp_filename("ast_tool.py")
         .with_args(vec!["{script}".to_string(), "list-functions".to_string()]);
-    run_ast_tool(tool, source).map_err(Into::into)
+    run_ast_tool_async(tool, source).await.map_err(Into::into)
 }
 /// Analyze Python imports and produce an import graph.
 /// Uses dual-mode parsing: Python AST parser with regex fallback.
@@ -627,8 +627,8 @@ from typing import Dict, List as ArrayList
             Some("ArrayList".to_string())
         );
     }
-    #[test]
-    fn test_extract_python_functions_basic() {
+    #[tokio::test]
+    async fn test_extract_python_functions_basic() {
         let source = r#"
 def simple_function():
     pass

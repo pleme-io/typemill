@@ -134,16 +134,7 @@ impl LanguagePlugin for PythonPlugin {
         debug!("Listing Python functions");
 
         // Try native Python parser first
-        // Use spawn_blocking to avoid blocking the async runtime with subprocess I/O
-        let source_string = source.to_string();
-        let parse_result = tokio::task::spawn_blocking(move || parser::list_functions(&source_string)).await;
-
-        // Handle task join error (panic or cancellation)
-        let result = parse_result.map_err(|e| {
-            mill_plugin_api::PluginApiError::internal(format!("Blocking task failed: {}", e))
-        })?;
-
-        match result {
+        match parser::list_functions(source).await {
             Ok(functions) => {
                 debug!(
                     functions_count = functions.len(),
