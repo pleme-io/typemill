@@ -92,7 +92,7 @@
 <div class="doc-page">
 	<!-- Breadcrumbs -->
 	<nav class="breadcrumbs">
-		{#each breadcrumbs as crumb, i}
+		{#each breadcrumbs as crumb, i (crumb.href)}
 			{#if i > 0}<span class="separator">/</span>{/if}
 			{#if i === breadcrumbs.length - 1}
 				<span class="current">{crumb.label}</span>
