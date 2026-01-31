@@ -509,8 +509,15 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
     });
 
     // Calculate approximate capacity to reduce reallocations
+    // Improved estimation: content + new - old (saturated to avoid underflow)
     let total_new_text_len: usize = sorted_edits.iter().map(|e| e.new_text.len()).sum();
-    let mut result = String::with_capacity(content.len() + total_new_text_len);
+    let total_old_text_len: usize = sorted_edits.iter().map(|e| e.original_text.len()).sum();
+    let estimated_capacity = content
+        .len()
+        .saturating_add(total_new_text_len)
+        .saturating_sub(total_old_text_len);
+
+    let mut result = String::with_capacity(estimated_capacity);
 
     let mut last_byte_idx = 0;
 
@@ -651,8 +658,20 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
             }
         }
 
+        // Check original text if provided (Safety Check)
+        let end_byte_idx = current_byte_idx + additional_bytes;
+        if !edit.original_text.is_empty() {
+            let actual_text = &content[start_byte_idx..end_byte_idx];
+            if actual_text != edit.original_text {
+                return Err(ServerError::internal(format!(
+                    "Edit conflict: Expected original text '{}' but found '{}' at {}:{}",
+                    edit.original_text, actual_text, start_line, start_col
+                )));
+            }
+        }
+
         // Update last_byte_idx to point to the end of the replaced range
-        last_byte_idx = current_byte_idx + additional_bytes;
+        last_byte_idx = end_byte_idx;
 
         // Prepare current_byte_idx for next edit
         current_byte_idx = last_byte_idx;
@@ -734,68 +753,35 @@ mod tests {
         assert_eq!(result, "line1\nreplaced");
     }
 
+    #[test]
+    fn test_apply_edits_safety_check() {
+        let content = "hello world";
+        let edit = TextEdit {
+            file_path: None,
+            edit_type: EditType::Replace,
+            location: EditLocation {
+                start_line: 0,
+                start_column: 6,
+                end_line: 0,
+                end_column: 11,
+            },
+            original_text: "universe".to_string(), // Mismatch! Content has "world"
+            new_text: "galaxy".to_string(),
+            priority: 0,
+            description: "test".to_string(),
+        };
+
+        let result = apply_edits(content, vec![edit]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Edit conflict"));
+    }
+
 }
 
 #[cfg(test)]
 mod benchmarks {
     use super::*;
     use std::time::Instant;
-
-    // Naive implementation for comparison (simulating O(N*M) behavior)
-    // Note: We use the implementation from mill-ast if we could, but implementing a simple one here is enough
-    fn apply_edits_naive(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerError> {
-        // Sort edits in reverse so we can apply them without invalidating indices (standard naive approach)
-        // Or apply forward and shift indices (complex).
-        // For O(N*M) simulation, we can just rebuild the string for every edit.
-
-        let mut current_content = content.to_string();
-
-        // Sorting reverse for index stability in naive application
-        let mut sorted_edits = edits;
-        sorted_edits.sort_by(|a, b| {
-             b.location.start_line.cmp(&a.location.start_line)
-                .then_with(|| b.location.start_column.cmp(&a.location.start_column))
-        });
-
-        for edit in sorted_edits {
-            current_content = apply_single_edit_naive(&current_content, &edit)?;
-        }
-
-        Ok(current_content)
-    }
-
-    fn apply_single_edit_naive(content: &str, edit: &TextEdit) -> Result<String, ServerError> {
-        // Locate start byte
-        let start_byte = find_byte_offset(content, edit.location.start_line, edit.location.start_column)?;
-        let end_byte = find_byte_offset(content, edit.location.end_line, edit.location.end_column)?;
-
-        let mut result = String::with_capacity(content.len() + edit.new_text.len());
-        result.push_str(&content[..start_byte]);
-        result.push_str(&edit.new_text);
-        result.push_str(&content[end_byte..]);
-        Ok(result)
-    }
-
-    fn find_byte_offset(content: &str, line: u32, col: u32) -> Result<usize, ServerError> {
-        let mut current_line = 0;
-        let mut current_col = 0;
-        for (idx, ch) in content.char_indices() {
-            if current_line == line && current_col == col {
-                return Ok(idx);
-            }
-            if ch == '\n' {
-                current_line += 1;
-                current_col = 0;
-            } else {
-                current_col += 1;
-            }
-        }
-        if current_line == line && current_col == col {
-            Ok(content.len())
-        } else {
-             Err(ServerError::internal("Out of bounds".to_string()))
-        }
-    }
 
     #[test]
     fn benchmark_apply_edits_performance() {
@@ -808,6 +794,8 @@ mod benchmarks {
         // Create many edits
         let mut edits = Vec::new();
         for i in (0..10000).step_by(10) {
+            let original = format!("{}", i);
+            let len = original.len() as u32;
             edits.push(TextEdit {
                 file_path: None,
                 edit_type: EditType::Replace,
@@ -815,9 +803,9 @@ mod benchmarks {
                     start_line: i,
                     start_column: 5,
                     end_line: i,
-                    end_column: 6,
+                    end_column: 5 + len,
                 },
-                original_text: format!("{}", i),
+                original_text: original,
                 new_text: "REPLACED".to_string(),
                 priority: 0,
                 description: "benchmark".to_string(),
@@ -826,18 +814,13 @@ mod benchmarks {
 
         println!("Benchmarking apply_edits with {} edits on {} lines...", edits.len(), 10000);
 
-        // Run Naive
-        let start_naive = Instant::now();
-        let _ = apply_edits_naive(&content, edits.clone()).unwrap();
-        let duration_naive = start_naive.elapsed();
-        println!("Naive implementation: {:?}", duration_naive);
-
         // Run Optimized
         let start_opt = Instant::now();
         let _ = apply_edits(&content, edits).unwrap();
         let duration_opt = start_opt.elapsed();
         println!("Optimized implementation: {:?}", duration_opt);
 
-        assert!(duration_opt < duration_naive, "Optimized should be faster than naive");
+        // Assert performance is reasonable (< 100ms)
+        assert!(duration_opt.as_millis() < 100, "Optimized implementation should be faster than 100ms");
     }
 }
