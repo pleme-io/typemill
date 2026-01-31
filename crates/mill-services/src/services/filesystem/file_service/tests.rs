@@ -1,6 +1,6 @@
 #[cfg(test)]
 #[allow(clippy::module_inception)]
-mod tests {
+pub(super) mod tests {
     use crate::services::coordination::lock_manager::LockManager;
     use crate::services::coordination::operation_queue::{OperationQueue, OperationType};
     use crate::services::filesystem::file_service::FileService;
@@ -74,7 +74,7 @@ mod tests {
         });
     }
 
-    pub(super) fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
+    pub fn create_test_service(temp_dir: &TempDir) -> (FileService, Arc<OperationQueue>) {
         let ast_cache = Arc::new(AstCache::new());
         let lock_manager = Arc::new(LockManager::new());
         let operation_queue = Arc::new(OperationQueue::new(lock_manager.clone()));
