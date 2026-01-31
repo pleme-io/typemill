@@ -232,10 +232,9 @@ impl SearchHandler {
         let start_time = Instant::now();
 
         // Get all registered plugins
-        let plugin_names = plugin_manager.list_plugins().await;
+        let all_plugins = plugin_manager.get_all_plugins_with_names().await;
         debug!(
-            plugin_count = plugin_names.len(),
-            plugins = ?plugin_names,
+            plugin_count = all_plugins.len(),
             workspace = %workspace_path.display(),
             "search_workspace_symbols: Found registered plugins"
         );
@@ -255,15 +254,13 @@ impl SearchHandler {
         }
 
         // 1. Gather required extensions
-        let mut plugin_extensions: Vec<(String, String)> = Vec::new();
+        let mut plugin_extensions: Vec<(String, String, Arc<dyn mill_plugin_system::LanguagePlugin>)> = Vec::new();
         let mut unique_extensions: HashSet<String> = HashSet::new();
 
-        for plugin_name in &plugin_names {
-            if let Some(plugin) = plugin_manager.get_plugin_by_name(plugin_name).await {
-                if let Some(ext) = plugin.supported_extensions().first() {
-                    plugin_extensions.push((plugin_name.clone(), ext.clone()));
-                    unique_extensions.insert(ext.clone());
-                }
+        for (plugin_name, plugin) in &all_plugins {
+            if let Some(ext) = plugin.supported_extensions().first() {
+                plugin_extensions.push((plugin_name.clone(), ext.clone(), plugin.clone()));
+                unique_extensions.insert(ext.clone());
             }
         }
 
@@ -319,8 +316,7 @@ impl SearchHandler {
         // 3. Parallelize plugin queries
         let mut futures = Vec::new();
 
-        for (plugin_name, ext) in plugin_extensions {
-            let plugin_manager = plugin_manager.clone();
+        for (plugin_name, ext, plugin) in plugin_extensions {
             // let workspace_path = workspace_path.clone();
             let search_args = search_args.clone();
 
@@ -331,40 +327,37 @@ impl SearchHandler {
                 let mut symbols = Vec::new();
                 let mut warning = None;
 
-                // We re-fetch the plugin here. It's fast (read lock).
-                if let Some(plugin) = plugin_manager.get_plugin_by_name(&plugin_name).await {
-                    if let Some(file_path) = file_path_opt {
-                        debug!(
-                            plugin = %plugin_name,
-                            representative_file = %file_path.display(),
-                            "Found representative file for plugin"
-                        );
+                if let Some(file_path) = file_path_opt {
+                    debug!(
+                        plugin = %plugin_name,
+                        representative_file = %file_path.display(),
+                        "Found representative file for plugin"
+                    );
 
-                        let mut request = mill_plugin_system::PluginRequest::new(
-                            "search_workspace_symbols".to_string(),
-                            file_path,
-                        );
-                        request = request.with_params(search_args);
+                    let mut request = mill_plugin_system::PluginRequest::new(
+                        "search_workspace_symbols".to_string(),
+                        file_path,
+                    );
+                    request = request.with_params(search_args);
 
-                        // Try to get symbols from this plugin
-                        match plugin.handle_request(request).await {
-                            Ok(response) => {
-                                if let Some(Value::Array(data_symbols)) = response.data {
-                                    symbols.extend(data_symbols);
-                                }
-                            }
-                            Err(e) => {
-                                warn!(plugin = %plugin_name, error = %e, "Plugin query failed");
-                                warning = Some(format!("{}: {}", plugin_name, e));
+                    // Try to get symbols from this plugin
+                    match plugin.handle_request(request).await {
+                        Ok(response) => {
+                            if let Some(Value::Array(data_symbols)) = response.data {
+                                symbols.extend(data_symbols);
                             }
                         }
-                    } else {
-                        debug!(
-                            plugin = %plugin_name,
-                            extension = %ext,
-                            "No files found with extension, skipping plugin"
-                        );
+                        Err(e) => {
+                            warn!(plugin = %plugin_name, error = %e, "Plugin query failed");
+                            warning = Some(format!("{}: {}", plugin_name, e));
+                        }
                     }
+                } else {
+                    debug!(
+                        plugin = %plugin_name,
+                        extension = %ext,
+                        "No files found with extension, skipping plugin"
+                    );
                 }
                 (symbols, warning)
             });

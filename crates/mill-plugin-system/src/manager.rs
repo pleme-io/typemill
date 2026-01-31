@@ -405,6 +405,15 @@ impl PluginManager {
             .collect()
     }
 
+    /// Get all registered plugins with their names
+    pub async fn get_all_plugins_with_names(&self) -> Vec<(String, Arc<dyn LanguagePlugin>)> {
+        let registry = self.registry.read().await;
+        registry
+            .get_plugins_with_names()
+            .map(|(name, plugin)| (name.clone(), plugin.clone()))
+            .collect()
+    }
+
     /// Shutdown all plugins gracefully
     #[instrument(skip(self))]
     pub async fn shutdown(&self) -> PluginResult<()> {
