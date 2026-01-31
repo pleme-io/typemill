@@ -857,6 +857,72 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_members_performance() {
+        use std::time::Instant;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+
+        // Create a larger Cargo.toml to make I/O more significant
+        let mut cargo_content = String::from(r#"
+[workspace]
+members = [
+"#);
+        // Add 1000 members to make the file larger and parsing/writing more substantial
+        for i in 0..1000 {
+            cargo_content.push_str(&format!("    \"member_{}\",\n", i));
+        }
+        cargo_content.push_str("]\n");
+
+        tokio::fs::write(&cargo_toml_path, &cargo_content).await.unwrap();
+
+        let handler = WorkspaceHandler::new();
+
+        let app_state = Arc::new(mill_handler_api::AppState {
+            file_service: Arc::new(DummyFileService),
+            language_plugins: Arc::new(DummyPluginRegistry),
+            project_root: temp_dir.path().to_path_buf(),
+            extensions: None,
+        });
+
+        let plugin_manager = Arc::new(mill_plugin_system::PluginManager::new());
+        let lsp_adapter = Arc::new(Mutex::new(None));
+
+        let context = mill_handler_api::ToolHandlerContext {
+            user_id: None,
+            app_state,
+            plugin_manager,
+            lsp_adapter,
+        };
+
+        let args = json!({
+            "action": "update_members",
+            "params": {
+                "action": "add",
+                "workspaceManifest": cargo_toml_path.to_str().unwrap(),
+                "members": ["new_member_perf"]
+            },
+            "options": {
+                "dryRun": false
+            }
+        });
+
+        let tool_call = ToolCall {
+            name: "workspace".to_string(),
+            arguments: Some(args),
+        };
+
+        let start = Instant::now();
+        let result = handler.handle_tool_call(&context, &tool_call).await.unwrap();
+        let duration = start.elapsed();
+
+        println!("test_update_members_performance took: {:?}", duration);
+
+        // Verify response
+        assert_eq!(result["status"], "success");
+    }
+
+    #[tokio::test]
     async fn test_update_members_repro() {
         let temp_dir = tempfile::tempdir().unwrap();
         let cargo_toml_path = temp_dir.path().join("Cargo.toml");
@@ -865,7 +931,7 @@ mod tests {
 [workspace]
 members = []
 "#;
-        std::fs::write(&cargo_toml_path, cargo_content).unwrap();
+        tokio::fs::write(&cargo_toml_path, cargo_content).await.unwrap();
 
         let handler = WorkspaceHandler::new();
 
@@ -909,7 +975,7 @@ members = []
         assert_eq!(result["status"], "success");
 
         // Verify file content
-        let new_content = std::fs::read_to_string(&cargo_toml_path).unwrap();
+        let new_content = tokio::fs::read_to_string(&cargo_toml_path).await.unwrap();
         assert!(new_content.contains("\"new_member\""));
     }
 
