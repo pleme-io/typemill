@@ -149,7 +149,8 @@ mod tests {
                 f.write_all(format!("    \"dep-{}\": \"1.0.0\",\n", i).as_bytes())
                     .unwrap();
             }
-            f.write_all(b"    \"final-dep\": \"1.0.0\"\n  }\n}").unwrap();
+            f.write_all(b"    \"final-dep\": \"1.0.0\"\n  }\n}")
+                .unwrap();
         }
 
         // Create target package.json

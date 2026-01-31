@@ -142,9 +142,7 @@ pub async fn handle_create_package(
         .language_plugins
         .inner()
         .downcast_ref::<mill_plugin_api::PluginDiscovery>()
-        .ok_or_else(|| {
-            ServerError::internal("Failed to access plugin registry implementation")
-        })?;
+        .ok_or_else(|| ServerError::internal("Failed to access plugin registry implementation"))?;
 
     let plugin = plugin_registry
         .all()

@@ -99,7 +99,8 @@ impl RefactorHandler {
         })?;
 
         // Resolve relative paths to absolute using workspace root
-        let file_path = resolve_file_path(&context.app_state.project_root, &params.params.file_path);
+        let file_path =
+            resolve_file_path(&context.app_state.project_root, &params.params.file_path);
 
         let extract_params = crate::handlers::refactor_extract::ExtractPlanParams {
             kind: params.params.kind.clone(),
@@ -171,7 +172,8 @@ impl RefactorHandler {
         })?;
 
         // Resolve relative paths to absolute using workspace root
-        let file_path = resolve_file_path(&context.app_state.project_root, &params.params.file_path);
+        let file_path =
+            resolve_file_path(&context.app_state.project_root, &params.params.file_path);
 
         let inline_params = crate::handlers::refactor_inline::InlinePlanParams {
             kind: params.params.kind.clone(),

@@ -1,6 +1,8 @@
 use crate::spawn_operation_worker;
 use mill_services::services::coordination::lock_manager::LockManager;
-use mill_services::services::coordination::operation_queue::{OperationQueue, FileOperation, OperationType};
+use mill_services::services::coordination::operation_queue::{
+    FileOperation, OperationQueue, OperationType,
+};
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,8 +38,14 @@ async fn test_worker_path_traversal_prevention() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let stats = queue.get_stats().await;
-    assert_eq!(stats.failed_operations, 1, "Should have one failed operation");
-    assert_eq!(stats.completed_operations, 0, "Should have zero completed operations");
+    assert_eq!(
+        stats.failed_operations, 1,
+        "Should have one failed operation"
+    );
+    assert_eq!(
+        stats.completed_operations, 0,
+        "Should have zero completed operations"
+    );
 
     // Verify file was NOT created outside
     // Note: root is a temp dir, so parent is likely /tmp or similar.
@@ -49,9 +57,9 @@ async fn test_worker_path_traversal_prevention() {
     if let Some(parent) = root.parent() {
         let outside_path = parent.join("outside.txt");
         if outside_path.exists() {
-             // Clean up if it was created (it shouldn't be)
-             let _ = std::fs::remove_file(&outside_path);
-             panic!("File was created outside project root!");
+            // Clean up if it was created (it shouldn't be)
+            let _ = std::fs::remove_file(&outside_path);
+            panic!("File was created outside project root!");
         }
     }
 }
@@ -83,9 +91,15 @@ async fn test_worker_absolute_path_traversal() {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     let stats = queue.get_stats().await;
-    assert_eq!(stats.failed_operations, 1, "Should have one failed operation");
+    assert_eq!(
+        stats.failed_operations, 1,
+        "Should have one failed operation"
+    );
 
-    assert!(!target_path.exists(), "File should not be created at absolute path outside root");
+    assert!(
+        !target_path.exists(),
+        "File should not be created at absolute path outside root"
+    );
 }
 
 #[tokio::test]

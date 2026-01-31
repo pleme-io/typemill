@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use mill_plugin_system::{
     Capabilities, LanguagePlugin, PluginManager, PluginMetadata, PluginRequest, PluginResponse,
     PluginResult,
@@ -5,7 +6,6 @@ use mill_plugin_system::{
 use serde_json::Value;
 use std::sync::Arc;
 use std::time::Instant;
-use async_trait::async_trait;
 
 struct PerfTestPlugin {
     name: String,

@@ -101,9 +101,7 @@ impl SubprocessAstTool {
 
 /// Prepare the temporary directory and command arguments for the subprocess.
 /// Returns the TempDir (must be kept alive), the tool path, and the command arguments.
-fn prepare_subprocess(
-    tool: &SubprocessAstTool,
-) -> PluginResult<(TempDir, PathBuf, Vec<String>)> {
+fn prepare_subprocess(tool: &SubprocessAstTool) -> PluginResult<(TempDir, PathBuf, Vec<String>)> {
     debug!(
         runtime = %tool.runtime,
         filename = %tool.temp_filename,
@@ -211,9 +209,10 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
 
     // We use spawn_blocking for prepare_subprocess because it performs file I/O
     // (creating temp dir and writing tool file) which blocks the thread.
-    let (_tmp_dir, _tool_path, cmd_args) = tokio::task::spawn_blocking(move || prepare_subprocess(&tool))
-        .await
-        .map_err(|e| MillError::internal(format!("Task join error: {}", e)))??;
+    let (_tmp_dir, _tool_path, cmd_args) =
+        tokio::task::spawn_blocking(move || prepare_subprocess(&tool))
+            .await
+            .map_err(|e| MillError::internal(format!("Task join error: {}", e)))??;
 
     debug!(
         runtime = %runtime,
@@ -247,10 +246,7 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
 
     // Wait for subprocess to complete asynchronously
     let output = child.wait_with_output().await.map_err(|e| {
-        MillError::parse(format!(
-            "Failed to wait for {} subprocess: {}",
-            runtime, e
-        ))
+        MillError::parse(format!("Failed to wait for {} subprocess: {}", runtime, e))
     })?;
 
     // Check exit status

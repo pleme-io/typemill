@@ -22,9 +22,9 @@ pub mod test_fixtures;
 pub mod workspace_support;
 
 #[cfg(test)]
-mod performance_tests;
-#[cfg(test)]
 mod benchmark_manifest;
+#[cfg(test)]
+mod performance_tests;
 
 use async_trait::async_trait;
 use mill_lang_common::{
@@ -875,7 +875,11 @@ dependencies = [
         // We expect some concurrency.
         // Note: this assertion might be flaky on extremely slow machines if list_functions finishes < 10ms,
         // but with 50,000 lines it should take significantly longer than 10ms.
-        assert!(ticks > 0, "list_functions blocked the executor! Ticks: {}", ticks);
+        assert!(
+            ticks > 0,
+            "list_functions blocked the executor! Ticks: {}",
+            ticks
+        );
     }
 
     #[tokio::test(flavor = "current_thread")]

@@ -596,11 +596,12 @@ impl ReferenceUpdater {
                             &project_files_clone,
                             &project_root_clone,
                         )
-                    }).await;
+                    })
+                    .await;
 
                     match result {
                         Ok(all_imports) => {
-                             if all_imports.contains(&renamed_file) {
+                            if all_imports.contains(&renamed_file) {
                                 return Some(file);
                             }
                         }
