@@ -151,6 +151,7 @@ impl RenameService {
     ///
     /// When multiple targets in a batch rename modify the same file (e.g., root Cargo.toml),
     /// we need to merge their edits rather than having the last one win.
+    /// Edits are sorted in reverse order to ensure safety when applying them.
     fn dedupe_document_changes(
         changes: Vec<lsp_types::DocumentChangeOperation>,
     ) -> Vec<lsp_types::DocumentChangeOperation> {
