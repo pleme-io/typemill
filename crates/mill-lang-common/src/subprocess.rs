@@ -207,18 +207,22 @@ fn execute_subprocess(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec
 
 /// Execute an AST tool subprocess asynchronously and return raw stdout bytes
 async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> PluginResult<Vec<u8>> {
-    // We can use the synchronous prepare_subprocess because temp file creation is fast
-    // and usually in-memory (tmpfs).
-    let (_tmp_dir, _tool_path, cmd_args) = prepare_subprocess(&tool)?;
+    let runtime = tool.runtime.clone();
+
+    // We use spawn_blocking for prepare_subprocess because it performs file I/O
+    // (creating temp dir and writing tool file) which blocks the thread.
+    let (_tmp_dir, _tool_path, cmd_args) = tokio::task::spawn_blocking(move || prepare_subprocess(&tool))
+        .await
+        .map_err(|e| MillError::internal(format!("Task join error: {}", e)))??;
 
     debug!(
-        runtime = %tool.runtime,
+        runtime = %runtime,
         args = ?cmd_args,
         "Spawning async subprocess"
     );
 
     // Spawn subprocess using tokio::process::Command
-    let mut child = tokio::process::Command::new(&tool.runtime)
+    let mut child = tokio::process::Command::new(&runtime)
         .args(&cmd_args)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -227,7 +231,7 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
         .map_err(|e| {
             MillError::parse(format!(
                 "Failed to spawn async {} subprocess. Is {} installed and in PATH? Error: {}",
-                tool.runtime, tool.runtime, e
+                runtime, runtime, e
             ))
         })?;
 
@@ -236,7 +240,7 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
         stdin.write_all(source.as_bytes()).await.map_err(|e| {
             MillError::parse(format!(
                 "Failed to write to {} subprocess stdin: {}",
-                tool.runtime, e
+                runtime, e
             ))
         })?;
     }
@@ -245,7 +249,7 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
     let output = child.wait_with_output().await.map_err(|e| {
         MillError::parse(format!(
             "Failed to wait for {} subprocess: {}",
-            tool.runtime, e
+            runtime, e
         ))
     })?;
 
@@ -253,13 +257,13 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         warn!(
-            runtime = %tool.runtime,
+            runtime = %runtime,
             stderr = %stderr,
             "Async subprocess failed"
         );
         return Err(MillError::parse(format!(
             "{} AST tool failed: {}",
-            tool.runtime, stderr
+            runtime, stderr
         )));
     }
 
