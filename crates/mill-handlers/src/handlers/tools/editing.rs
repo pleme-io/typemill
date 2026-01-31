@@ -180,33 +180,27 @@ impl EditingToolsHandler {
             }
         } else {
             // Workspace search
-            let plugin_names = context.plugin_manager.list_plugins().await;
+            let all_plugins = context.plugin_manager.get_all_plugins_with_names().await;
             let mut symbols = Vec::new();
 
-            for plugin_name in plugin_names {
-                if let Some(plugin) = context
-                    .plugin_manager
-                    .get_plugin_by_name(&plugin_name)
-                    .await
-                {
-                    let extensions = plugin.supported_extensions();
-                    let file_path = if let Some(ext) = extensions.first() {
-                        PathBuf::from(format!("workspace.{}", ext))
-                    } else {
-                        continue;
-                    };
+            for (_plugin_name, plugin) in all_plugins {
+                let extensions = plugin.supported_extensions();
+                let file_path = if let Some(ext) = extensions.first() {
+                    PathBuf::from(format!("workspace.{}", ext))
+                } else {
+                    continue;
+                };
 
-                    let mut request = mill_plugin_system::PluginRequest::new(
-                        "search_workspace_symbols".to_string(),
-                        file_path,
-                    );
-                    request = request.with_params(serde_json::json!({ "query": symbol_name }));
+                let mut request = mill_plugin_system::PluginRequest::new(
+                    "search_workspace_symbols".to_string(),
+                    file_path,
+                );
+                request = request.with_params(serde_json::json!({ "query": symbol_name }));
 
-                    if let Ok(response) = plugin.handle_request(request).await {
-                        if let Some(data) = response.data {
-                            if let Some(arr) = data.as_array() {
-                                symbols.extend(arr.clone());
-                            }
+                if let Ok(response) = plugin.handle_request(request).await {
+                    if let Some(data) = response.data {
+                        if let Some(arr) = data.as_array() {
+                            symbols.extend(arr.clone());
                         }
                     }
                 }
