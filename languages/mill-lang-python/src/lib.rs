@@ -17,6 +17,7 @@ pub mod manifest;
 pub mod parser;
 pub mod project_factory;
 pub mod refactoring;
+pub mod reference_detector;
 mod string_literal_support;
 pub mod test_fixtures;
 pub mod workspace_support;
@@ -52,6 +53,7 @@ define_language_plugin! {
     fields: {
         import_support: import_support::PythonImportSupport,
         workspace_support: workspace_support::PythonWorkspaceSupport,
+        reference_detector: reference_detector::PythonReferenceDetector,
         project_factory: project_factory::PythonProjectFactory,
         lsp_installer: lsp_installer::PythonLspInstaller,
         file_discovery: PythonFileDiscovery,
@@ -217,6 +219,9 @@ impl LanguagePlugin for PythonPlugin {
         },
         workspace_support => {
             workspace_support: WorkspaceSupport,
+        },
+        reference_detector => {
+            reference_detector: ReferenceDetector,
         },
         project_factory => {
             project_factory: ProjectFactory,
@@ -573,6 +578,15 @@ class MyClass:
         assert!(
             plugin.workspace_support().is_some(),
             "Python should have workspace support"
+        );
+    }
+
+    #[test]
+    fn test_python_reference_detector() {
+        let plugin = PythonPlugin::new();
+        assert!(
+            plugin.reference_detector().is_some(),
+            "Python should have reference detector capability"
         );
     }
 

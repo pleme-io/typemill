@@ -1,14 +1,22 @@
 //! Workspace dependency extraction service
 //!
 //! This module provides a trait-based abstraction for extracting dependencies
-//! from one manifest file and adding them to another. Supports both Cargo.toml
-//! (Rust) and package.json (TypeScript/JavaScript) manifest formats.
+//! from one manifest file and adding them to another. Supports multiple manifest
+//! formats across different language ecosystems.
+//!
+//! # Supported Manifest Formats
+//!
+//! - **Cargo.toml** (Rust): Standard Rust package manifest
+//! - **package.json** (TypeScript/JavaScript): npm/yarn/pnpm package manifest
+//! - **pyproject.toml** (Python): Modern Python package manifest supporting both
+//!   PEP 621 standard format and Poetry format
 //!
 //! # Architecture
 //!
 //! - `ManifestOps` trait: Defines common operations for manifest parsing and manipulation
 //! - `CargoManifest`: Implementation for Cargo.toml files
 //! - `PackageJsonManifest`: Implementation for package.json files
+//! - `PyProjectManifest`: Implementation for pyproject.toml files (PEP 621 + Poetry)
 //! - Generic `extract_dependencies_generic`: Shared extraction logic
 
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -20,9 +28,11 @@ use tracing::{debug, error, warn};
 
 mod cargo_manifest;
 mod package_json;
+mod pyproject_manifest;
 
 pub use cargo_manifest::CargoManifest;
 pub use package_json::PackageJsonManifest;
+pub use pyproject_manifest::PyProjectManifest;
 
 /// Service for workspace dependency extraction operations
 pub struct WorkspaceExtractService;
@@ -254,6 +264,8 @@ fn detect_manifest_type(path: &str) -> ManifestType {
         ManifestType::Cargo
     } else if path_lower.ends_with("package.json") {
         ManifestType::PackageJson
+    } else if path_lower.ends_with("pyproject.toml") {
+        ManifestType::PyProject
     } else {
         ManifestType::Unknown
     }
@@ -263,6 +275,7 @@ fn detect_manifest_type(path: &str) -> ManifestType {
 enum ManifestType {
     Cargo,
     PackageJson,
+    PyProject,
     Unknown,
 }
 
@@ -347,9 +360,15 @@ pub async fn handle_extract_dependencies(
             &params.dependencies,
             &params.options,
         )?,
+        ManifestType::PyProject => extract_dependencies_generic::<PyProjectManifest>(
+            &source_content,
+            &target_content,
+            &params.dependencies,
+            &params.options,
+        )?,
         ManifestType::Unknown => {
             return Err(ServerError::invalid_request(format!(
-                "Unknown manifest type. Supported: Cargo.toml, package.json. Got: {}",
+                "Unknown manifest type. Supported: Cargo.toml, package.json, pyproject.toml. Got: {}",
                 params.source_manifest
             )));
         }
@@ -417,6 +436,14 @@ mod tests {
         assert_eq!(
             detect_manifest_type("packages/ui/package.json"),
             ManifestType::PackageJson
+        );
+        assert_eq!(
+            detect_manifest_type("pyproject.toml"),
+            ManifestType::PyProject
+        );
+        assert_eq!(
+            detect_manifest_type("packages/mylib/pyproject.toml"),
+            ManifestType::PyProject
         );
         assert_eq!(detect_manifest_type("unknown.txt"), ManifestType::Unknown);
     }

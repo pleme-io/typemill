@@ -7,6 +7,7 @@
 //! - Workspace operations (npm, yarn, pnpm package managers)
 //! - package.json and tsconfig.json manifest analysis
 //! - Path alias resolution (@alias/path support)
+//! - Reference detection for cross-package imports
 //!
 //! This plugin supports TypeScript and JavaScript with typescript-language-server as the LSP server.
 mod constants;
@@ -18,6 +19,7 @@ pub mod parser;
 mod path_alias_resolver;
 mod project_factory;
 pub mod refactoring;
+pub mod reference_detector;
 mod regex_patterns; // Re-exports from constants for backward compatibility
 mod string_literal_support;
 mod tsconfig;
@@ -57,6 +59,7 @@ define_language_plugin! {
         project_factory: project_factory::TypeScriptProjectFactory,
         lsp_installer: lsp_installer::TypeScriptLspInstaller,
         path_alias_resolver: path_alias_resolver::TypeScriptPathAliasResolver,
+        reference_detector: reference_detector::TypeScriptReferenceDetector,
         file_discovery: TypeScriptFileDiscovery,
     },
     doc: "TypeScript/JavaScript language plugin implementation"
@@ -118,6 +121,9 @@ impl LanguagePlugin for TypeScriptPlugin {
         },
         workspace_support => {
             workspace_support: WorkspaceSupport,
+        },
+        reference_detector => {
+            reference_detector: ReferenceDetector,
         },
         project_factory => {
             project_factory: ProjectFactory,
