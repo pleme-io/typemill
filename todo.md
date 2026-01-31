@@ -76,12 +76,13 @@ Last updated: 2026-01-31
 
 ## Code Quality
 
-### Workspace Support Completeness
+### Svelte/Vite Path Alias Support
 
-- [ ] **Python: Complete Hatch workspace support**
-  - Location: `languages/mill-lang-python/src/workspace_support.rs`
-  - Line 134: Implement `add_workspace_member` for Hatch
-  - Line 156: Implement `remove_workspace_member` for Hatch
+- [ ] **TypeScript: Verify $lib and vite.config path aliases work**
+  - SvelteKit uses `$lib` alias pointing to `src/lib`
+  - Vite uses aliases in `vite.config.ts` (e.g., `@/components`)
+  - Test: Move files with $lib imports and verify updates
+  - Location: `languages/mill-lang-typescript/src/path_alias_resolver.rs`
 
 ---
 
@@ -127,9 +128,10 @@ Last updated: 2026-01-31
 | extract_dependencies | ✅ | ✅ | ✅ |
 | reference_detector | ✅ | ✅ | ✅ |
 | consolidation | ✅ | ✅ | ✅ |
-| workspace_support | ✅ | ✅ | ⚠️ (Hatch incomplete) |
+| workspace_support | ✅ | ✅ | ✅ (PDM/Poetry) |
 | test_fixtures | ✅ | ✅ | ✅ |
 | create_package | ✅ | ✅ | ✅ |
+| path_aliases | ✅ | ⚠️ (tsconfig only) | N/A |
 | real-world tests | ⬜ | ✅ (Zod) | ⬜ |
 
 **Legend**: ✅ Complete | ⚠️ Partial | ⬜ Missing
@@ -144,5 +146,5 @@ Last updated: 2026-01-31
 4. ~~**TypeScript consolidation** - Enables monorepo refactoring~~ ✅ DONE
 5. ~~**Python consolidation** - Enables monorepo refactoring~~ ✅ DONE
 6. ~~**Test fixtures parity** - Improves test coverage~~ ✅ DONE
-7. **Real-world project tests** - Validates implementations (Rust + Python pending)
-8. **Hatch workspace support** - Low priority, limited adoption
+7. **Svelte/Vite path alias support** - $lib, vite.config aliases
+8. **Real-world project tests** - Validates implementations (Rust + Python + SvelteKit pending)
