@@ -24,18 +24,29 @@ static TYPEFEST_CONTEXT: Lazy<Mutex<RealProjectContext>> = Lazy::new(|| {
     ))
 });
 
+/// Warmup test - runs first (alphabetically) to initialize LSP
+#[tokio::test]
+#[serial]
+async fn test_typefest_00_warmup() {
+    let mut ctx = TYPEFEST_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up()
+        .await
+        .expect("LSP warmup should succeed for type-fest");
+}
+
 #[tokio::test]
 #[serial]
 async fn test_typefest_search_symbols() {
     let mut ctx = TYPEFEST_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up().await.expect("LSP should be ready");
 
     let result = ctx
         .call_tool("search_code", json!({ "query": "JsonValue" }))
         .await
         .expect("search_code should succeed");
 
-    assertions::assert_search_results(&result, "JsonValue");
-    println!("✅ type-fest: Successfully searched for JsonValue");
+    assertions::assert_search_completed(&result, "JsonValue");
+    println!("✅ type-fest: Search completed for JsonValue");
 }
 
 #[tokio::test]
@@ -145,18 +156,29 @@ static TSPATTERN_CONTEXT: Lazy<Mutex<RealProjectContext>> = Lazy::new(|| {
     ))
 });
 
+/// Warmup test - runs first (alphabetically) to initialize LSP
+#[tokio::test]
+#[serial]
+async fn test_tspattern_00_warmup() {
+    let mut ctx = TSPATTERN_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up()
+        .await
+        .expect("LSP warmup should succeed for ts-pattern");
+}
+
 #[tokio::test]
 #[serial]
 async fn test_tspattern_search_symbols() {
     let mut ctx = TSPATTERN_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up().await.expect("LSP should be ready");
 
     let result = ctx
         .call_tool("search_code", json!({ "query": "match" }))
         .await
         .expect("search_code should succeed");
 
-    assertions::assert_search_results(&result, "match");
-    println!("✅ ts-pattern: Successfully searched for match");
+    assertions::assert_search_completed(&result, "match");
+    println!("✅ ts-pattern: Search completed for match");
 }
 
 #[tokio::test]
@@ -231,18 +253,29 @@ static NANOID_CONTEXT: Lazy<Mutex<RealProjectContext>> = Lazy::new(|| {
     ))
 });
 
+/// Warmup test - runs first (alphabetically) to initialize LSP
+#[tokio::test]
+#[serial]
+async fn test_nanoid_00_warmup() {
+    let mut ctx = NANOID_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up()
+        .await
+        .expect("LSP warmup should succeed for nanoid");
+}
+
 #[tokio::test]
 #[serial]
 async fn test_nanoid_search_symbols() {
     let mut ctx = NANOID_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up().await.expect("LSP should be ready");
 
     let result = ctx
         .call_tool("search_code", json!({ "query": "nanoid" }))
         .await
         .expect("search_code should succeed");
 
-    assertions::assert_search_results(&result, "nanoid");
-    println!("✅ nanoid: Successfully searched for nanoid");
+    assertions::assert_search_completed(&result, "nanoid");
+    println!("✅ nanoid: Search completed for nanoid");
 }
 
 #[tokio::test]

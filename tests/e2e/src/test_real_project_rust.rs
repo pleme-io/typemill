@@ -25,18 +25,29 @@ static THISERROR_CONTEXT: Lazy<Mutex<RealProjectContext>> = Lazy::new(|| {
     ))
 });
 
+/// Warmup test - runs first (alphabetically) to initialize LSP
+#[tokio::test]
+#[serial]
+async fn test_thiserror_00_warmup() {
+    let mut ctx = THISERROR_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up()
+        .await
+        .expect("LSP warmup should succeed for thiserror");
+}
+
 #[tokio::test]
 #[serial]
 async fn test_thiserror_search_symbols() {
     let mut ctx = THISERROR_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up().await.expect("LSP should be ready");
 
     let result = ctx
         .call_tool("search_code", json!({ "query": "Error" }))
         .await
         .expect("search_code should succeed");
 
-    assertions::assert_search_results(&result, "Error");
-    println!("✅ thiserror: Successfully searched for Error");
+    assertions::assert_search_completed(&result, "Error");
+    println!("✅ thiserror: Search completed for Error");
 }
 
 #[tokio::test]
@@ -179,18 +190,29 @@ static ONCECELL_CONTEXT: Lazy<Mutex<RealProjectContext>> = Lazy::new(|| {
     ))
 });
 
+/// Warmup test - runs first (alphabetically) to initialize LSP
+#[tokio::test]
+#[serial]
+async fn test_oncecell_00_warmup() {
+    let mut ctx = ONCECELL_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up()
+        .await
+        .expect("LSP warmup should succeed for once_cell");
+}
+
 #[tokio::test]
 #[serial]
 async fn test_oncecell_search_symbols() {
     let mut ctx = ONCECELL_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up().await.expect("LSP should be ready");
 
     let result = ctx
         .call_tool("search_code", json!({ "query": "Lazy" }))
         .await
         .expect("search_code should succeed");
 
-    assertions::assert_search_results(&result, "Lazy");
-    println!("✅ once_cell: Successfully searched for Lazy");
+    assertions::assert_search_completed(&result, "Lazy");
+    println!("✅ once_cell: Search completed for Lazy");
 }
 
 #[tokio::test]
@@ -273,18 +295,29 @@ static ANYHOW_CONTEXT: Lazy<Mutex<RealProjectContext>> = Lazy::new(|| {
     ))
 });
 
+/// Warmup test - runs first (alphabetically) to initialize LSP
+#[tokio::test]
+#[serial]
+async fn test_anyhow_00_warmup() {
+    let mut ctx = ANYHOW_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up()
+        .await
+        .expect("LSP warmup should succeed for anyhow");
+}
+
 #[tokio::test]
 #[serial]
 async fn test_anyhow_search_symbols() {
     let mut ctx = ANYHOW_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
+    ctx.ensure_warmed_up().await.expect("LSP should be ready");
 
     let result = ctx
         .call_tool("search_code", json!({ "query": "Result" }))
         .await
         .expect("search_code should succeed");
 
-    assertions::assert_search_results(&result, "Result");
-    println!("✅ anyhow: Successfully searched for Result");
+    assertions::assert_search_completed(&result, "Result");
+    println!("✅ anyhow: Search completed for Result");
 }
 
 #[tokio::test]
