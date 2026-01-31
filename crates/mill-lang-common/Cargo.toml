@@ -13,7 +13,7 @@ mill-foundation = { path = "../mill-foundation" }
 
 # Async operations
 async-trait = { workspace = true }
-tokio = { workspace = true, features = ["process"] }
+tokio = { workspace = true, features = ["process", "fs", "io-util"] }
 
 # Serialization/Deserialization
 serde = { workspace = true }

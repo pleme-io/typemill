@@ -188,21 +188,21 @@ pub(crate) struct TsSymbolInfo {
     location: TsLocation,
     documentation: Option<String>,
 }
-/// Extract symbols from TypeScript/JavaScript source code using AST-based parsing.
+/// Extract symbols from TypeScript/JavaScript source code using AST-based parsing asynchronously.
 /// Falls back to empty list if Node.js is not available.
 pub(crate) async fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     match extract_symbols_ast(source).await {
         Ok(symbols) => Ok(symbols),
         Err(e) => {
             tracing::error!(
-                error = % e, "TypeScript symbol extraction failed, returning empty list"
+                error = %e, "TypeScript symbol extraction failed (async), returning empty list"
             );
             Ok(Vec::new())
         }
     }
 }
 
-/// List all function names in TypeScript/JavaScript source code
+/// List all function names in TypeScript/JavaScript source code asynchronously
 ///
 /// Extracts function names by filtering symbols for function kinds.
 /// Returns an empty list if symbol extraction fails.
@@ -214,7 +214,7 @@ pub(crate) async fn list_functions(source: &str) -> PluginResult<Vec<String>> {
         .map(|s| s.name)
         .collect())
 }
-/// Spawns the bundled `ast_tool.js` script to extract symbols from source.
+/// Spawns the bundled `ast_tool.js` script to extract symbols from source asynchronously.
 async fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginApiError> {
     const AST_TOOL_JS: &str = include_str!("../resources/ast_tool.js");
     let tool = SubprocessAstTool::new("node")
