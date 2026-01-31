@@ -629,20 +629,19 @@ impl WorkspaceHandler {
             })
             .unwrap_or_default();
 
-        let manifest_path_clone = manifest_path.clone();
         let sub_action = sub_action.to_string();
         let sub_action_clone = sub_action.clone();
 
-        let (members_before, members_after, changes_made, workspace_updated) =
-            tokio::task::spawn_blocking(move || {
-                // Read and parse Cargo.toml using std::fs (blocking I/O in blocking thread)
-                let cargo_content = std::fs::read_to_string(&manifest_path_clone).map_err(|e| {
-                    ServerError::invalid_request(format!(
-                        "Failed to read workspace manifest '{}': {}",
-                        manifest_path_clone, e
-                    ))
-                })?;
+        // Read Cargo.toml asynchronously
+        let cargo_content = tokio::fs::read_to_string(&manifest_path).await.map_err(|e| {
+            ServerError::invalid_request(format!(
+                "Failed to read workspace manifest '{}': {}",
+                manifest_path, e
+            ))
+        })?;
 
+        let (members_before, members_after, changes_made, workspace_updated, new_content) =
+            tokio::task::spawn_blocking(move || {
                 let mut doc = cargo_content.parse::<DocumentMut>().map_err(|e| {
                     ServerError::invalid_request(format!(
                         "Failed to parse workspace manifest: {}",
@@ -697,7 +696,7 @@ impl WorkspaceHandler {
                             }
                         }
 
-                        if added > 0 && !dry_run {
+                        let content = if added > 0 && !dry_run {
                             // Update the document
                             let members_array = members_after
                                 .iter()
@@ -708,16 +707,12 @@ impl WorkspaceHandler {
                                 workspace["members"] =
                                     Item::Value(toml_edit::Value::Array(members_array));
                             }
+                            Some(doc.to_string())
+                        } else {
+                            None
+                        };
 
-                            std::fs::write(&manifest_path_clone, doc.to_string()).map_err(|e| {
-                                ServerError::invalid_request(format!(
-                                    "Failed to write workspace manifest: {}",
-                                    e
-                                ))
-                            })?;
-                        }
-
-                        Ok((members_before, members_after, added, added > 0))
+                        Ok((members_before, members_after, added, added > 0, content))
                     }
                     "remove" => {
                         let remove_members = members_arg;
@@ -730,7 +725,7 @@ impl WorkspaceHandler {
 
                         let removed = members_before.len() - members_after.len();
 
-                        if removed > 0 && !dry_run {
+                        let content = if removed > 0 && !dry_run {
                             // Update the document
                             let members_array = members_after
                                 .iter()
@@ -741,18 +736,14 @@ impl WorkspaceHandler {
                                 workspace["members"] =
                                     Item::Value(toml_edit::Value::Array(members_array));
                             }
+                            Some(doc.to_string())
+                        } else {
+                            None
+                        };
 
-                            std::fs::write(&manifest_path_clone, doc.to_string()).map_err(|e| {
-                                ServerError::invalid_request(format!(
-                                    "Failed to write workspace manifest: {}",
-                                    e
-                                ))
-                            })?;
-                        }
-
-                        Ok((members_before, members_after, removed, removed > 0))
+                        Ok((members_before, members_after, removed, removed > 0, content))
                     }
-                    "list" => Ok((members_before.clone(), members_before, 0, false)),
+                    "list" => Ok((members_before.clone(), members_before, 0, false, None)),
                     _ => Err(ServerError::invalid_request(format!(
                         "Invalid update_members action: {}. Valid: add, remove, list",
                         sub_action_clone
@@ -761,6 +752,15 @@ impl WorkspaceHandler {
             })
             .await
             .map_err(|e| ServerError::internal(format!("Task join error: {}", e)))??;
+
+        if let Some(content) = new_content {
+            tokio::fs::write(&manifest_path, content).await.map_err(|e| {
+                ServerError::invalid_request(format!(
+                    "Failed to write workspace manifest: {}",
+                    e
+                ))
+            })?;
+        }
 
         let summary = match sub_action.as_str() {
             "add" => {
@@ -857,6 +857,72 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_update_members_performance() {
+        use std::time::Instant;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let cargo_toml_path = temp_dir.path().join("Cargo.toml");
+
+        // Create a larger Cargo.toml to make I/O more significant
+        let mut cargo_content = String::from(r#"
+[workspace]
+members = [
+"#);
+        // Add 1000 members to make the file larger and parsing/writing more substantial
+        for i in 0..1000 {
+            cargo_content.push_str(&format!("    \"member_{}\",\n", i));
+        }
+        cargo_content.push_str("]\n");
+
+        tokio::fs::write(&cargo_toml_path, &cargo_content).await.unwrap();
+
+        let handler = WorkspaceHandler::new();
+
+        let app_state = Arc::new(mill_handler_api::AppState {
+            file_service: Arc::new(DummyFileService),
+            language_plugins: Arc::new(DummyPluginRegistry),
+            project_root: temp_dir.path().to_path_buf(),
+            extensions: None,
+        });
+
+        let plugin_manager = Arc::new(mill_plugin_system::PluginManager::new());
+        let lsp_adapter = Arc::new(Mutex::new(None));
+
+        let context = mill_handler_api::ToolHandlerContext {
+            user_id: None,
+            app_state,
+            plugin_manager,
+            lsp_adapter,
+        };
+
+        let args = json!({
+            "action": "update_members",
+            "params": {
+                "action": "add",
+                "workspaceManifest": cargo_toml_path.to_str().unwrap(),
+                "members": ["new_member_perf"]
+            },
+            "options": {
+                "dryRun": false
+            }
+        });
+
+        let tool_call = ToolCall {
+            name: "workspace".to_string(),
+            arguments: Some(args),
+        };
+
+        let start = Instant::now();
+        let result = handler.handle_tool_call(&context, &tool_call).await.unwrap();
+        let duration = start.elapsed();
+
+        println!("test_update_members_performance took: {:?}", duration);
+
+        // Verify response
+        assert_eq!(result["status"], "success");
+    }
+
+    #[tokio::test]
     async fn test_update_members_repro() {
         let temp_dir = tempfile::tempdir().unwrap();
         let cargo_toml_path = temp_dir.path().join("Cargo.toml");
@@ -865,7 +931,7 @@ mod tests {
 [workspace]
 members = []
 "#;
-        std::fs::write(&cargo_toml_path, cargo_content).unwrap();
+        tokio::fs::write(&cargo_toml_path, cargo_content).await.unwrap();
 
         let handler = WorkspaceHandler::new();
 
@@ -909,7 +975,7 @@ members = []
         assert_eq!(result["status"], "success");
 
         // Verify file content
-        let new_content = std::fs::read_to_string(&cargo_toml_path).unwrap();
+        let new_content = tokio::fs::read_to_string(&cargo_toml_path).await.unwrap();
         assert!(new_content.contains("\"new_member\""));
     }
 

@@ -13,7 +13,10 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_plugin_api::SymbolKind;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
 // ============================================================================
@@ -52,11 +55,17 @@ struct SearchCodeResponse {
 // SearchHandler - Public Interface
 // ============================================================================
 
-pub struct SearchHandler;
+pub struct SearchHandler {
+    /// Cache of representative files per workspace and extension
+    /// Map<WorkspacePath, Map<Extension, FilePath>>
+    representative_files_cache: Arc<RwLock<HashMap<PathBuf, HashMap<String, PathBuf>>>>,
+}
 
 impl SearchHandler {
     pub fn new() -> Self {
-        Self
+        Self {
+            representative_files_cache: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 
     /// Parse symbol kind from string
@@ -77,125 +86,6 @@ impl SearchHandler {
         }
     }
 
-    /// Convert SymbolKind to string for comparison
-    fn symbol_kind_to_string(kind: &SymbolKind) -> &'static str {
-        match kind {
-            SymbolKind::Function => "function",
-            SymbolKind::Class => "class",
-            SymbolKind::Interface => "interface",
-            SymbolKind::Struct => "struct",
-            SymbolKind::Enum => "enum",
-            SymbolKind::Variable => "variable",
-            SymbolKind::Constant => "constant",
-            SymbolKind::Module => "module",
-            SymbolKind::Method => "method",
-            SymbolKind::Field => "field",
-            SymbolKind::Other => "other",
-        }
-    }
-
-    /// Check if a symbol matches the target kind efficiently (avoiding allocations)
-    fn check_symbol_kind(symbol: &Value, target_kind: SymbolKind) -> bool {
-        // Helper to check match against target kind
-        let matches_target = |kind_str: &str| -> bool {
-            match target_kind {
-                SymbolKind::Function => {
-                    kind_str.eq_ignore_ascii_case("function")
-                        || kind_str.eq_ignore_ascii_case("func")
-                        || kind_str.eq_ignore_ascii_case("fn")
-                        || kind_str.to_ascii_lowercase().contains("function")
-                }
-                SymbolKind::Variable => {
-                    kind_str.eq_ignore_ascii_case("variable")
-                        || kind_str.eq_ignore_ascii_case("var")
-                        || kind_str.eq_ignore_ascii_case("let")
-                        || kind_str.to_ascii_lowercase().contains("variable")
-                }
-                SymbolKind::Constant => {
-                    kind_str.eq_ignore_ascii_case("constant")
-                        || kind_str.eq_ignore_ascii_case("const")
-                        || kind_str.to_ascii_lowercase().contains("constant")
-                }
-                SymbolKind::Module => {
-                    kind_str.eq_ignore_ascii_case("module")
-                        || kind_str.eq_ignore_ascii_case("mod")
-                        || kind_str.to_ascii_lowercase().contains("module")
-                        || kind_str.to_ascii_lowercase().contains("namespace")
-                }
-                SymbolKind::Field => {
-                    kind_str.eq_ignore_ascii_case("field")
-                        || kind_str.to_ascii_lowercase().contains("field")
-                        || kind_str.to_ascii_lowercase().contains("property")
-                }
-                _ => {
-                    let target_str = Self::symbol_kind_to_string(&target_kind);
-                    kind_str.eq_ignore_ascii_case(target_str)
-                        || kind_str
-                            .to_ascii_lowercase()
-                            .contains(&target_str.to_ascii_lowercase())
-                }
-            }
-        };
-
-        // 1. Try "kind" field (string)
-        if let Some(kind_str) = symbol.get("kind").and_then(|k| k.as_str()) {
-            if matches_target(kind_str) {
-                return true;
-            }
-        }
-
-        // 2. Try "symbolKind" field (LSP string)
-        if let Some(kind_str) = symbol.get("symbolKind").and_then(|k| k.as_str()) {
-            if matches_target(kind_str) {
-                return true;
-            }
-        }
-
-        // 3. Try "kind" field (numeric LSP)
-        if let Some(kind_num) = symbol.get("kind").and_then(|k| k.as_u64()) {
-            if let Some(kind_str) = Self::lsp_symbol_kind_to_string(kind_num) {
-                if matches_target(kind_str) {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
-    /// Convert LSP numeric SymbolKind to string
-    fn lsp_symbol_kind_to_string(kind: u64) -> Option<&'static str> {
-        // LSP SymbolKind numeric values
-        match kind {
-            1 => Some("file"),
-            2 => Some("module"),
-            3 => Some("namespace"),
-            4 => Some("package"),
-            5 => Some("class"),
-            6 => Some("method"),
-            7 => Some("property"),
-            8 => Some("field"),
-            9 => Some("constructor"),
-            10 => Some("enum"),
-            11 => Some("interface"),
-            12 => Some("function"),
-            13 => Some("variable"),
-            14 => Some("constant"),
-            15 => Some("string"),
-            16 => Some("number"),
-            17 => Some("boolean"),
-            18 => Some("array"),
-            19 => Some("object"),
-            20 => Some("key"),
-            21 => Some("null"),
-            22 => Some("enummember"),
-            23 => Some("struct"),
-            24 => Some("event"),
-            25 => Some("operator"),
-            26 => Some("typeparameter"),
-            _ => None,
-        }
-    }
 
     /// Apply pagination to results
     fn paginate(symbols: Vec<Value>, limit: usize, offset: usize) -> Vec<Value> {
@@ -329,7 +219,7 @@ impl SearchHandler {
     /// Perform workspace-wide symbol search across all plugins
     async fn search_workspace_symbols(
         &self,
-        context: &mill_handler_api::ToolHandlerContext,
+        plugin_manager: &Arc<mill_plugin_system::PluginManager>,
         query: &str,
         workspace_path: PathBuf,
         kind_filter: Option<SymbolKind>,
@@ -342,7 +232,7 @@ impl SearchHandler {
         let start_time = Instant::now();
 
         // Get all registered plugins
-        let plugin_names = context.plugin_manager.list_plugins().await;
+        let plugin_names = plugin_manager.list_plugins().await;
         debug!(
             plugin_count = plugin_names.len(),
             plugins = ?plugin_names,
@@ -369,7 +259,7 @@ impl SearchHandler {
         let mut unique_extensions: HashSet<String> = HashSet::new();
 
         for plugin_name in &plugin_names {
-            if let Some(plugin) = context.plugin_manager.get_plugin_by_name(plugin_name).await {
+            if let Some(plugin) = plugin_manager.get_plugin_by_name(plugin_name).await {
                 if let Some(ext) = plugin.supported_extensions().first() {
                     plugin_extensions.push((plugin_name.clone(), ext.clone()));
                     unique_extensions.insert(ext.clone());
@@ -377,21 +267,60 @@ impl SearchHandler {
             }
         }
 
-        // 2. Find representative files in single pass
-        let representative_files =
-            Self::find_representative_files(&workspace_path, &unique_extensions).await;
+        // 2. Resolve representative files using cache
+        let mut representative_files = HashMap::new();
+        let mut missing_extensions = unique_extensions.clone();
+
+        // Check cache
+        {
+            let cache = self.representative_files_cache.read().await;
+            if let Some(workspace_cache) = cache.get(&workspace_path) {
+                for ext in &unique_extensions {
+                    if let Some(path) = workspace_cache.get(ext) {
+                        representative_files.insert(ext.clone(), path.clone());
+                        missing_extensions.remove(ext);
+                    }
+                }
+            }
+        }
+
+        // Scan for missing extensions
+        if !missing_extensions.is_empty() {
+            debug!(
+                missing_count = missing_extensions.len(),
+                "Scanning for missing representative files"
+            );
+
+            let found = Self::find_representative_files(&workspace_path, &missing_extensions).await;
+
+            // Update cache with found files
+            if !found.is_empty() {
+                let mut cache = self.representative_files_cache.write().await;
+                let workspace_cache = cache
+                    .entry(workspace_path.clone())
+                    .or_insert_with(HashMap::new);
+
+                for (ext, path) in &found {
+                    workspace_cache.insert(ext.clone(), path.clone());
+                }
+            }
+
+            for (ext, path) in found {
+                representative_files.insert(ext, path);
+            }
+        }
 
         debug!(
             found_count = representative_files.len(),
             requested_count = unique_extensions.len(),
-            "Finished finding representative files"
+            "Finished resolving representative files"
         );
 
         // 3. Parallelize plugin queries
         let mut futures = Vec::new();
 
         for (plugin_name, ext) in plugin_extensions {
-            let plugin_manager = context.plugin_manager.clone();
+            let plugin_manager = plugin_manager.clone();
             // let workspace_path = workspace_path.clone();
             let search_args = search_args.clone();
 
@@ -421,15 +350,7 @@ impl SearchHandler {
                         match plugin.handle_request(request).await {
                             Ok(response) => {
                                 if let Some(Value::Array(data_symbols)) = response.data {
-                                    if let Some(kind) = kind_filter {
-                                        symbols.extend(
-                                            data_symbols
-                                                .into_iter()
-                                                .filter(|s| Self::check_symbol_kind(s, kind)),
-                                        );
-                                    } else {
-                                        symbols.extend(data_symbols);
-                                    }
+                                    symbols.extend(data_symbols);
                                 }
                             }
                             Err(e) => {
@@ -523,7 +444,7 @@ impl SearchHandler {
 
         // Perform workspace search
         let (symbols, processing_time, warnings) = self
-            .search_workspace_symbols(context, &request.query, workspace_path, kind_filter)
+            .search_workspace_symbols(&context.plugin_manager, &request.query, workspace_path, kind_filter)
             .await?;
 
         debug!(
@@ -587,6 +508,126 @@ impl ToolHandler for SearchHandler {
 mod tests {
     use super::*;
 
+    /// Convert SymbolKind to string for comparison
+    fn symbol_kind_to_string(kind: &SymbolKind) -> &'static str {
+        match kind {
+            SymbolKind::Function => "function",
+            SymbolKind::Class => "class",
+            SymbolKind::Interface => "interface",
+            SymbolKind::Struct => "struct",
+            SymbolKind::Enum => "enum",
+            SymbolKind::Variable => "variable",
+            SymbolKind::Constant => "constant",
+            SymbolKind::Module => "module",
+            SymbolKind::Method => "method",
+            SymbolKind::Field => "field",
+            SymbolKind::Other => "other",
+        }
+    }
+
+    /// Convert LSP numeric SymbolKind to string
+    fn lsp_symbol_kind_to_string(kind: u64) -> Option<&'static str> {
+        // LSP SymbolKind numeric values
+        match kind {
+            1 => Some("file"),
+            2 => Some("module"),
+            3 => Some("namespace"),
+            4 => Some("package"),
+            5 => Some("class"),
+            6 => Some("method"),
+            7 => Some("property"),
+            8 => Some("field"),
+            9 => Some("constructor"),
+            10 => Some("enum"),
+            11 => Some("interface"),
+            12 => Some("function"),
+            13 => Some("variable"),
+            14 => Some("constant"),
+            15 => Some("string"),
+            16 => Some("number"),
+            17 => Some("boolean"),
+            18 => Some("array"),
+            19 => Some("object"),
+            20 => Some("key"),
+            21 => Some("null"),
+            22 => Some("enummember"),
+            23 => Some("struct"),
+            24 => Some("event"),
+            25 => Some("operator"),
+            26 => Some("typeparameter"),
+            _ => None,
+        }
+    }
+
+    /// Check if a symbol matches the target kind efficiently (avoiding allocations)
+    fn check_symbol_kind(symbol: &Value, target_kind: SymbolKind) -> bool {
+        // Helper to check match against target kind
+        let matches_target = |kind_str: &str| -> bool {
+            match target_kind {
+                SymbolKind::Function => {
+                    kind_str.eq_ignore_ascii_case("function")
+                        || kind_str.eq_ignore_ascii_case("func")
+                        || kind_str.eq_ignore_ascii_case("fn")
+                        || kind_str.to_ascii_lowercase().contains("function")
+                }
+                SymbolKind::Variable => {
+                    kind_str.eq_ignore_ascii_case("variable")
+                        || kind_str.eq_ignore_ascii_case("var")
+                        || kind_str.eq_ignore_ascii_case("let")
+                        || kind_str.to_ascii_lowercase().contains("variable")
+                }
+                SymbolKind::Constant => {
+                    kind_str.eq_ignore_ascii_case("constant")
+                        || kind_str.eq_ignore_ascii_case("const")
+                        || kind_str.to_ascii_lowercase().contains("constant")
+                }
+                SymbolKind::Module => {
+                    kind_str.eq_ignore_ascii_case("module")
+                        || kind_str.eq_ignore_ascii_case("mod")
+                        || kind_str.to_ascii_lowercase().contains("module")
+                        || kind_str.to_ascii_lowercase().contains("namespace")
+                }
+                SymbolKind::Field => {
+                    kind_str.eq_ignore_ascii_case("field")
+                        || kind_str.to_ascii_lowercase().contains("field")
+                        || kind_str.to_ascii_lowercase().contains("property")
+                }
+                _ => {
+                    let target_str = symbol_kind_to_string(&target_kind);
+                    kind_str.eq_ignore_ascii_case(target_str)
+                        || kind_str
+                            .to_ascii_lowercase()
+                            .contains(&target_str.to_ascii_lowercase())
+                }
+            }
+        };
+
+        // 1. Try "kind" field (string)
+        if let Some(kind_str) = symbol.get("kind").and_then(|k| k.as_str()) {
+            if matches_target(kind_str) {
+                return true;
+            }
+        }
+
+        // 2. Try "symbolKind" field (LSP string)
+        if let Some(kind_str) = symbol.get("symbolKind").and_then(|k| k.as_str()) {
+            if matches_target(kind_str) {
+                return true;
+            }
+        }
+
+        // 3. Try "kind" field (numeric LSP)
+        if let Some(kind_num) = symbol.get("kind").and_then(|k| k.as_u64()) {
+            if let Some(kind_str) = lsp_symbol_kind_to_string(kind_num) {
+                if matches_target(kind_str) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
     #[test]
     fn test_parse_symbol_kind() {
         assert_eq!(
@@ -615,15 +656,15 @@ mod tests {
     #[test]
     fn test_symbol_kind_to_string() {
         assert_eq!(
-            SearchHandler::symbol_kind_to_string(&SymbolKind::Function),
+            symbol_kind_to_string(&SymbolKind::Function),
             "function"
         );
         assert_eq!(
-            SearchHandler::symbol_kind_to_string(&SymbolKind::Class),
+            symbol_kind_to_string(&SymbolKind::Class),
             "class"
         );
         assert_eq!(
-            SearchHandler::symbol_kind_to_string(&SymbolKind::Module),
+            symbol_kind_to_string(&SymbolKind::Module),
             "module"
         );
     }
@@ -631,18 +672,18 @@ mod tests {
     #[test]
     fn test_lsp_symbol_kind_to_string() {
         assert_eq!(
-            SearchHandler::lsp_symbol_kind_to_string(12),
+            lsp_symbol_kind_to_string(12),
             Some("function")
         );
         assert_eq!(
-            SearchHandler::lsp_symbol_kind_to_string(5),
+            lsp_symbol_kind_to_string(5),
             Some("class")
         );
         assert_eq!(
-            SearchHandler::lsp_symbol_kind_to_string(13),
+            lsp_symbol_kind_to_string(13),
             Some("variable")
         );
-        assert_eq!(SearchHandler::lsp_symbol_kind_to_string(999), None);
+        assert_eq!(lsp_symbol_kind_to_string(999), None);
     }
 
     #[test]
@@ -652,36 +693,36 @@ mod tests {
         let var = json!({"name": "baz", "kind": "variable"});
 
         // Test exact matches
-        assert!(SearchHandler::check_symbol_kind(&func, SymbolKind::Function));
-        assert!(!SearchHandler::check_symbol_kind(&func, SymbolKind::Class));
+        assert!(check_symbol_kind(&func, SymbolKind::Function));
+        assert!(!check_symbol_kind(&func, SymbolKind::Class));
 
-        assert!(SearchHandler::check_symbol_kind(&class, SymbolKind::Class));
-        assert!(SearchHandler::check_symbol_kind(&var, SymbolKind::Variable));
+        assert!(check_symbol_kind(&class, SymbolKind::Class));
+        assert!(check_symbol_kind(&var, SymbolKind::Variable));
 
         // Test case insensitivity
         let func_upper = json!({"name": "foo", "kind": "FUNCTION"});
-        assert!(SearchHandler::check_symbol_kind(
+        assert!(check_symbol_kind(
             &func_upper,
             SymbolKind::Function
         ));
 
         // Test flexible matching
         let func_short = json!({"name": "foo", "kind": "fn"});
-        assert!(SearchHandler::check_symbol_kind(
+        assert!(check_symbol_kind(
             &func_short,
             SymbolKind::Function
         ));
 
         // Test LSP numeric kind
         let func_lsp = json!({"name": "foo", "kind": 12});
-        assert!(SearchHandler::check_symbol_kind(
+        assert!(check_symbol_kind(
             &func_lsp,
             SymbolKind::Function
         ));
 
         // Test symbolKind field
         let func_sym_kind = json!({"name": "foo", "symbolKind": "function"});
-        assert!(SearchHandler::check_symbol_kind(
+        assert!(check_symbol_kind(
             &func_sym_kind,
             SymbolKind::Function
         ));
@@ -711,5 +752,172 @@ mod tests {
         // Beyond range
         let page_empty = SearchHandler::paginate(symbols, 20, 200);
         assert_eq!(page_empty.len(), 0);
+    }
+}
+
+#[cfg(test)]
+mod performance_tests {
+    use super::*;
+    use std::time::Instant;
+    use tokio::fs;
+
+    async fn create_test_workspace() -> tempfile::TempDir {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        fs::create_dir_all(root.join("src")).await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}").await.unwrap();
+
+        fs::create_dir_all(root.join("lib")).await.unwrap();
+        fs::write(root.join("lib/utils.py"), "def foo(): pass").await.unwrap();
+
+        fs::create_dir_all(root.join("packages/pkg1")).await.unwrap();
+        fs::write(root.join("packages/pkg1/index.ts"), "const x = 1;").await.unwrap();
+
+        temp_dir
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_representative_file_scan() {
+        let workspace = create_test_workspace().await;
+        let workspace_path = workspace.path().to_path_buf();
+
+        let extensions: std::collections::HashSet<String> = ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+
+        // Measure scan time
+        let start = Instant::now();
+        let iterations = 50;
+        for _ in 0..iterations {
+            let found = SearchHandler::find_representative_files(&workspace_path, &extensions).await;
+            assert_eq!(found.len(), 3);
+        }
+        let duration = start.elapsed();
+
+        println!("BENCHMARK: Time for {} scans: {:?}", iterations, duration);
+        println!("BENCHMARK: Average per scan: {:?}", duration / iterations);
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_caching_impact() {
+        let workspace = create_test_workspace().await;
+        let workspace_path = workspace.path().to_path_buf();
+        let extensions: std::collections::HashSet<String> = ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+
+        let handler = SearchHandler::new();
+
+        // Baseline: scan (1 call)
+        let start_scan = Instant::now();
+        let found = SearchHandler::find_representative_files(&workspace_path, &extensions).await;
+        let duration_scan = start_scan.elapsed();
+
+        // Populate cache manually to simulate first run
+        {
+            let mut cache = handler.representative_files_cache.write().await;
+            let workspace_cache = cache.entry(workspace_path.clone()).or_insert_with(std::collections::HashMap::new);
+            for (ext, path) in &found {
+                workspace_cache.insert(ext.clone(), path.clone());
+            }
+        }
+
+        // Benchmark cache access (pure memory)
+        let start_cache = Instant::now();
+        let iterations = 1000;
+        for _ in 0..iterations {
+             let cache = handler.representative_files_cache.read().await;
+             if let Some(workspace_cache) = cache.get(&workspace_path) {
+                for ext in &extensions {
+                    if let Some(path) = workspace_cache.get(ext) {
+                        // Access the path to ensure it's not optimized away
+                        std::hint::black_box(path);
+                    }
+                }
+             }
+        }
+        let duration_cache = start_cache.elapsed();
+
+        println!("BENCHMARK: Scan (1 call): {:?}", duration_scan);
+        println!("BENCHMARK: Cache ({} calls): {:?}", iterations, duration_cache);
+        println!("BENCHMARK: Average Cache: {:?}", duration_cache / iterations);
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_search_filtering_overhead() {
+        use mill_plugin_system::{LanguagePlugin, PluginMetadata, Capabilities, PluginRequest, PluginResponse, PluginResult};
+
+        struct MockLargePlugin {
+            symbols: Vec<Value>,
+        }
+
+        #[async_trait]
+        impl LanguagePlugin for MockLargePlugin {
+            fn metadata(&self) -> PluginMetadata {
+                PluginMetadata::new("mock-large", "1.0.0", "test")
+            }
+            fn supported_extensions(&self) -> Vec<String> {
+                vec!["mock".to_string()]
+            }
+            fn capabilities(&self) -> Capabilities {
+                let mut c = Capabilities::default();
+                c.navigation.workspace_symbols = true;
+                c
+            }
+            async fn handle_request(&self, req: PluginRequest) -> PluginResult<PluginResponse> {
+                // Simulate plugin-side filtering (like LspAdapterPlugin does)
+                let mut symbols = self.symbols.clone();
+
+                if let Some(kind_val) = req.get_param("kind") {
+                    if let Ok(target_kind) = serde_json::from_value::<SymbolKind>(kind_val.clone()) {
+                         symbols.retain(|s| {
+                             if let Some(k_str) = s.get("kind").and_then(|k| k.as_str()) {
+                                 // Simple check for test purposes
+                                 if target_kind == SymbolKind::Function {
+                                     return k_str == "function";
+                                 }
+                             }
+                             false
+                         });
+                    }
+                }
+
+                Ok(PluginResponse::success(Value::Array(symbols), "mock-large"))
+            }
+            fn configure(&self, _config: Value) -> PluginResult<()> { Ok(()) }
+            fn tool_definitions(&self) -> Vec<Value> { vec![] }
+        }
+
+        // Generate 50,000 symbols (25k matching "function", 25k "class")
+        let mut symbols = Vec::new();
+        for i in 0..50000 {
+            let kind = if i % 2 == 0 { "function" } else { "class" };
+            symbols.push(json!({
+                "name": format!("sym_{}", i),
+                "kind": kind,
+                "location": { "uri": "file:///tmp/test", "range": {} }
+            }));
+        }
+
+        let plugin = Arc::new(MockLargePlugin { symbols });
+        let plugin_manager = Arc::new(mill_plugin_system::PluginManager::new());
+        plugin_manager.register_plugin("mock-large", plugin).await.unwrap();
+
+        // Create a mock file so representative files scan works
+        let workspace = create_test_workspace().await;
+        let workspace_path = workspace.path().to_path_buf();
+        fs::write(workspace_path.join("test.mock"), "").await.unwrap();
+
+        let handler = SearchHandler::new();
+
+        let start = Instant::now();
+        let (results, _, _) = handler.search_workspace_symbols(
+            &plugin_manager,
+            "query",
+            workspace_path,
+            Some(SymbolKind::Function)
+        ).await.unwrap();
+        let duration = start.elapsed();
+
+        // Should only return the 25,000 functions
+        assert_eq!(results.len(), 25000);
+        println!("BENCHMARK: Search (50k total, 25k matching): {:?}", duration);
     }
 }

@@ -508,13 +508,23 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
             .then_with(|| a.location.start_column.cmp(&b.location.start_column))
     });
 
-    let mut result = String::with_capacity(content.len() + sorted_edits.len() * 10);
+    // Calculate approximate capacity to reduce reallocations
+    // Improved estimation: content + new - old (saturated to avoid underflow)
+    let total_new_text_len: usize = sorted_edits.iter().map(|e| e.new_text.len()).sum();
+    let total_old_text_len: usize = sorted_edits.iter().map(|e| e.original_text.len()).sum();
+    let estimated_capacity = content
+        .len()
+        .saturating_add(total_new_text_len)
+        .saturating_sub(total_old_text_len);
+
+    let mut result = String::with_capacity(estimated_capacity);
+
     let mut last_byte_idx = 0;
 
     // Iterator state
     let mut current_line = 0;
     let mut current_col = 0;
-    let mut iter = content.char_indices().peekable();
+    let mut current_byte_idx = 0;
 
     for edit in sorted_edits {
         let start_line = edit.location.start_line as usize;
@@ -522,42 +532,61 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
         let end_line = edit.location.end_line as usize;
         let end_col = edit.location.end_column as usize;
 
-        // 1. Advance iterator to start position
-        loop {
-            // Check if we reached the target start position
-            if current_line == start_line && current_col == start_col {
-                break;
-            }
-
-            // Check if we passed the target (should not happen with sorted edits unless logic is wrong)
-            if current_line > start_line || (current_line == start_line && current_col > start_col) {
-                // If we are here, it means we advanced past the start point.
-                // However, `last_byte_idx` marks where we have *consumed* up to.
-                // If the previous edit ended *after* this edit starts, that's an overlap.
-                return Err(ServerError::internal(format!(
-                    "Overlapping or invalid edit order detected: target {}:{} reached at {}:{}",
-                    start_line, start_col, current_line, current_col
-                )));
-            }
-
-            if let Some((_, ch)) = iter.next() {
-                if ch == '\n' {
+        // 1. Advance to start position
+        // Skip full lines if possible using memchr logic (via str::find)
+        while current_line < start_line {
+            // If we are at the end of content, this will return None
+            match content[current_byte_idx..].find('\n') {
+                Some(idx) => {
+                    current_byte_idx += idx + 1; // Skip past \n
                     current_line += 1;
                     current_col = 0;
-                } else {
-                    current_col += 1;
                 }
-            } else {
-                // Reached end of content before edit start
-                return Err(ServerError::internal(format!(
-                    "Edit start position {}:{} is out of bounds (end at {}:{})",
-                    start_line, start_col, current_line, current_col
-                )));
+                None => {
+                    return Err(ServerError::internal(format!(
+                        "Edit start position {}:{} is out of bounds (end at line {})",
+                        start_line, start_col, current_line
+                    )));
+                }
             }
         }
 
-        // Current byte index (start of edit)
-        let start_byte_idx = iter.peek().map(|(i, _)| *i).unwrap_or(content.len());
+        // Now we are on the correct line, advance to start_col
+        // We must iterate chars here because column is in chars
+        let mut chars_iter = content[current_byte_idx..].char_indices();
+        let mut additional_bytes = 0;
+
+        if current_col != start_col {
+            loop {
+                match chars_iter.next() {
+                    Some((idx, ch)) => {
+                        if ch == '\n' {
+                            return Err(ServerError::internal(format!(
+                                "Edit start position {}:{} is out of bounds (end of line at column {})",
+                                start_line, start_col, current_col
+                            )));
+                        }
+                        current_col += 1;
+                        additional_bytes = idx + ch.len_utf8();
+                        if current_col == start_col {
+                            break;
+                        }
+                    }
+                    None => {
+                        // Check if we reached the column exactly at EOF
+                        if current_col == start_col {
+                            break;
+                        }
+                        return Err(ServerError::internal(format!(
+                            "Edit start position {}:{} is out of bounds (end of content)",
+                            start_line, start_col
+                        )));
+                    }
+                }
+            }
+        }
+
+        let start_byte_idx = current_byte_idx + additional_bytes;
 
         // Validate overlap
         if start_byte_idx < last_byte_idx {
@@ -573,29 +602,81 @@ fn apply_edits(content: &str, edits: Vec<TextEdit>) -> Result<String, ServerErro
         // Append replacement text
         result.push_str(&edit.new_text);
 
-        // 2. Advance iterator to end position (skipping replaced content)
-        loop {
-            if current_line == end_line && current_col == end_col {
-                break;
-            }
+        // Update current position to start_byte_idx for end position search
+        current_byte_idx = start_byte_idx;
+        // current_line is still start_line
+        // current_col is start_col
 
-            if let Some((_, ch)) = iter.next() {
-                if ch == '\n' {
+        // 2. Advance to end position
+        // Similar logic: skip lines if needed
+        while current_line < end_line {
+            match content[current_byte_idx..].find('\n') {
+                Some(idx) => {
+                    current_byte_idx += idx + 1;
                     current_line += 1;
                     current_col = 0;
-                } else {
-                    current_col += 1;
                 }
-            } else {
+                None => {
+                    return Err(ServerError::internal(format!(
+                        "Edit end position {}:{} is out of bounds (end at line {})",
+                        end_line, end_col, current_line
+                    )));
+                }
+            }
+        }
+
+        // Advance to end_col
+        chars_iter = content[current_byte_idx..].char_indices();
+        additional_bytes = 0;
+
+        if current_col != end_col {
+            loop {
+                match chars_iter.next() {
+                    Some((idx, ch)) => {
+                        if ch == '\n' {
+                            return Err(ServerError::internal(format!(
+                                "Edit end position {}:{} is out of bounds (end of line at column {})",
+                                end_line, end_col, current_col
+                            )));
+                        }
+                        current_col += 1;
+                        additional_bytes = idx + ch.len_utf8();
+                        if current_col == end_col {
+                            break;
+                        }
+                    }
+                    None => {
+                        if current_col == end_col {
+                            break;
+                        }
+                        return Err(ServerError::internal(format!(
+                            "Edit end position {}:{} is out of bounds (end of content)",
+                            end_line, end_col
+                        )));
+                    }
+                }
+            }
+        }
+
+        // Check original text if provided (Safety Check)
+        let end_byte_idx = current_byte_idx + additional_bytes;
+        if !edit.original_text.is_empty() {
+            let actual_text = &content[start_byte_idx..end_byte_idx];
+            if actual_text != edit.original_text {
                 return Err(ServerError::internal(format!(
-                    "Edit end position {}:{} is out of bounds (end at {}:{})",
-                    end_line, end_col, current_line, current_col
+                    "Edit conflict: Expected original text '{}' but found '{}' at {}:{}",
+                    edit.original_text, actual_text, start_line, start_col
                 )));
             }
         }
 
         // Update last_byte_idx to point to the end of the replaced range
-        last_byte_idx = iter.peek().map(|(i, _)| *i).unwrap_or(content.len());
+        last_byte_idx = end_byte_idx;
+
+        // Prepare current_byte_idx for next edit
+        current_byte_idx = last_byte_idx;
+        // current_line is already end_line
+        // current_col is end_col
     }
 
     // Append remaining text
@@ -672,4 +753,74 @@ mod tests {
         assert_eq!(result, "line1\nreplaced");
     }
 
+    #[test]
+    fn test_apply_edits_safety_check() {
+        let content = "hello world";
+        let edit = TextEdit {
+            file_path: None,
+            edit_type: EditType::Replace,
+            location: EditLocation {
+                start_line: 0,
+                start_column: 6,
+                end_line: 0,
+                end_column: 11,
+            },
+            original_text: "universe".to_string(), // Mismatch! Content has "world"
+            new_text: "galaxy".to_string(),
+            priority: 0,
+            description: "test".to_string(),
+        };
+
+        let result = apply_edits(content, vec![edit]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Edit conflict"));
+    }
+
+}
+
+#[cfg(test)]
+mod benchmarks {
+    use super::*;
+    use std::time::Instant;
+
+    #[test]
+    fn benchmark_apply_edits_performance() {
+        // Create a large content
+        let mut content = String::new();
+        for i in 0..10000 {
+            content.push_str(&format!("line {} with some content to replace\n", i));
+        }
+
+        // Create many edits
+        let mut edits = Vec::new();
+        for i in (0..10000).step_by(10) {
+            let original = format!("{}", i);
+            let len = original.len() as u32;
+            edits.push(TextEdit {
+                file_path: None,
+                edit_type: EditType::Replace,
+                location: EditLocation {
+                    start_line: i,
+                    start_column: 5,
+                    end_line: i,
+                    end_column: 5 + len,
+                },
+                original_text: original,
+                new_text: "REPLACED".to_string(),
+                priority: 0,
+                description: "benchmark".to_string(),
+            });
+        }
+
+        println!("Benchmarking apply_edits with {} edits on {} lines...", edits.len(), 10000);
+
+        // Run Optimized
+        let start_opt = Instant::now();
+        let _ = apply_edits(&content, edits).unwrap();
+        let duration_opt = start_opt.elapsed();
+        println!("Optimized implementation: {:?}", duration_opt);
+
+        // Assert performance is reasonable (< 100ms)
+        assert!(duration_opt.as_millis() < 100, "Optimized implementation should be faster than 100ms");
+    }
 }
