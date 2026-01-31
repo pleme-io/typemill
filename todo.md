@@ -47,14 +47,15 @@ Last updated: 2026-01-30
 
 ### Test Fixtures
 
-- [ ] **Rust: Add language-specific test fixtures**
-  - Create: `languages/mill-lang-rust/src/test_fixtures.rs`
-  - Model after: `languages/mill-lang-python/src/test_fixtures.rs`
-  - Include: complexity scenarios, refactoring scenarios
+- [x] **Rust: Add language-specific test fixtures** ✅ DONE
+  - Created: `languages/mill-lang-rust/src/test_fixtures.rs`
+  - 14 complexity scenarios (lifetimes, generics, macros, traits, async)
+  - 8 refactoring scenarios
 
-- [ ] **TypeScript: Add language-specific test fixtures**
-  - Create: `languages/mill-lang-typescript/src/test_fixtures.rs`
-  - Include: complexity scenarios, refactoring scenarios
+- [x] **TypeScript: Add language-specific test fixtures** ✅ DONE
+  - Created: `languages/mill-lang-typescript/src/test_fixtures.rs`
+  - 10 complexity scenarios (generics, async/await, JSX, decorators)
+  - 8 refactoring scenarios
 
 ### Real-World Project Tests
 
@@ -122,7 +123,7 @@ Last updated: 2026-01-30
 | reference_detector | ✅ | ✅ | ✅ |
 | consolidation | ✅ | ⬜ | ⬜ |
 | workspace_support | ✅ | ✅ | ⚠️ (Hatch incomplete) |
-| test_fixtures | ⬜ | ⬜ | ✅ |
+| test_fixtures | ✅ | ✅ | ✅ |
 | create_package | ✅ | ✅ | ✅ |
 | real-world tests | ⬜ | ✅ (Zod) | ⬜ |
 
