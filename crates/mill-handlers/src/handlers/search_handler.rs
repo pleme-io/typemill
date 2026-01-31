@@ -13,7 +13,10 @@ use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResu
 use mill_plugin_api::SymbolKind;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 use tracing::{debug, warn};
 
 // ============================================================================
@@ -52,11 +55,17 @@ struct SearchCodeResponse {
 // SearchHandler - Public Interface
 // ============================================================================
 
-pub struct SearchHandler;
+pub struct SearchHandler {
+    /// Cache of representative files per workspace and extension
+    /// Map<WorkspacePath, Map<Extension, FilePath>>
+    representative_files_cache: Arc<RwLock<HashMap<PathBuf, HashMap<String, PathBuf>>>>,
+}
 
 impl SearchHandler {
     pub fn new() -> Self {
-        Self
+        Self {
+            representative_files_cache: Arc::new(RwLock::new(HashMap::new())),
+        }
     }
 
     /// Parse symbol kind from string
@@ -377,14 +386,56 @@ impl SearchHandler {
             }
         }
 
-        // 2. Find representative files in single pass
-        let representative_files =
-            Self::find_representative_files(&workspace_path, &unique_extensions).await;
+        // 2. Resolve representative files using cache
+        let mut representative_files = HashMap::new();
+        let mut missing_extensions = unique_extensions.clone();
+
+        // Check cache
+        {
+            let cache = self.representative_files_cache.read().await;
+            if let Some(workspace_cache) = cache.get(&workspace_path) {
+                for ext in &unique_extensions {
+                    if let Some(path) = workspace_cache.get(ext) {
+                        // Verify file still exists to avoid using stale cache
+                        if tokio::fs::try_exists(path).await.unwrap_or(false) {
+                            representative_files.insert(ext.clone(), path.clone());
+                            missing_extensions.remove(ext);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Scan for missing extensions
+        if !missing_extensions.is_empty() {
+            debug!(
+                missing_count = missing_extensions.len(),
+                "Scanning for missing representative files"
+            );
+
+            let found = Self::find_representative_files(&workspace_path, &missing_extensions).await;
+
+            // Update cache with found files
+            if !found.is_empty() {
+                let mut cache = self.representative_files_cache.write().await;
+                let workspace_cache = cache
+                    .entry(workspace_path.clone())
+                    .or_insert_with(HashMap::new);
+
+                for (ext, path) in &found {
+                    workspace_cache.insert(ext.clone(), path.clone());
+                }
+            }
+
+            for (ext, path) in found {
+                representative_files.insert(ext, path);
+            }
+        }
 
         debug!(
             found_count = representative_files.len(),
             requested_count = unique_extensions.len(),
-            "Finished finding representative files"
+            "Finished resolving representative files"
         );
 
         // 3. Parallelize plugin queries
@@ -711,5 +762,91 @@ mod tests {
         // Beyond range
         let page_empty = SearchHandler::paginate(symbols, 20, 200);
         assert_eq!(page_empty.len(), 0);
+    }
+}
+
+#[cfg(test)]
+mod performance_tests {
+    use super::*;
+    use std::time::Instant;
+    use tokio::fs;
+
+    async fn create_test_workspace() -> tempfile::TempDir {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        fs::create_dir_all(root.join("src")).await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}").await.unwrap();
+
+        fs::create_dir_all(root.join("lib")).await.unwrap();
+        fs::write(root.join("lib/utils.py"), "def foo(): pass").await.unwrap();
+
+        fs::create_dir_all(root.join("packages/pkg1")).await.unwrap();
+        fs::write(root.join("packages/pkg1/index.ts"), "const x = 1;").await.unwrap();
+
+        temp_dir
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_representative_file_scan() {
+        let workspace = create_test_workspace().await;
+        let workspace_path = workspace.path().to_path_buf();
+
+        let extensions: std::collections::HashSet<String> = ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+
+        // Measure scan time
+        let start = Instant::now();
+        let iterations = 50;
+        for _ in 0..iterations {
+            let found = SearchHandler::find_representative_files(&workspace_path, &extensions).await;
+            assert_eq!(found.len(), 3);
+        }
+        let duration = start.elapsed();
+
+        println!("BENCHMARK: Time for {} scans: {:?}", iterations, duration);
+        println!("BENCHMARK: Average per scan: {:?}", duration / iterations);
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_caching_impact() {
+        let workspace = create_test_workspace().await;
+        let workspace_path = workspace.path().to_path_buf();
+        let extensions: std::collections::HashSet<String> = ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+
+        let handler = SearchHandler::new();
+
+        // Baseline: scan (1 call)
+        let start_scan = Instant::now();
+        let found = SearchHandler::find_representative_files(&workspace_path, &extensions).await;
+        let duration_scan = start_scan.elapsed();
+
+        // Populate cache manually to simulate first run
+        {
+            let mut cache = handler.representative_files_cache.write().await;
+            let workspace_cache = cache.entry(workspace_path.clone()).or_insert_with(std::collections::HashMap::new);
+            for (ext, path) in &found {
+                workspace_cache.insert(ext.clone(), path.clone());
+            }
+        }
+
+        // Benchmark cache access + verify existence
+        let start_cache = Instant::now();
+        let iterations = 1000;
+        for _ in 0..iterations {
+             let cache = handler.representative_files_cache.read().await;
+             if let Some(workspace_cache) = cache.get(&workspace_path) {
+                for ext in &extensions {
+                    if let Some(path) = workspace_cache.get(ext) {
+                        // verify existence
+                        let _ = tokio::fs::try_exists(path).await;
+                    }
+                }
+             }
+        }
+        let duration_cache = start_cache.elapsed();
+
+        println!("BENCHMARK: Scan (1 call): {:?}", duration_scan);
+        println!("BENCHMARK: Cache + Stat ({} calls): {:?}", iterations, duration_cache);
+        println!("BENCHMARK: Average Cache + Stat: {:?}", duration_cache / iterations);
     }
 }
