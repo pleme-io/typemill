@@ -34,6 +34,8 @@ use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
+use mill_foundation::protocol::{RefactorPlan, RefactorPlanExt};
+use mill_services::services::ExecutionResult;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -141,17 +143,12 @@ impl RefactorHandler {
         let refactor_plan = mill_foundation::protocol::RefactorPlan::ExtractPlan(plan);
 
         if params.options.dry_run {
-            let plan_json = serde_json::to_value(&refactor_plan)
-                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
-            let response = self.parse_plan_response(&plan_json, "extract")?;
+            let response = self.parse_plan_response(&refactor_plan, "extract")?;
             Ok(json!({ "content": response }))
         } else {
             let result =
                 crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
-            let result_json = serde_json::to_value(&result).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize execution result: {}", e))
-            })?;
-            let response = self.parse_execution_response(&result_json, "extract")?;
+            let response = self.parse_execution_response(&result, "extract")?;
             Ok(json!({ "content": response }))
         }
     }
@@ -202,17 +199,12 @@ impl RefactorHandler {
         let refactor_plan = mill_foundation::protocol::RefactorPlan::InlinePlan(plan);
 
         if params.options.dry_run {
-            let plan_json = serde_json::to_value(&refactor_plan)
-                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
-            let response = self.parse_plan_response(&plan_json, "inline")?;
+            let response = self.parse_plan_response(&refactor_plan, "inline")?;
             Ok(json!({ "content": response }))
         } else {
             let result =
                 crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
-            let result_json = serde_json::to_value(&result).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize execution result: {}", e))
-            })?;
-            let response = self.parse_execution_response(&result_json, "inline")?;
+            let response = self.parse_execution_response(&result, "inline")?;
             Ok(json!({ "content": response }))
         }
     }
@@ -244,142 +236,85 @@ impl RefactorHandler {
     }
 
     /// Parse RefactorPlan response and convert to WriteResponse
-    fn parse_plan_response(&self, content: &Value, operation: &str) -> ServerResult<WriteResponse> {
-        // Extract plan details from the RefactorPlan variant
-        // Handle both tagged (if changed in future) and untagged (current) serialization
-        let plan_data = if let Some(extract_plan) = content.get("ExtractPlan") {
-            extract_plan
-        } else if let Some(inline_plan) = content.get("InlinePlan") {
-            inline_plan
-        } else if content.get("summary").is_some() {
-            // Untagged enum serialization - content itself is the plan
-            content
-        } else {
-            return Err(ServerError::internal(
-                "Unexpected plan format: missing ExtractPlan, InlinePlan, or summary",
-            ));
+    fn parse_plan_response(
+        &self,
+        plan: &RefactorPlan,
+        operation: &str,
+    ) -> ServerResult<WriteResponse> {
+        // Extract plan details from the RefactorPlan variant directly
+        let (summary, metadata) = match plan {
+            RefactorPlan::ExtractPlan(p) => (&p.summary, &p.metadata),
+            RefactorPlan::InlinePlan(p) => (&p.summary, &p.metadata),
+            RefactorPlan::RenamePlan(p) => (&p.summary, &p.metadata),
+            RefactorPlan::MovePlan(p) => (&p.summary, &p.metadata),
+            RefactorPlan::ReorderPlan(p) => (&p.summary, &p.metadata),
+            RefactorPlan::TransformPlan(p) => (&p.summary, &p.metadata),
+            RefactorPlan::DeletePlan(p) => (&p.summary, &p.metadata),
         };
 
-        // Extract affected files from the summary
-        let summary = plan_data
-            .get("summary")
-            .ok_or_else(|| ServerError::internal("Plan response missing 'summary' field"))?;
-
-        let affected_files = summary
-            .get("affected_files")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let created_files = summary
-            .get("created_files")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let deleted_files = summary
-            .get("deleted_files")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
+        let affected_files = summary.affected_files;
+        let created_files = summary.created_files;
+        let deleted_files = summary.deleted_files;
 
         // Extract warnings and convert to diagnostics
-        let warnings = plan_data
-            .get("warnings")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|w| w.as_str())
-                    .map(|msg| Diagnostic {
-                        severity: DiagnosticSeverity::Warning,
-                        message: msg.to_string(),
-                        file_path: None,
-                        line: None,
-                    })
-                    .collect()
+        let warnings: Vec<Diagnostic> = plan
+            .warnings()
+            .iter()
+            .map(|w| Diagnostic {
+                severity: DiagnosticSeverity::Warning,
+                message: w.message.clone(),
+                file_path: None,
+                line: None,
             })
-            .unwrap_or_default();
+            .collect();
 
         // Extract file checksums to get affected file paths
-        let files_changed: Vec<String> = plan_data
-            .get("file_checksums")
-            .and_then(|v| v.as_object())
-            .map(|obj| obj.keys().cloned().collect())
-            .unwrap_or_default();
+        let files_changed: Vec<String> = plan.checksums().keys().cloned().collect();
 
         // Generate summary message
         let summary_msg = format!(
             "{} {} (preview): {} file(s) affected, {} created, {} deleted",
             operation,
-            capitalize_first(
-                plan_data
-                    .get("metadata")
-                    .and_then(|m| m.get("kind"))
-                    .and_then(|k| k.as_str())
-                    .unwrap_or(operation)
-            ),
+            capitalize_first(&metadata.kind),
             affected_files,
             created_files,
             deleted_files
         );
+
+        // Serialize plan for changes field
+        let changes_value = serde_json::to_value(plan)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
 
         Ok(WriteResponse {
             status: WriteStatus::Preview,
             summary: summary_msg,
             files_changed,
             diagnostics: warnings,
-            changes: Some(content.clone()),
+            changes: Some(changes_value),
         })
     }
 
     /// Parse ExecutionResult response and convert to WriteResponse
     fn parse_execution_response(
         &self,
-        content: &Value,
+        result: &ExecutionResult,
         operation: &str,
     ) -> ServerResult<WriteResponse> {
-        let success = content
-            .get("success")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false);
-
-        let applied_files: Vec<String> = content
-            .get("applied_files")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let success = result.success;
+        let applied_files = result.applied_files.clone();
 
         // Extract warnings and errors
         let mut diagnostics = Vec::new();
 
-        if let Some(warnings) = content.get("warnings").and_then(|v| v.as_array()) {
-            for warning in warnings {
-                if let Some(msg) = warning.as_str() {
-                    diagnostics.push(Diagnostic {
-                        severity: DiagnosticSeverity::Warning,
-                        message: msg.to_string(),
-                        file_path: None,
-                        line: None,
-                    });
-                }
-            }
+        for warning in &result.warnings {
+            diagnostics.push(Diagnostic {
+                severity: DiagnosticSeverity::Warning,
+                message: warning.clone(),
+                file_path: None,
+                line: None,
+            });
         }
 
-        if let Some(validation) = content.get("validation") {
-            if let Some(errors) = validation.get("errors").and_then(|v| v.as_array()) {
-                for error in errors {
-                    if let Some(msg) = error.as_str() {
-                        diagnostics.push(Diagnostic {
-                            severity: DiagnosticSeverity::Error,
-                            message: msg.to_string(),
-                            file_path: None,
-                            line: None,
-                        });
-                    }
-                }
-            }
-        }
 
         let summary = if success {
             format!(
@@ -397,12 +332,16 @@ impl RefactorHandler {
             WriteStatus::Error
         };
 
+        // Serialize result for changes field
+        let changes_value = serde_json::to_value(result)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize result: {}", e)))?;
+
         Ok(WriteResponse {
             status,
             summary,
             files_changed: applied_files,
             diagnostics,
-            changes: Some(content.clone()),
+            changes: Some(changes_value),
         })
     }
 }
