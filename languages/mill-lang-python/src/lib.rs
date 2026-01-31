@@ -77,15 +77,13 @@ impl LanguagePlugin for PythonPlugin {
         let source = source.to_string();
 
         tokio::task::spawn_blocking(move || {
-            // Extract all symbols from the source code
-            let symbols = parser::extract_symbols(&source)?;
+            // Use unified single-pass parser
+            let result = parser::parse_source_code(&source)?;
 
-            // Parse imports
-            let imports = parser::parse_python_imports(&source)?;
-
-            // Create a simplified AST representation
-            let functions = parser::extract_python_functions(&source)?;
-            let variables = parser::extract_python_variables(&source)?;
+            let symbols = result.symbols;
+            let imports = result.imports;
+            let functions = result.functions;
+            let variables = result.variables;
 
             let ast_json = serde_json::json!({
                 "type": "Module",
@@ -876,5 +874,38 @@ dependencies = [
         // Note: this assertion might be flaky on extremely slow machines if list_functions finishes < 10ms,
         // but with 50,000 lines it should take significantly longer than 10ms.
         assert!(ticks > 0, "list_functions blocked the executor! Ticks: {}", ticks);
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_parse_is_non_blocking() {
+        // This test verifies that parse does not block the async executor
+        let plugin = PythonPlugin::new();
+        // 50,000 lines should take some time to parse
+        let source = "def foo(): pass\n".repeat(50000);
+
+        // Spawn a background task that attempts to tick while parse is running
+        let start_time = std::time::Instant::now();
+        // Allow 500ms
+        let end_time = start_time + std::time::Duration::from_millis(500);
+
+        let background_handle = tokio::spawn(async move {
+            let mut ticks = 0;
+            while std::time::Instant::now() < end_time {
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                ticks += 1;
+            }
+            ticks
+        });
+
+        // Run parse
+        let result = plugin.parse(&source).await;
+        assert!(result.is_ok());
+        let parsed = result.unwrap();
+        // 50k functions.
+        assert_eq!(parsed.symbols.len(), 50000);
+
+        let ticks = background_handle.await.unwrap();
+
+        assert!(ticks > 0, "parse blocked the executor! Ticks: {}", ticks);
     }
 }

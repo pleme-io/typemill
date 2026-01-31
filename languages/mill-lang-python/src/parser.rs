@@ -19,7 +19,7 @@ use mill_lang_common::{
 };
 use mill_plugin_api::{PluginApiError, PluginResult, Symbol, SymbolKind};
 use std::path::Path;
-use tracing::debug;
+
 /// List all function names in Python source code using Python's native AST parser.
 /// This function spawns a Python subprocess to perform the parsing.
 pub(crate) async fn list_functions(source: &str) -> PluginResult<Vec<String>> {
@@ -30,6 +30,7 @@ pub(crate) async fn list_functions(source: &str) -> PluginResult<Vec<String>> {
         .with_args(vec!["{script}".to_string(), "list-functions".to_string()]);
     run_ast_tool_async(tool, source).await.map_err(Into::into)
 }
+
 /// Analyze Python imports and produce an import graph.
 /// Uses dual-mode parsing: Python AST parser with regex fallback.
 pub(crate) fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginResult<ImportGraph> {
@@ -45,15 +46,45 @@ pub(crate) fn analyze_imports(source: &str, file_path: Option<&Path>) -> PluginR
         .with_parser_version(PARSER_VERSION)
         .build())
 }
-/// Parse Python imports using regex-based parsing
+
+/// Structure to hold results of parsing Python source code
+#[derive(Debug, Clone)]
+pub(crate) struct PythonParseResult {
+    pub symbols: Vec<Symbol>,
+    pub imports: Vec<ImportInfo>,
+    pub functions: Vec<PythonFunction>,
+    pub variables: Vec<PythonVariable>,
+}
+
+/// Parse all Python source code elements in a single pass.
 ///
-/// Supports both `import` and `from...import` statements with aliases.
-/// This is a fast, reliable parser for common import patterns.
-pub(crate) fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
+/// This function iterates over the source lines once and extracts:
+/// - Symbols (Functions, Classes, Variables, Constants)
+/// - Imports
+/// - Function metadata
+/// - Variable metadata
+pub(crate) fn parse_source_code(source: &str) -> PluginResult<PythonParseResult> {
+    let mut symbols = Vec::new();
     let mut imports = Vec::new();
+    let mut functions = Vec::new();
+    let mut variables = Vec::new();
+
+    enum ScopeData {
+        Function(PythonFunction),
+        Class,
+    }
+
+    // Stack: (start_line, indentation, ScopeData, pending_symbol)
+    let mut active_scopes: Vec<(u32, usize, ScopeData, Symbol)> = Vec::new();
+    let mut last_line_idx = 0;
+
     for (line_num, line) in source.lines().enumerate() {
-        let line = line.trim();
-        if let Some(captures) = IMPORT_PATTERN.captures(line) {
+        let line_num = line_num as u32;
+        last_line_idx = line_num;
+        let trimmed = line.trim();
+
+        // Handle imports
+        if let Some(captures) = IMPORT_PATTERN.captures(trimmed) {
             let module_name = captures
                 .get(1)
                 .expect("Python import regex should always capture module name at index 1")
@@ -67,13 +98,13 @@ pub(crate) fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>
                 namespace_import: alias.or_else(|| Some(module_name.to_string())),
                 type_only: false,
                 location: SourceLocation {
-                    start_line: line_num as u32,
-                    end_line: line_num as u32,
+                    start_line: line_num,
+                    end_line: line_num,
                     start_column: 0,
-                    end_column: line.len() as u32,
+                    end_column: trimmed.len() as u32,
                 },
             });
-        } else if let Some(captures) = FROM_IMPORT_PATTERN.captures(line) {
+        } else if let Some(captures) = FROM_IMPORT_PATTERN.captures(trimmed) {
             let module_name = captures
                 .get(1)
                 .expect("Python from-import regex should always capture module name at index 1")
@@ -91,46 +122,15 @@ pub(crate) fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>
                 namespace_import: None,
                 type_only: false,
                 location: SourceLocation {
-                    start_line: line_num as u32,
-                    end_line: line_num as u32,
+                    start_line: line_num,
+                    end_line: line_num,
                     start_column: 0,
-                    end_column: line.len() as u32,
+                    end_column: trimmed.len() as u32,
                 },
             });
         }
-    }
-    Ok(imports)
-}
-/// Parse import names from "from ... import ..." statements
-fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
-    if imports_str.trim() == "*" {
-        return Vec::new();
-    }
-    imports_str
-        .split(',')
-        .map(|part| {
-            let (name, alias) = parse_import_alias(part.trim());
-            NamedImport {
-                name,
-                alias,
-                type_only: false,
-            }
-        })
-        .collect()
-}
-/// Extract Python function definitions with metadata
-pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
-    let mut functions = Vec::new();
-    // Stack of active functions: (start_line, indentation, function)
-    let mut active_functions: Vec<(u32, usize, PythonFunction)> = Vec::new();
 
-    let mut last_line_idx = 0;
-
-    for (line_num, line) in source.lines().enumerate() {
-        let line_num = line_num as u32;
-        last_line_idx = line_num;
-        let trimmed = line.trim();
-
+        // Skip comments and empty lines for indentation tracking
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
@@ -138,22 +138,29 @@ pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonF
         // Calculate indentation
         let indent = line.chars().take_while(|c| c.is_whitespace()).count();
 
-        // Check if any active functions ended
-        // A function ends if the current line's indentation is <= the function's indentation
-        // We iterate active_functions in reverse to close nested ones first
-        while let Some((_, func_indent, _)) = active_functions.last() {
+        // Check if any active scopes ended
+        while let Some((_, func_indent, _, _)) = active_scopes.last() {
             if indent <= *func_indent {
-                let (_, _, mut func) = active_functions.pop().unwrap();
-                // The function ended at the previous line index
-                func.end_line = line_num.saturating_sub(1);
-                functions.push(func);
+                let (_, _, scope_data, mut symbol) = active_scopes.pop().unwrap();
+                let end_line = line_num.saturating_sub(1);
+                symbol.end_location = Some(mill_plugin_api::SourceLocation {
+                    line: end_line as usize,
+                    column: 0,
+                });
+                symbols.push(symbol);
+
+                if let ScopeData::Function(mut func) = scope_data {
+                    func.end_line = end_line;
+                    functions.push(func);
+                }
             } else {
                 break;
             }
         }
 
+        // Function definitions
         if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
-            let _indent_str = captures
+             let _indent_str = captures
                 .get(1)
                 .expect("Python function regex should always capture indent at index 1")
                 .as_str();
@@ -179,32 +186,150 @@ pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonF
             let func = PythonFunction {
                 name: name.to_string(),
                 start_line: line_num,
-                end_line: line_num, // Will update later
+                end_line: line_num, // Will update when scope closes
                 args,
                 body_start_line: line_num + 1,
                 is_async,
                 decorators: Vec::new(),
             };
 
-            // Push to stack with current indentation
-            // We use the regex capture for indentation? No, use computed indent.
-            // FUNCTION_DEF_PATTERN captures indentation in group 1.
+            let symbol = Symbol {
+                name: name.to_string(),
+                kind: SymbolKind::Function,
+                location: mill_plugin_api::SourceLocation {
+                    line: line_num as usize,
+                    column: 0,
+                },
+                end_location: None, // Will update when scope closes
+                documentation: None,
+            };
+
             let func_indent = _indent_str.len();
-            active_functions.push((line_num, func_indent, func));
+            active_scopes.push((line_num, func_indent, ScopeData::Function(func), symbol));
+            continue;
+        }
+
+        // Class definitions
+        // CLASS_DEF_PATTERN is `^class\s+(\w+)`. It expects start of string (no indent).
+        // But classes can be indented.
+        // We use trimmed line for regex, but we must use line indentation for scope.
+        if let Some(captures) = CLASS_DEF_PATTERN.captures(trimmed) {
+            if let Some(name) = captures.get(1) {
+                let symbol = Symbol {
+                    name: name.as_str().to_string(),
+                    kind: SymbolKind::Class,
+                    location: mill_plugin_api::SourceLocation {
+                        line: line_num as usize,
+                        column: 0,
+                    },
+                    end_location: None, // Will update when scope closes
+                    documentation: None,
+                };
+
+                // Indent is already calculated
+                active_scopes.push((line_num, indent, ScopeData::Class, symbol));
+                continue;
+            }
+        }
+
+        // Variable assignments
+        if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line) {
+            let var_name = captures
+                .get(2)
+                .expect("Python assignment regex should always capture variable name at index 2")
+                .as_str();
+            let value = captures
+                .get(3)
+                .expect("Python assignment regex should always capture value at index 3")
+                .as_str();
+
+            let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+
+            let value_type = infer_python_value_type(value);
+            variables.push(PythonVariable {
+                name: var_name.to_string(),
+                line: line_num,
+                value_type,
+                is_constant,
+            });
+
+            let kind = if is_constant {
+                SymbolKind::Constant
+            } else {
+                SymbolKind::Variable
+            };
+
+            symbols.push(Symbol {
+                name: var_name.to_string(),
+                kind,
+                location: mill_plugin_api::SourceLocation {
+                    line: line_num as usize,
+                    column: 0,
+                },
+                end_location: Some(mill_plugin_api::SourceLocation {
+                    line: line_num as usize,
+                    column: 0,
+                }),
+                documentation: None,
+            });
         }
     }
 
-    // Close remaining functions
-    for (_, _, mut func) in active_functions {
-        func.end_line = last_line_idx;
-        functions.push(func);
+    // Close remaining scopes
+    for (_, _, scope_data, mut symbol) in active_scopes.into_iter().rev() {
+         symbol.end_location = Some(mill_plugin_api::SourceLocation {
+             line: last_line_idx as usize,
+             column: 0,
+         });
+         symbols.push(symbol);
+
+         if let ScopeData::Function(mut func) = scope_data {
+             func.end_line = last_line_idx;
+             functions.push(func);
+         }
     }
 
-    // Sort functions by start_line to maintain order
+    // Sort functions by start_line to maintain expected order
     functions.sort_by_key(|f| f.start_line);
+    // Sort symbols by start line (and column? usually 0)
+    symbols.sort_by_key(|s| s.location.line);
 
-    Ok(functions)
+    Ok(PythonParseResult {
+        symbols,
+        imports,
+        functions,
+        variables,
+    })
 }
+
+/// Parse Python imports using regex-based parsing
+pub(crate) fn parse_python_imports(source: &str) -> PluginResult<Vec<ImportInfo>> {
+    Ok(parse_source_code(source)?.imports)
+}
+
+/// Parse import names from "from ... import ..." statements
+fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
+    if imports_str.trim() == "*" {
+        return Vec::new();
+    }
+    imports_str
+        .split(',')
+        .map(|part| {
+            let (name, alias) = parse_import_alias(part.trim());
+            NamedImport {
+                name,
+                alias,
+                type_only: false,
+            }
+        })
+        .collect()
+}
+
+/// Extract Python function definitions with metadata
+pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
+    Ok(parse_source_code(source)?.functions)
+}
+
 /// Python function representation
 #[derive(Debug, Clone)]
 pub(crate) struct PythonFunction {
@@ -221,31 +346,13 @@ pub(crate) struct PythonFunction {
     #[allow(dead_code)] // Future enhancement: Decorator analysis
     pub decorators: Vec<String>,
 }
+
 /// Extract Python variable assignments
+#[allow(dead_code)]
 pub(crate) fn extract_python_variables(source: &str) -> PluginResult<Vec<PythonVariable>> {
-    let mut variables = Vec::new();
-    for (line_num, line) in source.lines().enumerate() {
-        if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line) {
-            let var_name = captures
-                .get(2)
-                .expect("Python assignment regex should always capture variable name at index 2")
-                .as_str();
-            let value = captures
-                .get(3)
-                .expect("Python assignment regex should always capture value at index 3")
-                .as_str();
-            let value_type = infer_python_value_type(value);
-            let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
-            variables.push(PythonVariable {
-                name: var_name.to_string(),
-                line: line_num as u32,
-                value_type,
-                is_constant,
-            });
-        }
-    }
-    Ok(variables)
+    Ok(parse_source_code(source)?.variables)
 }
+
 /// Python variable representation
 #[derive(Debug, Clone)]
 pub(crate) struct PythonVariable {
@@ -271,22 +378,8 @@ pub(crate) enum PythonValueType {
     Class,
     Unknown,
 }
+
 /// Infers the Python value type from source text.
-///
-/// This function analyzes a string representation of a Python value and determines
-/// its type by examining syntax patterns like quotes, brackets, keywords, etc.
-///
-/// # Arguments
-/// * `value` - The string representation of the Python value
-///
-/// # Returns
-/// A `PythonValueType` enum variant representing the inferred type
-///
-/// # Example Usage
-///
-/// - `infer_python_value_type("\"hello\"")` returns `PythonValueType::String`
-/// - `infer_python_value_type("[1, 2, 3]")` returns `PythonValueType::List`
-/// - `infer_python_value_type("42")` returns `PythonValueType::Number`
 fn infer_python_value_type(value: &str) -> PythonValueType {
     let value = value.trim();
     if value.starts_with('"') || value.starts_with('\'') {
@@ -311,104 +404,16 @@ fn infer_python_value_type(value: &str) -> PythonValueType {
         PythonValueType::Unknown
     }
 }
+
 /// Extract symbols from Python source code for code intelligence
+#[allow(dead_code)]
 pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
-    let mut symbols = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
-
-    for (line_num, line) in lines.iter().enumerate() {
-        // Function definitions
-        if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
-            let name = captures
-                .get(3)
-                .expect("Python function regex should always capture name at index 3")
-                .as_str();
-
-            let end_line =
-                find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
-
-            symbols.push(Symbol {
-                name: name.to_string(),
-                kind: SymbolKind::Function,
-                location: mill_plugin_api::SourceLocation {
-                    line: line_num,
-                    column: 0,
-                },
-                end_location: Some(mill_plugin_api::SourceLocation {
-                    line: end_line as usize,
-                    column: 0,
-                }),
-                documentation: None,
-            });
-            continue;
-        }
-
-        // Variable assignments
-        if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line) {
-            let var_name = captures
-                .get(2)
-                .expect("Python assignment regex should always capture variable name at index 2")
-                .as_str();
-
-            // We optimize by skipping infer_python_value_type since we only need to know if it's constant
-            let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
-            let kind = if is_constant {
-                SymbolKind::Constant
-            } else {
-                SymbolKind::Variable
-            };
-
-            symbols.push(Symbol {
-                name: var_name.to_string(),
-                kind,
-                location: mill_plugin_api::SourceLocation {
-                    line: line_num,
-                    column: 0,
-                },
-                end_location: Some(mill_plugin_api::SourceLocation {
-                    line: line_num,
-                    column: 0,
-                }),
-                documentation: None,
-            });
-            continue;
-        }
-
-        // Class definitions
-        if let Some(captures) = CLASS_DEF_PATTERN.captures(line.trim()) {
-            if let Some(name) = captures.get(1) {
-                let end_line =
-                    find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
-                symbols.push(Symbol {
-                    name: name.as_str().to_string(),
-                    kind: SymbolKind::Class,
-                    location: mill_plugin_api::SourceLocation {
-                        line: line_num,
-                        column: 0,
-                    },
-                    end_location: Some(mill_plugin_api::SourceLocation {
-                        line: end_line as usize,
-                        column: 0,
-                    }),
-                    documentation: None,
-                });
-            }
-        }
-    }
-    debug!(symbols_count = symbols.len(), "Extracted Python symbols");
-    Ok(symbols)
+    Ok(parse_source_code(source)?.symbols)
 }
+
 /// Finds the end line of a Python function by analyzing indentation levels.
-///
-/// Scans forward from the function start line to find where the function body ends
-/// by detecting decreased indentation or the start of a new top-level construct.
-///
-/// # Arguments
-/// * `source` - The complete Python source code
-/// * `function_start_line` - Zero-based line number where the function definition starts
-///
-/// # Returns
-/// Zero-based line number where the function ends, or an error if the start line is invalid
+/// DEPRECATED: Use parse_source_code instead which handles scope ending in a single pass.
+#[allow(dead_code)]
 pub(crate) fn find_python_function_end(
     lines: &[&str],
     function_start_line: u32,
@@ -430,14 +435,8 @@ pub(crate) fn find_python_function_end(
     }
     Ok(lines.len() as u32 - 1)
 }
+
 /// Gets the indentation level (number of leading whitespace characters) at a specific line.
-///
-/// # Arguments
-/// * `source` - The Python source code
-/// * `line` - Zero-based line number to check
-///
-/// # Returns
-/// Number of leading whitespace characters, or 0 if the line doesn't exist
 #[allow(dead_code)] // Future enhancement: Indentation-aware refactoring
 pub(crate) fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
     let lines: Vec<&str> = source.lines().collect();
@@ -447,25 +446,8 @@ pub(crate) fn get_python_indentation_at_line(source: &str, line: u32) -> u32 {
         0
     }
 }
+
 /// Analyzes and extracts a Python expression from a selected range.
-///
-/// This function extracts the text content from a specified range in Python source code,
-/// handling both single-line and multi-line selections.
-///
-/// # Arguments
-/// * `source` - The complete Python source code
-/// * `start_line` - Zero-based starting line number
-/// * `start_col` - Zero-based starting column offset
-/// * `end_line` - Zero-based ending line number
-/// * `end_col` - Zero-based ending column offset
-///
-/// # Returns
-/// * `Ok(String)` - The extracted expression text
-/// * `Err(PluginApiError)` - If the line numbers are invalid
-///
-/// # Note
-/// For single-line selections, returns the substring from start_col to end_col.
-/// For multi-line selections, concatenates the full text including newlines.
 pub(crate) fn analyze_python_expression_range(
     source: &str,
     start_line: u32,
@@ -497,20 +479,8 @@ pub(crate) fn analyze_python_expression_range(
         Ok(result)
     }
 }
+
 /// Finds a Python variable declaration at a specific cursor position.
-///
-/// This function searches for a variable declaration on the specified line and checks
-/// if the cursor position falls within the variable name.
-///
-/// # Arguments
-/// * `source` - The complete Python source code
-/// * `line` - Zero-based line number
-/// * `col` - Zero-based column offset
-///
-/// # Returns
-/// * `Ok(Some(PythonVariable))` - If a variable is found at the cursor position
-/// * `Ok(None)` - If no variable is found at the cursor position
-/// * `Err(PluginApiError)` - If the line number is invalid
 pub(crate) fn find_variable_at_position(
     source: &str,
     line: u32,
@@ -533,6 +503,7 @@ pub(crate) fn find_variable_at_position(
     }
     Ok(None)
 }
+
 /// Get all usages of a variable within scope
 pub(crate) fn get_variable_usages_in_scope(
     source: &str,
@@ -573,17 +544,8 @@ pub(crate) fn get_variable_usages_in_scope(
     }
     Ok(usages)
 }
+
 /// Finds all variables that are in scope at a given line based on Python indentation rules.
-///
-/// Returns variables declared before the target line that are visible based on
-/// indentation level (variables at equal or lower indentation are in scope).
-///
-/// # Arguments
-/// * `source` - The Python source code
-/// * `target_line` - Zero-based line number to find variables for
-///
-/// # Returns
-/// Vector of variables that are in scope at the target line
 #[allow(dead_code)] // Future enhancement: Scope-aware variable analysis
 pub(crate) fn find_python_scope_variables(
     source: &str,
@@ -600,6 +562,7 @@ pub(crate) fn find_python_scope_variables(
         })
         .collect())
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -669,41 +632,18 @@ def another_func():
         let functions = extract_python_functions(source).unwrap();
         assert_eq!(functions.len(), 2);
         assert_eq!(functions[0].name, "func_with_comments");
-        // The comment at indentation 0 should NOT close the function because it starts with #
-        // But wait, the function ends at `return x + y` line?
-        // Let's trace:
-        // Line 1: def func... (0). Stack [func].
-        // Line 2: # This... (4). Ignored.
-        // Line 3: x = 1 (4). 4 > 0.
-        // Line 4: # This... (0). Ignored.
-        // Line 5: y = 2 (4). 4 > 0.
-        // Line 6: return... (4). 4 > 0.
-        // Line 7: empty.
-        // Line 8: def another... (0). 0 <= 0. Pop func.
-
-        // So func should include y=2 and return.
-        // end_line should be 6 (line index of return).
-
-        // Let's check line indices:
-        // 0: empty
-        // 1: def func...
-        // 2: # ...
-        // 3: x = 1
-        // 4: # ...
-        // 5: y = 2
-        // 6: return ...
-        // 7: empty
-        // 8: def another...
-
-        // func starts at 1. ends at 7? (line 8 triggers pop, previous line is 7).
-        // Or 6?
-        // My logic: `func.end_line = line_num.saturating_sub(1)`.
-        // If line_num is 8, end_line is 7.
-        // If line 7 is empty, does it matter?
-        // Ideally end_line should be last code line (6).
-        // But `find_python_function_end` logic was "until next block".
-        // So 7 is acceptable.
-
+        // func_with_comments ends when another_func starts (line 8) or empty line 7?
+        // In the new parser:
+        // Line 1: def (indent 0). Stack [func:0].
+        // Line 2: # (skip)
+        // Line 3: x=1 (indent 4). 4 > 0.
+        // Line 4: # (skip)
+        // Line 5: y=2 (indent 4). 4 > 0.
+        // Line 6: return (indent 4). 4 > 0.
+        // Line 7: empty (skip)
+        // Line 8: def (indent 0). 0 <= 0. Pop func.
+        // Pop happens at Line 8.
+        // end_line = 8 - 1 = 7.
         assert_eq!(functions[0].end_line, 7);
         assert_eq!(functions[1].name, "another_func");
     }
