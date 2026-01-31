@@ -34,6 +34,7 @@ use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
+use mill_foundation::protocol::RefactorPlan;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::Path;
@@ -141,9 +142,7 @@ impl RefactorHandler {
         let refactor_plan = mill_foundation::protocol::RefactorPlan::ExtractPlan(plan);
 
         if params.options.dry_run {
-            let plan_json = serde_json::to_value(&refactor_plan)
-                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
-            let response = self.parse_plan_response(&plan_json, "extract")?;
+            let response = self.create_preview_response(&refactor_plan, "extract")?;
             Ok(json!({ "content": response }))
         } else {
             let result =
@@ -202,9 +201,7 @@ impl RefactorHandler {
         let refactor_plan = mill_foundation::protocol::RefactorPlan::InlinePlan(plan);
 
         if params.options.dry_run {
-            let plan_json = serde_json::to_value(&refactor_plan)
-                .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
-            let response = self.parse_plan_response(&plan_json, "inline")?;
+            let response = self.create_preview_response(&refactor_plan, "inline")?;
             Ok(json!({ "content": response }))
         } else {
             let result =
@@ -243,89 +240,91 @@ impl RefactorHandler {
         Ok(json!({ "content": response }))
     }
 
-    /// Parse RefactorPlan response and convert to WriteResponse
-    fn parse_plan_response(&self, content: &Value, operation: &str) -> ServerResult<WriteResponse> {
-        // Extract plan details from the RefactorPlan variant
-        // Handle both tagged (if changed in future) and untagged (current) serialization
-        let plan_data = if let Some(extract_plan) = content.get("ExtractPlan") {
-            extract_plan
-        } else if let Some(inline_plan) = content.get("InlinePlan") {
-            inline_plan
-        } else if content.get("summary").is_some() {
-            // Untagged enum serialization - content itself is the plan
-            content
-        } else {
-            return Err(ServerError::internal(
-                "Unexpected plan format: missing ExtractPlan, InlinePlan, or summary",
-            ));
+    /// Create a preview response directly from the RefactorPlan
+    ///
+    /// This method is optimized to avoid unnecessary JSON serialization/deserialization for metadata
+    /// and fixes a bug where warnings were not being correctly parsed.
+    fn create_preview_response(
+        &self,
+        plan: &RefactorPlan,
+        operation: &str,
+    ) -> ServerResult<WriteResponse> {
+        let (summary, warnings, file_checksums, metadata) = match plan {
+            RefactorPlan::ExtractPlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
+            RefactorPlan::InlinePlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
+            RefactorPlan::RenamePlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
+            RefactorPlan::MovePlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
+            RefactorPlan::ReorderPlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
+            RefactorPlan::TransformPlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
+            RefactorPlan::DeletePlan(p) => (
+                &p.summary,
+                &p.warnings,
+                &p.file_checksums,
+                &p.metadata,
+            ),
         };
 
-        // Extract affected files from the summary
-        let summary = plan_data
-            .get("summary")
-            .ok_or_else(|| ServerError::internal("Plan response missing 'summary' field"))?;
-
-        let affected_files = summary
-            .get("affected_files")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let created_files = summary
-            .get("created_files")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        let deleted_files = summary
-            .get("deleted_files")
-            .and_then(|v| v.as_u64())
-            .unwrap_or(0);
-
-        // Extract warnings and convert to diagnostics
-        let warnings = plan_data
-            .get("warnings")
-            .and_then(|v| v.as_array())
-            .map(|arr| {
-                arr.iter()
-                    .filter_map(|w| w.as_str())
-                    .map(|msg| Diagnostic {
-                        severity: DiagnosticSeverity::Warning,
-                        message: msg.to_string(),
-                        file_path: None,
-                        line: None,
-                    })
-                    .collect()
+        let diagnostics: Vec<Diagnostic> = warnings
+            .iter()
+            .map(|w| Diagnostic {
+                severity: DiagnosticSeverity::Warning,
+                message: w.message.clone(),
+                file_path: None,
+                line: None,
             })
-            .unwrap_or_default();
+            .collect();
 
-        // Extract file checksums to get affected file paths
-        let files_changed: Vec<String> = plan_data
-            .get("file_checksums")
-            .and_then(|v| v.as_object())
-            .map(|obj| obj.keys().cloned().collect())
-            .unwrap_or_default();
+        let files_changed: Vec<String> = file_checksums.keys().cloned().collect();
 
-        // Generate summary message
         let summary_msg = format!(
             "{} {} (preview): {} file(s) affected, {} created, {} deleted",
             operation,
-            capitalize_first(
-                plan_data
-                    .get("metadata")
-                    .and_then(|m| m.get("kind"))
-                    .and_then(|k| k.as_str())
-                    .unwrap_or(operation)
-            ),
-            affected_files,
-            created_files,
-            deleted_files
+            capitalize_first(&metadata.kind),
+            summary.affected_files,
+            summary.created_files,
+            summary.deleted_files
         );
+
+        // Serialize the full plan to JSON for the 'changes' field
+        let changes_json = serde_json::to_value(plan)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
 
         Ok(WriteResponse {
             status: WriteStatus::Preview,
             summary: summary_msg,
             files_changed,
-            diagnostics: warnings,
-            changes: Some(content.clone()),
+            diagnostics,
+            changes: Some(changes_json),
         })
     }
 
@@ -590,3 +589,83 @@ mod tests {
         assert!(params.options.dry_run); // Should default to true
     }
 }
+
+    #[test]
+    fn test_create_preview_response_warnings_fix() {
+        use mill_foundation::protocol::{ExtractPlan, PlanMetadata, PlanSummary, PlanWarning, RefactorPlan};
+        use lsp_types::WorkspaceEdit;
+        use std::collections::HashMap;
+
+        let handler = RefactorHandler::new();
+
+        let plan = RefactorPlan::ExtractPlan(ExtractPlan {
+            edits: WorkspaceEdit::default(),
+            summary: PlanSummary {
+                affected_files: 1,
+                created_files: 0,
+                deleted_files: 0,
+            },
+            warnings: vec![PlanWarning {
+                code: "W001".to_string(),
+                message: "Test warning".to_string(),
+                candidates: None,
+            }],
+            metadata: PlanMetadata {
+                plan_version: "1.0".to_string(),
+                kind: "extract".to_string(),
+                language: "rust".to_string(),
+                estimated_impact: "low".to_string(),
+                created_at: "2024-01-01T00:00:00Z".to_string(),
+            },
+            file_checksums: HashMap::new(),
+        });
+
+        let response = handler.create_preview_response(&plan, "extract").unwrap();
+
+        // Verify warnings are now correctly preserved
+        assert_eq!(response.diagnostics.len(), 1, "Warnings should be preserved");
+        assert_eq!(response.diagnostics[0].message, "Test warning");
+    }
+
+    #[test]
+    fn test_create_preview_response_performance() {
+        use mill_foundation::protocol::{ExtractPlan, PlanMetadata, PlanSummary, RefactorPlan};
+        use lsp_types::WorkspaceEdit;
+        use std::collections::HashMap;
+
+        let handler = RefactorHandler::new();
+
+        // Create a plan with significant data to measure serialization/parsing cost
+        let mut checksums = HashMap::new();
+        for i in 0..1000 {
+            checksums.insert(format!("file_{}.rs", i), "abcdef1234567890".to_string());
+        }
+
+        let plan = RefactorPlan::ExtractPlan(ExtractPlan {
+            edits: WorkspaceEdit::default(),
+            summary: PlanSummary {
+                affected_files: 1000,
+                created_files: 0,
+                deleted_files: 0,
+            },
+            warnings: vec![],
+            metadata: PlanMetadata {
+                plan_version: "1.0".to_string(),
+                kind: "extract".to_string(),
+                language: "rust".to_string(),
+                estimated_impact: "high".to_string(),
+                created_at: "2024-01-01T00:00:00Z".to_string(),
+            },
+            file_checksums: checksums,
+        });
+
+        let start = std::time::Instant::now();
+
+        // This simulates the optimized flow
+        for _ in 0..100 {
+            let _ = handler.create_preview_response(&plan, "extract").unwrap();
+        }
+
+        let duration = start.elapsed();
+        println!("Optimized Performance (100 iterations): {:?}", duration);
+    }
