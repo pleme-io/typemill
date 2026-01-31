@@ -12,6 +12,9 @@ mod tests;
 #[cfg(test)]
 mod path_safety_tests;
 
+#[cfg(test)]
+mod security_test;
+
 // Re-export public types
 pub use self::utils::DocumentationUpdateReport;
 pub use mill_foundation::protocol::EditPlanResult;

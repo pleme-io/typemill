@@ -72,19 +72,19 @@ impl FileService {
         }
 
         // Run validation command in the project root
-        // Use platform-specific shell (sh on Unix, cmd.exe on Windows)
-        #[cfg(unix)]
-        let mut cmd = Command::new("sh");
-        #[cfg(unix)]
-        cmd.arg("-c");
+        // SECURITY: Parse command string to avoid shell injection
+        let (program, args) = match parse_command_line(&self.validation_config.command) {
+            Some(res) => res,
+            None => {
+                return Some(json!({
+                   "validation_status": "error",
+                   "validation_error": "Empty validation command"
+               }));
+            }
+        };
 
-        #[cfg(windows)]
-        let mut cmd = Command::new("cmd.exe");
-        #[cfg(windows)]
-        cmd.arg("/C");
-
-        let output = match cmd
-            .arg(&self.validation_config.command)
+        let output = match Command::new(&program)
+            .args(&args)
             .current_dir(&self.project_root)
             .output()
         {
@@ -432,4 +432,130 @@ pub struct DocumentationUpdateReport {
     pub updated_files: Vec<String>,
     /// Files that failed to update
     pub failed_files: Vec<String>,
+}
+
+/// Parse command line string into program and arguments
+/// Handles basic quoting (single and double quotes) and backslash escaping
+fn parse_command_line(input: &str) -> Option<(String, Vec<String>)> {
+    parse_command_line_internal(input, cfg!(windows))
+}
+
+fn parse_command_line_internal(input: &str, is_windows: bool) -> Option<(String, Vec<String>)> {
+    let mut args = Vec::new();
+    let mut current_arg = String::new();
+    let mut in_quote = None;
+    let mut escaped = false;
+    let mut arg_started = false;
+
+    for c in input.chars() {
+        if escaped {
+            current_arg.push(c);
+            escaped = false;
+            arg_started = true;
+            continue;
+        }
+
+        match c {
+            '\\' => {
+                if is_windows {
+                    current_arg.push(c);
+                    arg_started = true;
+                } else {
+                    escaped = true;
+                    arg_started = true;
+                }
+            }
+            '"' if in_quote == Some('"') => {
+                in_quote = None;
+                arg_started = true;
+            }
+            '"' if in_quote == None => {
+                in_quote = Some('"');
+                arg_started = true;
+            }
+            '\'' if in_quote == Some('\'') => {
+                in_quote = None;
+                arg_started = true;
+            }
+            '\'' if in_quote == None => {
+                in_quote = Some('\'');
+                arg_started = true;
+            }
+            ' ' | '\t' | '\n' | '\r' if in_quote.is_none() => {
+                if arg_started {
+                    args.push(current_arg);
+                    current_arg = String::new();
+                    arg_started = false;
+                }
+            }
+            _ => {
+                current_arg.push(c);
+                arg_started = true;
+            }
+        }
+    }
+
+    if arg_started {
+        args.push(current_arg);
+    }
+
+    if args.is_empty() {
+        return None;
+    }
+
+    let program = args.remove(0);
+    Some((program, args))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_command_line_unix() {
+        let (prog, args) = parse_command_line_internal(r#"cargo check "foo bar""#, false).unwrap();
+        assert_eq!(prog, "cargo");
+        assert_eq!(args, vec!["check", "foo bar"]);
+
+        // Escaped quote
+        let (prog, args) = parse_command_line_internal(r#"echo "foo \"bar\"""#, false).unwrap();
+        assert_eq!(prog, "echo");
+        assert_eq!(args, vec!["foo \"bar\""]);
+
+        // Escaped backslash
+        let (prog, args) = parse_command_line_internal(r#"echo foo\\bar"#, false).unwrap();
+        assert_eq!(prog, "echo");
+        assert_eq!(args, vec![r#"foo\bar"#]);
+    }
+
+    #[test]
+    fn test_parse_command_line_windows() {
+        // Windows path with backslashes
+        let (prog, args) = parse_command_line_internal(r#"cargo check C:\Path\To\File"#, true).unwrap();
+        assert_eq!(prog, "cargo");
+        assert_eq!(args, vec!["check", r#"C:\Path\To\File"#]);
+
+        // Quoted string on Windows (backslash kept literal)
+        let (prog, args) = parse_command_line_internal(r#"echo "C:\Program Files""#, true).unwrap();
+        assert_eq!(prog, "echo");
+        assert_eq!(args, vec![r#"C:\Program Files"#]);
+    }
+
+    #[test]
+    fn test_parse_command_line_empty_args() {
+        // Empty quoted string
+        let (prog, args) = parse_command_line_internal(r#"git commit -m """#, false).unwrap();
+        assert_eq!(prog, "git");
+        assert_eq!(args, vec!["commit", "-m", ""]);
+
+        // Empty quoted string in middle
+        let (prog, args) = parse_command_line_internal(r#"echo "" foo"#, false).unwrap();
+        assert_eq!(prog, "echo");
+        assert_eq!(args, vec!["", "foo"]);
+
+        // Whitespace handling
+        let (prog, args) = parse_command_line_internal(r#"echo   foo"#, false).unwrap();
+        assert_eq!(prog, "echo");
+        assert_eq!(args, vec!["foo"]);
+    }
 }
