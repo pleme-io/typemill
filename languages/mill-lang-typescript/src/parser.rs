@@ -1,6 +1,8 @@
 //! TypeScript/JavaScript import parsing and symbol extraction logic.
 use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, SourceLocation};
-use mill_lang_common::{parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool};
+use mill_lang_common::{
+    parse_with_fallback, run_ast_tool, run_ast_tool_async, ImportGraphBuilder, SubprocessAstTool,
+};
 use mill_plugin_api::{PluginApiError, PluginResult, Symbol, SymbolKind};
 use serde::Deserialize;
 use std::path::Path;
@@ -186,40 +188,40 @@ pub(crate) struct TsSymbolInfo {
     location: TsLocation,
     documentation: Option<String>,
 }
-/// Extract symbols from TypeScript/JavaScript source code using AST-based parsing.
+/// Extract symbols from TypeScript/JavaScript source code using AST-based parsing asynchronously.
 /// Falls back to empty list if Node.js is not available.
-pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
-    match extract_symbols_ast(source) {
+pub(crate) async fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
+    match extract_symbols_ast(source).await {
         Ok(symbols) => Ok(symbols),
         Err(e) => {
             tracing::error!(
-                error = % e, "TypeScript symbol extraction failed, returning empty list"
+                error = %e, "TypeScript symbol extraction failed (async), returning empty list"
             );
             Ok(Vec::new())
         }
     }
 }
 
-/// List all function names in TypeScript/JavaScript source code
+/// List all function names in TypeScript/JavaScript source code asynchronously
 ///
 /// Extracts function names by filtering symbols for function kinds.
 /// Returns an empty list if symbol extraction fails.
-pub(crate) fn list_functions(source: &str) -> PluginResult<Vec<String>> {
-    let symbols = extract_symbols(source)?;
+pub(crate) async fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+    let symbols = extract_symbols(source).await?;
     Ok(symbols
         .into_iter()
         .filter(|s| s.kind == SymbolKind::Function)
         .map(|s| s.name)
         .collect())
 }
-/// Spawns the bundled `ast_tool.js` script to extract symbols from source.
-fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginApiError> {
+/// Spawns the bundled `ast_tool.js` script to extract symbols from source asynchronously.
+async fn extract_symbols_ast(source: &str) -> Result<Vec<Symbol>, PluginApiError> {
     const AST_TOOL_JS: &str = include_str!("../resources/ast_tool.js");
     let tool = SubprocessAstTool::new("node")
         .with_embedded_str(AST_TOOL_JS)
         .with_temp_filename("ast_tool.js")
         .with_arg("extract-symbols");
-    let ts_symbols: Vec<TsSymbolInfo> = run_ast_tool(tool, source)?;
+    let ts_symbols: Vec<TsSymbolInfo> = run_ast_tool_async(tool, source).await?;
     let symbols = ts_symbols
         .into_iter()
         .map(|s| Symbol {
@@ -311,8 +313,8 @@ const lodash = require('lodash');
                     .contains(&"lodash".to_string())
         );
     }
-    #[test]
-    fn test_extract_symbols_graceful_fallback() {
+    #[tokio::test]
+    async fn test_extract_symbols_graceful_fallback() {
         let source = r#"
 function hello() {
     console.log("Hello");
@@ -333,7 +335,7 @@ enum Status {
     Inactive
 }
 "#;
-        let result = extract_symbols(source);
+        let result = extract_symbols(source).await;
         assert!(result.is_ok(), "extract_symbols should not fail");
         let symbols = result.unwrap();
         if !symbols.is_empty() {

@@ -7,6 +7,8 @@
 //! - Pipfile (Pipenv)
 use mill_lang_common::read_manifest;
 use mill_plugin_api::{Dependency, DependencySource, ManifestData, PluginApiError, PluginResult};
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
@@ -162,6 +164,25 @@ fn dependency_spec_to_version(spec: &DependencySpec) -> String {
         }
     }
 }
+// Static regexes for setup.py parsing
+static SETUP_NAME_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"name\s*=\s*["']([^"']+)["']"#).expect("Setup name regex should be valid")
+});
+
+static SETUP_VERSION_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"version\s*=\s*["']([^"']+)["']"#).expect("Setup version regex should be valid")
+});
+
+static SETUP_INSTALL_REQUIRES_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"install_requires\s*=\s*\[(.*?)\]"#)
+        .expect("Setup install_requires regex should be valid")
+});
+
+static SETUP_EXTRAS_REQUIRE_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"extras_require\s*=\s*\[(.*?)\]"#)
+        .expect("Setup extras_require regex should be valid")
+});
+
 /// Parse setup.py file
 ///
 /// Extracts basic metadata and dependencies from setup.py
@@ -172,23 +193,19 @@ pub async fn parse_setup_py(path: &Path) -> PluginResult<ManifestData> {
     let mut version = "0.1.0".to_string();
     let mut dependencies = Vec::new();
     let mut dev_dependencies = Vec::new();
-    if let Some(name_match) = regex::Regex::new(r#"name\s*=\s*["']([^"']+)["']"#)
-        .unwrap()
-        .captures(&content)
-    {
+    if let Some(name_match) = SETUP_NAME_PATTERN.captures(&content) {
         if let Some(n) = name_match.get(1) {
             name = n.as_str().to_string();
         }
     }
-    if let Some(version_match) = regex::Regex::new(r#"version\s*=\s*["']([^"']+)["']"#)
-        .unwrap()
-        .captures(&content)
-    {
+    if let Some(version_match) = SETUP_VERSION_PATTERN.captures(&content) {
         if let Some(v) = version_match.get(1) {
             version = v.as_str().to_string();
         }
     }
-    if let Some(install_requires) = extract_list_from_setup(&content, "install_requires") {
+    if let Some(install_requires) =
+        extract_list_from_setup(&content, &SETUP_INSTALL_REQUIRES_PATTERN)
+    {
         for dep in install_requires {
             if let Some((dep_name, dep_version)) = parse_requirement_line(&dep) {
                 dependencies.push(Dependency {
@@ -198,7 +215,7 @@ pub async fn parse_setup_py(path: &Path) -> PluginResult<ManifestData> {
             }
         }
     }
-    if let Some(extras_require) = extract_list_from_setup(&content, "extras_require") {
+    if let Some(extras_require) = extract_list_from_setup(&content, &SETUP_EXTRAS_REQUIRE_PATTERN) {
         for dep in extras_require {
             if let Some((dep_name, dep_version)) = parse_requirement_line(&dep) {
                 dev_dependencies.push(Dependency {
@@ -221,9 +238,7 @@ pub async fn parse_setup_py(path: &Path) -> PluginResult<ManifestData> {
     })
 }
 /// Extract list values from setup() call
-fn extract_list_from_setup(content: &str, key: &str) -> Option<Vec<String>> {
-    let pattern = format!(r#"{}\s*=\s*\[(.*?)\]"#, regex::escape(key));
-    let re = regex::Regex::new(&pattern).ok()?;
+fn extract_list_from_setup(content: &str, re: &Regex) -> Option<Vec<String>> {
     let captures = re.captures(content)?;
     let list_content = captures.get(1)?.as_str();
     let mut items = Vec::new();

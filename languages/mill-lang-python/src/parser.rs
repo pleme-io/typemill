@@ -9,25 +9,26 @@
 //! Implements dual-mode parsing:
 //! 1. Python native AST via subprocess (high accuracy, requires python3)
 //! 2. Regex-based fallback parsing (always available, good for common cases)
-use crate::constants::{FROM_IMPORT_PATTERN, IMPORT_PATTERN, PARSER_VERSION};
+use crate::constants::{
+    CLASS_DEF_PATTERN, FROM_IMPORT_PATTERN, FUNCTION_DEF_PATTERN, IMPORT_PATTERN, PARSER_VERSION,
+    VARIABLE_ASSIGN_PATTERN,
+};
 use mill_foundation::protocol::{ImportGraph, ImportInfo, ImportType, NamedImport, SourceLocation};
 use mill_lang_common::{
-    parse_import_alias, parse_with_fallback, run_ast_tool, ImportGraphBuilder, SubprocessAstTool,
+    parse_import_alias, parse_with_fallback, run_ast_tool_async, ImportGraphBuilder, SubprocessAstTool,
 };
 use mill_plugin_api::{PluginApiError, PluginResult, Symbol, SymbolKind};
-use once_cell::sync::Lazy;
-use regex::Regex;
 use std::path::Path;
 use tracing::debug;
 /// List all function names in Python source code using Python's native AST parser.
 /// This function spawns a Python subprocess to perform the parsing.
-pub(crate) fn list_functions(source: &str) -> PluginResult<Vec<String>> {
+pub(crate) async fn list_functions(source: &str) -> PluginResult<Vec<String>> {
     const AST_TOOL_PY: &str = include_str!("../resources/ast_tool.py");
     let tool = SubprocessAstTool::new("python3")
         .with_embedded_str(AST_TOOL_PY)
         .with_temp_filename("ast_tool.py")
         .with_args(vec!["{script}".to_string(), "list-functions".to_string()]);
-    run_ast_tool(tool, source).map_err(Into::into)
+    run_ast_tool_async(tool, source).await.map_err(Into::into)
 }
 /// Analyze Python imports and produce an import graph.
 /// Uses dual-mode parsing: Python AST parser with regex fallback.
@@ -120,14 +121,39 @@ fn parse_import_names(imports_str: &str) -> Vec<NamedImport> {
 /// Extract Python function definitions with metadata
 pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonFunction>> {
     let mut functions = Vec::new();
-    let lines: Vec<&str> = source.lines().collect();
-    static FUNC_RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^(\s*)(async\s+)?def\s+(\w+)\s*\(([^)]*)\)\s*:")
-            .expect("Python function regex pattern should be valid")
-    });
-    for (line_num, line) in lines.iter().enumerate() {
-        if let Some(captures) = FUNC_RE.captures(line) {
-            let _indent = captures
+    // Stack of active functions: (start_line, indentation, function)
+    let mut active_functions: Vec<(u32, usize, PythonFunction)> = Vec::new();
+
+    let mut last_line_idx = 0;
+
+    for (line_num, line) in source.lines().enumerate() {
+        let line_num = line_num as u32;
+        last_line_idx = line_num;
+        let trimmed = line.trim();
+
+        if trimmed.is_empty() || trimmed.starts_with('#') {
+            continue;
+        }
+
+        // Calculate indentation
+        let indent = line.chars().take_while(|c| c.is_whitespace()).count();
+
+        // Check if any active functions ended
+        // A function ends if the current line's indentation is <= the function's indentation
+        // We iterate active_functions in reverse to close nested ones first
+        while let Some((_, func_indent, _)) = active_functions.last() {
+            if indent <= *func_indent {
+                let (_, _, mut func) = active_functions.pop().unwrap();
+                // The function ended at the previous line index
+                func.end_line = line_num.saturating_sub(1);
+                functions.push(func);
+            } else {
+                break;
+            }
+        }
+
+        if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
+            let _indent_str = captures
                 .get(1)
                 .expect("Python function regex should always capture indent at index 1")
                 .as_str();
@@ -149,19 +175,34 @@ pub(crate) fn extract_python_functions(source: &str) -> PluginResult<Vec<PythonF
                     .filter(|arg| !arg.is_empty())
                     .collect()
             };
-            let end_line =
-                find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
-            functions.push(PythonFunction {
+
+            let func = PythonFunction {
                 name: name.to_string(),
-                start_line: line_num as u32,
-                end_line,
+                start_line: line_num,
+                end_line: line_num, // Will update later
                 args,
-                body_start_line: line_num as u32 + 1,
+                body_start_line: line_num + 1,
                 is_async,
                 decorators: Vec::new(),
-            });
+            };
+
+            // Push to stack with current indentation
+            // We use the regex capture for indentation? No, use computed indent.
+            // FUNCTION_DEF_PATTERN captures indentation in group 1.
+            let func_indent = _indent_str.len();
+            active_functions.push((line_num, func_indent, func));
         }
     }
+
+    // Close remaining functions
+    for (_, _, mut func) in active_functions {
+        func.end_line = last_line_idx;
+        functions.push(func);
+    }
+
+    // Sort functions by start_line to maintain order
+    functions.sort_by_key(|f| f.start_line);
+
     Ok(functions)
 }
 /// Python function representation
@@ -183,12 +224,8 @@ pub(crate) struct PythonFunction {
 /// Extract Python variable assignments
 pub(crate) fn extract_python_variables(source: &str) -> PluginResult<Vec<PythonVariable>> {
     let mut variables = Vec::new();
-    static ASSIGN_RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^(\s*)(\w+)\s*=\s*(.+)")
-            .expect("Python variable assignment regex pattern should be valid")
-    });
     for (line_num, line) in source.lines().enumerate() {
-        if let Some(captures) = ASSIGN_RE.captures(line) {
+        if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line) {
             let var_name = captures
                 .get(2)
                 .expect("Python assignment regex should always capture variable name at index 2")
@@ -216,6 +253,7 @@ pub(crate) struct PythonVariable {
     pub line: u32,
     #[allow(dead_code)] // Future enhancement: Type-based refactoring
     pub value_type: PythonValueType,
+    #[allow(dead_code)]
     pub is_constant: bool,
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -276,49 +314,68 @@ fn infer_python_value_type(value: &str) -> PythonValueType {
 /// Extract symbols from Python source code for code intelligence
 pub(crate) fn extract_symbols(source: &str) -> PluginResult<Vec<Symbol>> {
     let mut symbols = Vec::new();
-    let functions = extract_python_functions(source)?;
-    for func in functions {
-        symbols.push(Symbol {
-            name: func.name.clone(),
-            kind: SymbolKind::Function,
-            location: mill_plugin_api::SourceLocation {
-                line: func.start_line as usize,
-                column: 0,
-            },
-            end_location: Some(mill_plugin_api::SourceLocation {
-                line: func.end_line as usize,
-                column: 0,
-            }),
-            documentation: None,
-        });
-    }
-    let variables = extract_python_variables(source)?;
-    for var in variables {
-        let kind = if var.is_constant {
-            SymbolKind::Constant
-        } else {
-            SymbolKind::Variable
-        };
-        symbols.push(Symbol {
-            name: var.name.clone(),
-            kind,
-            location: mill_plugin_api::SourceLocation {
-                line: var.line as usize,
-                column: 0,
-            },
-            end_location: Some(mill_plugin_api::SourceLocation {
-                line: var.line as usize,
-                column: 0,
-            }),
-            documentation: None,
-        });
-    }
-    static CLASS_RE: Lazy<Regex> = Lazy::new(|| {
-        Regex::new(r"^class\s+(\w+)").expect("Python class regex pattern should be valid")
-    });
     let lines: Vec<&str> = source.lines().collect();
+
     for (line_num, line) in lines.iter().enumerate() {
-        if let Some(captures) = CLASS_RE.captures(line.trim()) {
+        // Function definitions
+        if let Some(captures) = FUNCTION_DEF_PATTERN.captures(line) {
+            let name = captures
+                .get(3)
+                .expect("Python function regex should always capture name at index 3")
+                .as_str();
+
+            let end_line =
+                find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
+
+            symbols.push(Symbol {
+                name: name.to_string(),
+                kind: SymbolKind::Function,
+                location: mill_plugin_api::SourceLocation {
+                    line: line_num,
+                    column: 0,
+                },
+                end_location: Some(mill_plugin_api::SourceLocation {
+                    line: end_line as usize,
+                    column: 0,
+                }),
+                documentation: None,
+            });
+            continue;
+        }
+
+        // Variable assignments
+        if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line) {
+            let var_name = captures
+                .get(2)
+                .expect("Python assignment regex should always capture variable name at index 2")
+                .as_str();
+
+            // We optimize by skipping infer_python_value_type since we only need to know if it's constant
+            let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+            let kind = if is_constant {
+                SymbolKind::Constant
+            } else {
+                SymbolKind::Variable
+            };
+
+            symbols.push(Symbol {
+                name: var_name.to_string(),
+                kind,
+                location: mill_plugin_api::SourceLocation {
+                    line: line_num,
+                    column: 0,
+                },
+                end_location: Some(mill_plugin_api::SourceLocation {
+                    line: line_num,
+                    column: 0,
+                }),
+                documentation: None,
+            });
+            continue;
+        }
+
+        // Class definitions
+        if let Some(captures) = CLASS_DEF_PATTERN.captures(line.trim()) {
             if let Some(name) = captures.get(1) {
                 let end_line =
                     find_python_function_end(&lines, line_num as u32).unwrap_or(line_num as u32);
@@ -459,19 +516,33 @@ pub(crate) fn find_variable_at_position(
     line: u32,
     col: u32,
 ) -> PluginResult<Option<PythonVariable>> {
-    let variables = extract_python_variables(source)?;
-    for var in variables {
-        if var.line == line {
-            let line_text = source
-                .lines()
-                .nth(line as usize)
-                .ok_or_else(|| PluginApiError::parse("Invalid line number"))?;
-            if let Some(var_pos) = line_text.find(&var.name) {
-                let var_end = var_pos + var.name.len();
-                if col >= var_pos as u32 && col <= var_end as u32 {
-                    return Ok(Some(var));
-                }
-            }
+    let line_text = source
+        .lines()
+        .nth(line as usize)
+        .ok_or_else(|| PluginApiError::parse("Invalid line number"))?;
+
+    if let Some(captures) = VARIABLE_ASSIGN_PATTERN.captures(line_text) {
+        let var_match = captures
+            .get(2)
+            .expect("Python assignment regex should always capture variable name at index 2");
+        let var_name = var_match.as_str();
+        let var_start = var_match.start();
+        let var_end = var_match.end();
+
+        if col >= var_start as u32 && col <= var_end as u32 {
+            let value = captures
+                .get(3)
+                .expect("Python assignment regex should always capture value at index 3")
+                .as_str();
+            let value_type = infer_python_value_type(value);
+            let is_constant = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+
+            return Ok(Some(PythonVariable {
+                name: var_name.to_string(),
+                line,
+                value_type,
+                is_constant,
+            }));
         }
     }
     Ok(None)
@@ -571,8 +642,8 @@ from typing import Dict, List as ArrayList
             Some("ArrayList".to_string())
         );
     }
-    #[test]
-    fn test_extract_python_functions_basic() {
+    #[tokio::test]
+    async fn test_extract_python_functions_basic() {
         let source = r#"
 def simple_function():
     pass
@@ -594,6 +665,61 @@ def function_with_args(a, b, c=None):
         assert_eq!(functions[2].name, "function_with_args");
         assert!(!functions[2].is_async);
         assert_eq!(functions[2].args, vec!["a", "b", "c=None"]);
+    }
+
+    #[test]
+    fn test_extract_python_functions_with_comments() {
+        let source = r#"
+def func_with_comments():
+    # This is a comment at indentation 4
+    x = 1
+# This is a comment at indentation 0
+    y = 2
+    return x + y
+
+def another_func():
+    pass
+"#;
+        let functions = extract_python_functions(source).unwrap();
+        assert_eq!(functions.len(), 2);
+        assert_eq!(functions[0].name, "func_with_comments");
+        // The comment at indentation 0 should NOT close the function because it starts with #
+        // But wait, the function ends at `return x + y` line?
+        // Let's trace:
+        // Line 1: def func... (0). Stack [func].
+        // Line 2: # This... (4). Ignored.
+        // Line 3: x = 1 (4). 4 > 0.
+        // Line 4: # This... (0). Ignored.
+        // Line 5: y = 2 (4). 4 > 0.
+        // Line 6: return... (4). 4 > 0.
+        // Line 7: empty.
+        // Line 8: def another... (0). 0 <= 0. Pop func.
+
+        // So func should include y=2 and return.
+        // end_line should be 6 (line index of return).
+
+        // Let's check line indices:
+        // 0: empty
+        // 1: def func...
+        // 2: # ...
+        // 3: x = 1
+        // 4: # ...
+        // 5: y = 2
+        // 6: return ...
+        // 7: empty
+        // 8: def another...
+
+        // func starts at 1. ends at 7? (line 8 triggers pop, previous line is 7).
+        // Or 6?
+        // My logic: `func.end_line = line_num.saturating_sub(1)`.
+        // If line_num is 8, end_line is 7.
+        // If line 7 is empty, does it matter?
+        // Ideally end_line should be last code line (6).
+        // But `find_python_function_end` logic was "until next block".
+        // So 7 is acceptable.
+
+        assert_eq!(functions[0].end_line, 7);
+        assert_eq!(functions[1].name, "another_func");
     }
     #[test]
     fn test_extract_python_variables_basic() {

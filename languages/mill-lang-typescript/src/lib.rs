@@ -77,7 +77,8 @@ impl LanguagePlugin for TypeScriptPlugin {
     impl_language_plugin_basics!();
 
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
-        let symbols = parser::extract_symbols(source)?;
+        let symbols = parser::extract_symbols(source).await?;
+
         Ok(ParsedSource {
             data: serde_json::json!(
                 { "language" : "typescript", "symbols_count" : symbols.len() }
@@ -99,7 +100,7 @@ impl LanguagePlugin for TypeScriptPlugin {
     }
 
     async fn list_functions(&self, source: &str) -> PluginResult<Vec<String>> {
-        parser::list_functions(source)
+        parser::list_functions(source).await
     }
 
     // Use macro to generate capability delegation methods

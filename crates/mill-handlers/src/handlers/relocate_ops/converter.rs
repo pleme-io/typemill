@@ -111,20 +111,17 @@ async fn calculate_file_checksums(
 
 /// Convert EditPlan to LSP WorkspaceEdit (for symbol moves)
 /// This is a simpler conversion that doesn't include file rename operations
-#[allow(clippy::mutable_key_type)] // Uri uses interior mutability for caching but is effectively immutable for hashing
 pub fn convert_edit_plan_to_workspace_edit(
     edit_plan: &EditPlan,
 ) -> ServerResult<lsp_types::WorkspaceEdit> {
-    let mut changes = HashMap::new();
+    let mut changes_map: HashMap<String, Vec<LspTextEdit>> = HashMap::new();
 
     for edit in &edit_plan.edits {
         let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
         let path = Path::new(file_path);
-        let uri = url::Url::from_file_path(path)
+        let uri_str = url::Url::from_file_path(path)
             .map_err(|_| ServerError::invalid_request(format!("Invalid file path: {}", file_path)))?
-            .to_string()
-            .parse::<lsp_types::Uri>()
-            .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+            .to_string();
 
         let lsp_edit = LspTextEdit {
             range: lsp_types::Range {
@@ -140,12 +137,30 @@ pub fn convert_edit_plan_to_workspace_edit(
             new_text: edit.new_text.clone(),
         };
 
-        changes.entry(uri).or_insert_with(Vec::new).push(lsp_edit);
+        changes_map
+            .entry(uri_str)
+            .or_default()
+            .push(lsp_edit);
+    }
+
+    let mut document_changes = Vec::new();
+    for (uri_str, edits) in changes_map {
+        let uri = uri_str
+            .parse::<lsp_types::Uri>()
+            .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+
+        document_changes.push(lsp_types::TextDocumentEdit {
+            text_document: lsp_types::OptionalVersionedTextDocumentIdentifier {
+                uri,
+                version: None,
+            },
+            edits: edits.into_iter().map(lsp_types::OneOf::Left).collect(),
+        });
     }
 
     Ok(lsp_types::WorkspaceEdit {
-        changes: Some(changes),
-        document_changes: None,
+        changes: None,
+        document_changes: Some(lsp_types::DocumentChanges::Edits(document_changes)),
         change_annotations: None,
     })
 }
@@ -176,15 +191,16 @@ fn build_workspace_edit(
             },
         ))];
 
-    // Group text edits by file
-    #[allow(clippy::mutable_key_type)]
-    let mut files_with_edits = HashMap::new();
+    // Group text edits by file (using String keys to avoid mutable_key_type issue)
+    let mut files_with_edits: HashMap<String, Vec<LspTextEdit>> = HashMap::new();
     for edit in edits {
         if let Some(ref file_path) = edit.file_path {
             let path = Path::new(file_path);
-            let file_uri = url::Url::from_file_path(path).map_err(|_| {
-                ServerError::internal(format!("Invalid file path for edit: {}", file_path))
-            })?;
+            let file_uri_str = url::Url::from_file_path(path)
+                .map_err(|_| {
+                    ServerError::internal(format!("Invalid file path for edit: {}", file_path))
+                })?
+                .to_string();
 
             let lsp_edit = LspTextEdit {
                 range: lsp_types::Range {
@@ -201,18 +217,18 @@ fn build_workspace_edit(
             };
 
             files_with_edits
-                .entry(
-                    file_uri.as_str().parse().map_err(|e| {
-                        ServerError::internal(format!("Failed to parse URI: {}", e))
-                    })?,
-                )
-                .or_insert_with(Vec::new)
+                .entry(file_uri_str)
+                .or_default()
                 .push(lsp_edit);
         }
     }
 
     // Add text document edits
-    for (uri, text_edits) in files_with_edits {
+    for (uri_str, text_edits) in files_with_edits {
+        let uri = uri_str
+            .parse::<lsp_types::Uri>()
+            .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+
         document_changes.push(DocumentChangeOperation::Edit(TextDocumentEdit {
             text_document: OptionalVersionedTextDocumentIdentifier {
                 uri,

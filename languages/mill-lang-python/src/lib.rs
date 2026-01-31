@@ -22,6 +22,11 @@ mod string_literal_support;
 pub mod test_fixtures;
 pub mod workspace_support;
 
+#[cfg(test)]
+mod performance_tests;
+#[cfg(test)]
+mod benchmark_manifest;
+
 use async_trait::async_trait;
 use mill_lang_common::{
     define_language_plugin, impl_capability_delegations, impl_language_plugin_basics,
@@ -73,35 +78,41 @@ impl LanguagePlugin for PythonPlugin {
     async fn parse(&self, source: &str) -> PluginResult<ParsedSource> {
         debug!("Parsing Python source code");
 
-        // Extract all symbols from the source code
-        let symbols = parser::extract_symbols(source)?;
+        let source = source.to_string();
 
-        // Parse imports
-        let imports = parser::parse_python_imports(source)?;
+        tokio::task::spawn_blocking(move || {
+            // Extract all symbols from the source code
+            let symbols = parser::extract_symbols(&source)?;
 
-        // Create a simplified AST representation
-        let functions = parser::extract_python_functions(source)?;
-        let variables = parser::extract_python_variables(source)?;
+            // Parse imports
+            let imports = parser::parse_python_imports(&source)?;
 
-        let ast_json = serde_json::json!({
-            "type": "Module",
-            "functions_count": functions.len(),
-            "variables_count": variables.len(),
-            "imports_count": imports.len(),
-            "imports": imports,
-        });
+            // Create a simplified AST representation
+            let functions = parser::extract_python_functions(&source)?;
+            let variables = parser::extract_python_variables(&source)?;
 
-        debug!(
-            symbols_count = symbols.len(),
-            functions_count = functions.len(),
-            imports_count = imports.len(),
-            "Parsed Python source"
-        );
+            let ast_json = serde_json::json!({
+                "type": "Module",
+                "functions_count": functions.len(),
+                "variables_count": variables.len(),
+                "imports_count": imports.len(),
+                "imports": imports,
+            });
 
-        Ok(ParsedSource {
-            data: ast_json,
-            symbols,
+            debug!(
+                symbols_count = symbols.len(),
+                functions_count = functions.len(),
+                imports_count = imports.len(),
+                "Parsed Python source"
+            );
+
+            Ok(ParsedSource {
+                data: ast_json,
+                symbols,
+            })
         })
+        .await
+        .map_err(|e| mill_plugin_api::PluginApiError::internal(format!("Task join error: {}", e)))?
     }
 
     async fn analyze_manifest(&self, path: &Path) -> PluginResult<ManifestData> {
@@ -127,7 +138,7 @@ impl LanguagePlugin for PythonPlugin {
         debug!("Listing Python functions");
 
         // Try native Python parser first
-        match parser::list_functions(source) {
+        match parser::list_functions(source).await {
             Ok(functions) => {
                 debug!(
                     functions_count = functions.len(),
@@ -835,5 +846,42 @@ dependencies = [
             !manifest.dependencies.is_empty(),
             "Should find dependencies"
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_list_functions_is_non_blocking() {
+        // This test verifies that list_functions does not block the async executor
+        let plugin = PythonPlugin::new();
+        // 50,000 lines should take some time to parse/transfer
+        let source = "def foo(): pass\n".repeat(50000);
+
+        // Spawn a background task that attempts to tick while list_functions is running
+        let start_time = std::time::Instant::now();
+        // We want the background task to run within the next 500ms.
+        // If list_functions blocks for > 500ms, the background task will not get a chance to run
+        // before the deadline expires.
+        let end_time = start_time + std::time::Duration::from_millis(500);
+
+        let background_handle = tokio::spawn(async move {
+            let mut ticks = 0;
+            while std::time::Instant::now() < end_time {
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                ticks += 1;
+            }
+            ticks
+        });
+
+        // Run list_functions
+        let result = plugin.list_functions(&source).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().len(), 50000);
+
+        let ticks = background_handle.await.unwrap();
+
+        // If it was blocking (and took > 500ms), ticks would be 0.
+        // We expect some concurrency.
+        // Note: this assertion might be flaky on extremely slow machines if list_functions finishes < 10ms,
+        // but with 50,000 lines it should take significantly longer than 10ms.
+        assert!(ticks > 0, "list_functions blocked the executor! Ticks: {}", ticks);
     }
 }

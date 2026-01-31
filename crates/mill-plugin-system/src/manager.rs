@@ -211,6 +211,7 @@ impl PluginManager {
     /// Get capabilities for all plugins
     pub async fn get_all_capabilities(&self) -> HashMap<String, Capabilities> {
         let registry = self.registry.read().await;
+        // Use optimized bulk retrieval from registry to avoid N+1 queries
         registry.get_all_capabilities()
     }
 
@@ -223,6 +224,8 @@ impl PluginManager {
     /// Get metadata for all plugins
     pub async fn get_all_metadata(&self) -> HashMap<String, PluginMetadata> {
         let registry = self.registry.read().await;
+        // Use optimized bulk retrieval from registry to avoid N+1 queries.
+        // This replaces the previous inefficient loop that performed N lookups.
         registry.get_all_metadata()
     }
 
@@ -396,33 +399,26 @@ impl PluginManager {
     /// Get all tool definitions from all registered plugins
     pub async fn get_all_tool_definitions(&self) -> Vec<Value> {
         let registry = self.registry.read().await;
-        let mut all_tools = Vec::new();
-
-        for plugin in registry.get_all_plugins() {
-            let tools = plugin.tool_definitions();
-            all_tools.extend(tools);
-        }
-
-        all_tools
+        registry
+            .get_all_plugins()
+            .flat_map(|plugin| plugin.tool_definitions())
+            .collect()
     }
 
     /// Shutdown all plugins gracefully
     #[instrument(skip(self))]
     pub async fn shutdown(&self) -> PluginResult<()> {
         let registry = self.registry.read().await;
-        let plugin_names = registry.get_plugin_names();
 
         // Note: In a real implementation, we'd call shutdown on each plugin
         // This would require either making LanguagePlugin methods async
         // or using a different approach for lifecycle management
 
-        info!("Shutting down {} plugins", plugin_names.len());
+        info!("Shutting down {} plugins", registry.plugin_count());
 
-        for plugin_name in plugin_names {
-            if let Some(_plugin) = registry.get_plugin(&plugin_name) {
-                // plugin.shutdown().await?; // Would need async trait methods
-                debug!("Plugin '{}' shutdown", plugin_name);
-            }
+        for (plugin_name, _plugin) in registry.get_plugins_with_names() {
+            // plugin.shutdown().await?; // Would need async trait methods
+            debug!("Plugin '{}' shutdown", plugin_name);
         }
 
         info!("All plugins shut down successfully");
@@ -868,5 +864,160 @@ mod tests {
             2,
             "Both plugins should receive the hook"
         );
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_metadata_retrieval() {
+        use std::collections::HashMap;
+        use std::time::Instant;
+
+        let manager = PluginManager::new();
+        // Register 1000 dummy plugins
+        let count = 1000;
+        for i in 0..count {
+            let name = format!("plugin-{}", i);
+            let plugin = Arc::new(TestPlugin {
+                name: name.clone(),
+                extensions: vec!["txt".to_string()],
+                capabilities: Capabilities::default(),
+                should_fail: false,
+            });
+            manager.register_plugin(&name, plugin).await.unwrap();
+        }
+
+        // Measure inefficient approach (simulating N+1 lookup)
+        // This simulates the pattern we want to avoid: iterating names and fetching metadata individually
+        let start = Instant::now();
+        let registry = manager.registry.read().await;
+        let mut inefficient_map = HashMap::new();
+
+        // Note: get_plugin_names() returns Vec<String>, so iterating over it is fine with the lock held
+        for name in registry.get_plugin_names() {
+            // This is the N+1 lookup part: for each name, we do a hash lookup
+            if let Some(meta) = registry.get_plugin_metadata(&name) {
+                inefficient_map.insert(name, meta.clone());
+            }
+        }
+        drop(registry);
+        let duration_inefficient = start.elapsed();
+
+        // Measure optimized approach (bulk retrieval)
+        // This uses the optimized implementation that clones the map in one go
+        let start = Instant::now();
+        let optimized_map = manager.get_all_metadata().await;
+        let duration_optimized = start.elapsed();
+
+        println!("Inefficient (N+1): {:?}", duration_inefficient);
+        println!("Optimized (Bulk): {:?}", duration_optimized);
+
+        assert_eq!(inefficient_map.len(), count);
+        assert_eq!(optimized_map.len(), count);
+
+        // Verification: The optimized approach should be performant.
+        // We don't assert strict "faster than" to avoid flakiness in CI environments,
+        // but typically cloning 1000 items once is faster than 1000 lookups + clones.
+        assert!(duration_optimized < std::time::Duration::from_secs(1));
+
+        // Ensure optimized path is actually faster (with some buffer for noise)
+        // If the optimized path is slower, we have a regression or the "inefficient" simulation is invalid.
+        if duration_inefficient > std::time::Duration::from_millis(1) {
+             assert!(duration_optimized < duration_inefficient, "Optimized path should be faster than inefficient path ({} vs {})",
+                duration_optimized.as_micros(), duration_inefficient.as_micros());
+        }
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_tool_definitions_retrieval() {
+        use std::time::Instant;
+
+        let manager = PluginManager::new();
+        // Register 1000 dummy plugins
+        let count = 1000;
+        for i in 0..count {
+            let name = format!("plugin-{}", i);
+            let plugin = Arc::new(TestPlugin {
+                name: name.clone(),
+                extensions: vec!["txt".to_string()],
+                capabilities: Capabilities::default(),
+                should_fail: false,
+            });
+            manager.register_plugin(&name, plugin).await.unwrap();
+        }
+
+        // Measure inefficient approach (simulating N+1 lookup)
+        let start = Instant::now();
+        let registry = manager.registry.read().await;
+        let mut inefficient_tools = Vec::new();
+
+        // Note: get_plugin_names() returns Vec<String>, so iterating over it is fine with the lock held
+        for name in registry.get_plugin_names() {
+            // This is the N+1 lookup part: for each name, we do a hash lookup
+            if let Some(plugin) = registry.get_plugin(&name) {
+                let tools = plugin.tool_definitions();
+                inefficient_tools.extend(tools);
+            }
+        }
+        drop(registry);
+        let duration_inefficient = start.elapsed();
+
+        // Measure optimized approach (bulk retrieval)
+        let start = Instant::now();
+        let optimized_tools = manager.get_all_tool_definitions().await;
+        let duration_optimized = start.elapsed();
+
+        println!("Inefficient Tool Defs (N+1): {:?}", duration_inefficient);
+        println!("Optimized Tool Defs (Bulk): {:?}", duration_optimized);
+
+        assert_eq!(inefficient_tools.len(), 0); // TestPlugin returns empty tools
+        assert_eq!(optimized_tools.len(), 0);
+
+        // Verification: The optimized approach should be performant.
+        assert!(duration_optimized < std::time::Duration::from_secs(1));
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_capabilities_retrieval() {
+        use std::collections::HashMap;
+        use std::time::Instant;
+
+        let manager = PluginManager::new();
+        // Register 1000 dummy plugins
+        let count = 1000;
+        for i in 0..count {
+            let name = format!("plugin-cap-{}", i);
+            let plugin = Arc::new(TestPlugin {
+                name: name.clone(),
+                extensions: vec!["txt".to_string()],
+                capabilities: Capabilities::default(),
+                should_fail: false,
+            });
+            manager.register_plugin(&name, plugin).await.unwrap();
+        }
+
+        // Measure inefficient approach (simulating N+1 lookup)
+        let start = Instant::now();
+        let registry = manager.registry.read().await;
+        let mut inefficient_map = HashMap::new();
+
+        for name in registry.get_plugin_names() {
+            if let Some(caps) = registry.get_plugin_capabilities(&name) {
+                inefficient_map.insert(name, caps);
+            }
+        }
+        drop(registry);
+        let duration_inefficient = start.elapsed();
+
+        // Measure optimized approach (bulk retrieval)
+        let start = Instant::now();
+        let optimized_map = manager.get_all_capabilities().await;
+        let duration_optimized = start.elapsed();
+
+        println!("Capabilities Inefficient (N+1): {:?}", duration_inefficient);
+        println!("Capabilities Optimized (Bulk): {:?}", duration_optimized);
+
+        assert_eq!(inefficient_map.len(), count);
+        assert_eq!(optimized_map.len(), count);
+
+        assert!(duration_optimized < std::time::Duration::from_secs(1));
     }
 }
