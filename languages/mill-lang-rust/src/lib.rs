@@ -8,6 +8,7 @@ mod constants;
 mod manifest;
 pub mod parser;
 pub mod refactoring;
+pub mod test_fixtures;
 pub mod workspace;
 
 // Capability trait implementations
@@ -1111,6 +1112,7 @@ impl RustPlugin {
 // Re-export public API items
 pub use manifest::{load_cargo_toml, parse_cargo_toml, rename_dependency};
 pub use parser::{extract_symbols, list_functions, parse_imports, rewrite_use_tree};
+pub use test_fixtures::rust_test_fixtures;
 pub use workspace::{
     add_path_dependency, add_workspace_member, generate_workspace_manifest, is_workspace_manifest,
 };

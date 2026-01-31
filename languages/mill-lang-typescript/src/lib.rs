@@ -21,6 +21,7 @@ pub mod refactoring;
 pub mod reference_detector;
 mod regex_patterns; // Re-exports from constants for backward compatibility
 mod string_literal_support;
+pub mod test_fixtures;
 mod tsconfig;
 pub mod workspace_support;
 

@@ -70,13 +70,6 @@ Last updated: 2026-01-30
 
 ## Code Quality
 
-### Dead Code Cleanup
-
-- [ ] **TypeScript: Remove or implement dead code in tsconfig.rs**
-  - Location: `languages/mill-lang-typescript/src/tsconfig.rs`
-  - Methods: `find_nearest` (line 162), `get_base_url` (line 177)
-  - Decision: Implement if needed for path alias resolution, otherwise remove
-
 ### Workspace Support Completeness
 
 - [ ] **Python: Complete Hatch workspace support**
