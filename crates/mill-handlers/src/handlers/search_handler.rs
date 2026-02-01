@@ -87,11 +87,6 @@ impl SearchHandler {
     }
 
 
-    /// Apply pagination to results
-    fn paginate(symbols: Vec<Value>, limit: usize, offset: usize) -> Vec<Value> {
-        symbols.into_iter().skip(offset).take(limit).collect()
-    }
-
     /// Find representative files for multiple extensions in a single pass
     async fn find_representative_files(
         workspace_path: &std::path::Path,
@@ -223,7 +218,9 @@ impl SearchHandler {
         query: &str,
         workspace_path: PathBuf,
         kind_filter: Option<SymbolKind>,
-    ) -> ServerResult<(Vec<Value>, u64, Option<Vec<String>>)> {
+        limit: usize,
+        offset: usize,
+    ) -> ServerResult<(Vec<Value>, usize, u64, Option<Vec<String>>)> {
         use std::collections::HashSet;
         use std::time::Instant;
 
@@ -365,15 +362,26 @@ impl SearchHandler {
 
         let results = futures::future::join_all(futures).await;
 
-        let mut all_symbols = Vec::new();
         let mut warnings = Vec::new();
+        let mut symbol_vectors = Vec::new();
+        let mut total = 0;
 
+        // Collect warnings and calculate total without flattening yet
         for (symbols, warning) in results {
-            all_symbols.extend(symbols);
+            total += symbols.len();
+            symbol_vectors.push(symbols);
             if let Some(w) = warning {
                 warnings.push(w);
             }
         }
+
+        // Stream and paginate without allocating a huge intermediate vector
+        let paginated_symbols: Vec<Value> = symbol_vectors
+            .into_iter()
+            .flatten()
+            .skip(offset)
+            .take(limit)
+            .collect();
 
         let processing_time = start_time.elapsed().as_millis() as u64;
 
@@ -383,7 +391,7 @@ impl SearchHandler {
             Some(warnings)
         };
 
-        Ok((all_symbols, processing_time, warnings_result))
+        Ok((paginated_symbols, total, processing_time, warnings_result))
     }
 
     async fn handle_search_code(
@@ -435,24 +443,22 @@ impl SearchHandler {
             "search_code: Parsed request"
         );
 
-        // Perform workspace search
-        let (symbols, processing_time, warnings) = self
-            .search_workspace_symbols(&context.plugin_manager, &request.query, workspace_path, kind_filter)
+        // Perform workspace search with pagination pushed down
+        let (paginated_symbols, total, processing_time, warnings) = self
+            .search_workspace_symbols(
+                &context.plugin_manager,
+                &request.query,
+                workspace_path,
+                kind_filter,
+                request.limit,
+                request.offset,
+            )
             .await?;
 
         debug!(
-            total_symbols = symbols.len(),
-            "search_code: Got symbols from workspace search"
-        );
-
-        let total = symbols.len();
-
-        // Apply pagination
-        let paginated_symbols = Self::paginate(symbols, request.limit, request.offset);
-
-        debug!(
+            total_symbols = total,
             paginated_count = paginated_symbols.len(),
-            "search_code: Applied pagination"
+            "search_code: Got symbols from workspace search"
         );
 
         // Build response
@@ -720,32 +726,6 @@ mod tests {
             SymbolKind::Function
         ));
     }
-
-    #[test]
-    fn test_paginate() {
-        let symbols: Vec<Value> = (0..100)
-            .map(|i| json!({"name": format!("symbol_{}", i)}))
-            .collect();
-
-        // First page
-        let page1 = SearchHandler::paginate(symbols.clone(), 20, 0);
-        assert_eq!(page1.len(), 20);
-        assert_eq!(page1[0]["name"], "symbol_0");
-
-        // Second page
-        let page2 = SearchHandler::paginate(symbols.clone(), 20, 20);
-        assert_eq!(page2.len(), 20);
-        assert_eq!(page2[0]["name"], "symbol_20");
-
-        // Last partial page
-        let page_last = SearchHandler::paginate(symbols.clone(), 20, 90);
-        assert_eq!(page_last.len(), 10);
-        assert_eq!(page_last[0]["name"], "symbol_90");
-
-        // Beyond range
-        let page_empty = SearchHandler::paginate(symbols, 20, 200);
-        assert_eq!(page_empty.len(), 0);
-    }
 }
 
 #[cfg(test)]
@@ -901,11 +881,13 @@ mod performance_tests {
         let handler = SearchHandler::new();
 
         let start = Instant::now();
-        let (results, _, _) = handler.search_workspace_symbols(
+        let (results, _, _, _) = handler.search_workspace_symbols(
             &plugin_manager,
             "query",
             workspace_path,
-            Some(SymbolKind::Function)
+            Some(SymbolKind::Function),
+            usize::MAX,
+            0
         ).await.unwrap();
         let duration = start.elapsed();
 
