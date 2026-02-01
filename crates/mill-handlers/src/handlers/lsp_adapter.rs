@@ -124,6 +124,15 @@ impl DirectLspAdapter {
             None
         };
 
+        // Check for kind filter (optimization)
+        let kind_filter: Option<mill_plugin_api::SymbolKind> =
+            if let Value::Object(ref mut map) = params {
+                map.remove("kind")
+                    .and_then(|v| serde_json::from_value(v).ok())
+            } else {
+                None
+            };
+
         // Query each supported extension's LSP server
         for extension in &self.extensions {
             // Apply filter if present - only query servers relevant to the requesting plugin
@@ -315,7 +324,26 @@ impl DirectLspAdapter {
                                     symbol_count = symbols.len(),
                                     "Got workspace symbols from LSP server"
                                 );
-                                all_symbols.extend(symbols);
+
+                                // Filter by kind if requested (optimization)
+                                if let Some(target_kind) = kind_filter {
+                                    for symbol in symbols {
+                                        if let Some(kind_num) =
+                                            symbol.get("kind").and_then(|k| k.as_u64())
+                                        {
+                                            if let Some(sym_kind) =
+                                                mill_plugin_api::SymbolKind::from_lsp_kind(kind_num)
+                                            {
+                                                if sym_kind == target_kind {
+                                                    all_symbols.push(symbol);
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    all_symbols.extend(symbols);
+                                }
+
                                 queried_servers.push(extension.clone());
 
                                 // Prevent unbounded symbol collection

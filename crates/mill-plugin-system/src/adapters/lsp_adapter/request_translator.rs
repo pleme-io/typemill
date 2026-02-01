@@ -134,6 +134,15 @@ impl LspAdapterPlugin {
             "workspace/symbol" => {
                 if let Some(query) = request.get_string_param("query") {
                     params = json!({ "query": query });
+
+                    // Forward 'kind' parameter if present to allow server-side filtering (optimization)
+                    // This allows DirectLspAdapter to filter symbols before aggregating them,
+                    // reducing memory usage and transfer overhead.
+                    if let Some(kind) = request.get_param("kind") {
+                        if let Value::Object(ref mut map) = params {
+                            map.insert("kind".to_string(), kind.clone());
+                        }
+                    }
                 } else {
                     return Err(PluginSystemError::configuration_error(
                         "search_workspace_symbols requires query parameter",
