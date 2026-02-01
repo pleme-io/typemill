@@ -1,0 +1,48 @@
+{
+  "name": "typemill",
+  "version": "0.8.4",
+  "description": "Pure Rust MCP server bridging Language Server Protocol functionality to AI coding assistants",
+  "keywords": [
+    "mcp",
+    "lsp",
+    "claude",
+    "ai",
+    "refactoring",
+    "code-intelligence",
+    "typescript",
+    "rust",
+    "python"
+  ],
+  "homepage": "https://github.com/goobits/typemill",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/goobits/typemill.git"
+  },
+  "license": "MIT",
+  "author": "Anthropic",
+  "bin": {
+    "typemill": "./bin/run.js",
+    "mill": "./bin/run.js"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.js"
+  },
+  "dependencies": {
+    "tar": "^6.2.0"
+  },
+  "optionalDependencies": {
+    "adm-zip": "^0.5.10"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}
