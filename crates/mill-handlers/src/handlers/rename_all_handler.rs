@@ -205,22 +205,19 @@ impl RenameAllHandler {
                 summary: summary_text,
                 files_changed,
                 diagnostics,
-                changes: Some(content.clone()),
+                changes: Some(content),
             })
         } else {
             // Execution mode - extract result details
-            let result = content.get("content").ok_or_else(|| {
-                ServerError::internal("Expected content in execution result".to_string())
-            })?;
-
-            let success = result
+            // Note: content IS the result object now, no longer wrapped in {"content": ...}
+            let success = content
                 .get("success")
                 .and_then(|s| s.as_bool())
                 .unwrap_or(false);
 
-            let applied_files = result
+            let applied_files = content
                 .get("applied_files")
-                .or_else(|| result.get("appliedFiles"))
+                .or_else(|| content.get("appliedFiles"))
                 .and_then(|a| a.as_array())
                 .map(|arr| {
                     arr.iter()
@@ -237,7 +234,7 @@ impl RenameAllHandler {
 
             // Extract warnings from execution result
             let diagnostics =
-                if let Some(warnings_arr) = result.get("warnings").and_then(|w| w.as_array()) {
+                if let Some(warnings_arr) = content.get("warnings").and_then(|w| w.as_array()) {
                     warnings_arr
                         .iter()
                         .filter_map(|w| {
@@ -265,7 +262,7 @@ impl RenameAllHandler {
                 summary: summary_text,
                 files_changed: applied_files,
                 diagnostics,
-                changes: Some(result.clone()),
+                changes: Some(content),
             })
         }
     }
@@ -500,9 +497,7 @@ impl ToolHandler for RenameAllHandler {
                 "Rename execution completed"
             );
 
-            json!({
-                "content": result_json
-            })
+            result_json
         };
 
         // Convert to WriteResponse envelope
@@ -581,4 +576,5 @@ mod tests {
         assert!(options.dry_run); // Default is true for safety
         assert!(options.scope.is_none());
     }
+
 }
