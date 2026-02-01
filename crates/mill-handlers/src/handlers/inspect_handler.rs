@@ -24,10 +24,10 @@ impl InspectHandler {
     fn parse_params(tool_call: &ToolCall) -> ServerResult<InspectParams> {
         let args = tool_call
             .arguments
-            .clone()
+            .as_ref()
             .ok_or_else(|| ServerError::invalid_request("Missing arguments for inspect_code"))?;
 
-        let params: InspectParams = serde_json::from_value(args).map_err(|e| {
+        let params: InspectParams = InspectParams::deserialize(args).map_err(|e| {
             ServerError::invalid_request(format!("Invalid inspect_code parameters: {}", e))
         })?;
 

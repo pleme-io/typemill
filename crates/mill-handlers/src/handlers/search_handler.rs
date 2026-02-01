@@ -407,8 +407,9 @@ impl SearchHandler {
         debug!("handle_search_code: Processing search request");
 
         // Parse request
-        let args = tool_call.arguments.clone().unwrap_or(json!({}));
-        let request: SearchCodeRequest = serde_json::from_value(args).map_err(|e| {
+        let default_args = json!({});
+        let args = tool_call.arguments.as_ref().unwrap_or(&default_args);
+        let request: SearchCodeRequest = SearchCodeRequest::deserialize(args).map_err(|e| {
             ServerError::invalid_request(format!("Invalid search_code arguments: {}", e))
         })?;
 

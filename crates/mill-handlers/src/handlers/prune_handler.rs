@@ -107,10 +107,10 @@ impl ToolHandler for PruneHandler {
         // Parse parameters
         let args = tool_call
             .arguments
-            .clone()
+            .as_ref()
             .ok_or_else(|| ServerError::invalid_request("Missing arguments for prune"))?;
 
-        let params: PruneParams = serde_json::from_value(args).map_err(|e| {
+        let params: PruneParams = PruneParams::deserialize(args).map_err(|e| {
             ServerError::invalid_request(format!("Invalid prune parameters: {}", e))
         })?;
 

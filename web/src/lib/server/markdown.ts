@@ -47,9 +47,14 @@ function parseFrontmatter(content: string): { metadata: Record<string, any>; con
 }
 
 export async function readMarkdownFile(relativePath: string): Promise<{ content: string; metadata: Record<string, any> }> {
-	// Security: Prevent directory traversal
+	// Security: Prevent directory traversal and arbitrary file read
 	// Check for parent directory references and absolute paths (including Windows drive paths)
 	if (relativePath.includes('..') || isAbsolute(relativePath) || relativePath.startsWith('/')) {
+		throw new Error('Invalid path');
+	}
+
+	// Security: Only allow reading markdown files
+	if (!relativePath.toLowerCase().endsWith('.md')) {
 		throw new Error('Invalid path');
 	}
 
