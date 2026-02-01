@@ -347,6 +347,219 @@ impl DirectLspAdapter {
         Ok(json!(all_symbols))
     }
 
+    /// Find all files that import/reference the given file path
+    ///
+    /// Uses LSP's textDocument/references to find all files that reference
+    /// symbols exported from the given file. This is much faster than scanning
+    /// the entire project because LSP maintains an index.
+    ///
+    /// Returns a list of file paths that import/reference the given file.
+    pub async fn find_files_that_import(
+        &self,
+        file_path: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
+        use std::collections::HashSet;
+
+        // Get extension from file path
+        let extension = file_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .ok_or_else(|| format!("Could not get extension from path: {}", file_path.display()))?;
+
+        // Get or create LSP client for this extension
+        let client = self.get_or_create_client(extension).await?;
+
+        // Ensure file is open in LSP
+        if let Err(e) = client.notify_file_opened(file_path).await {
+            debug!(
+                file = %file_path.display(),
+                error = %e,
+                "Failed to open file in LSP for reference search"
+            );
+            // Continue anyway - file might already be open
+        }
+
+        // Get document symbols to find exportable symbols
+        let uri = format!("file://{}", file_path.display());
+        let doc_symbols_params = json!({
+            "textDocument": { "uri": &uri }
+        });
+
+        let symbols_response = client
+            .send_request("textDocument/documentSymbol", doc_symbols_params)
+            .await
+            .map_err(|e| format!("Failed to get document symbols: {}", e))?;
+
+        // Extract symbol positions from response
+        let symbol_positions = self.extract_symbol_positions(&symbols_response);
+
+        if symbol_positions.is_empty() {
+            debug!(
+                file = %file_path.display(),
+                "No symbols found in file for reference search"
+            );
+            return Ok(Vec::new());
+        }
+
+        // Query references for each symbol and collect unique file paths
+        let mut importing_files: HashSet<std::path::PathBuf> = HashSet::new();
+
+        // Limit to first few symbols to avoid too many LSP calls
+        const MAX_SYMBOLS_TO_CHECK: usize = 5;
+        let symbols_to_check = symbol_positions.into_iter().take(MAX_SYMBOLS_TO_CHECK);
+
+        for (line, character) in symbols_to_check {
+            let refs_params = json!({
+                "textDocument": { "uri": &uri },
+                "position": { "line": line, "character": character },
+                "context": { "includeDeclaration": false }
+            });
+
+            match client
+                .send_request("textDocument/references", refs_params)
+                .await
+            {
+                Ok(refs_response) => {
+                    if let Some(refs) = refs_response.as_array() {
+                        for reference in refs {
+                            if let Some(ref_uri) = reference.get("uri").and_then(|u| u.as_str()) {
+                                // Skip references in the same file
+                                if ref_uri == uri {
+                                    continue;
+                                }
+
+                                // Convert URI to path
+                                if ref_uri.starts_with("file://") {
+                                    let path_str = ref_uri.trim_start_matches("file://");
+                                    // Handle URL-encoded paths
+                                    if let Ok(decoded) = urlencoding::decode(path_str) {
+                                        let path = std::path::PathBuf::from(decoded.as_ref());
+                                        importing_files.insert(path);
+                                    } else {
+                                        importing_files.insert(std::path::PathBuf::from(path_str));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    debug!(
+                        file = %file_path.display(),
+                        line = line,
+                        error = %e,
+                        "Failed to get references for symbol"
+                    );
+                    // Continue with other symbols
+                }
+            }
+        }
+
+        debug!(
+            file = %file_path.display(),
+            importing_files_count = importing_files.len(),
+            "Found files that import this file via LSP"
+        );
+
+        Ok(importing_files.into_iter().collect())
+    }
+
+    /// Extract symbol positions (line, character) from documentSymbol response
+    fn extract_symbol_positions(&self, response: &Value) -> Vec<(u32, u32)> {
+        let mut positions = Vec::new();
+
+        if let Some(symbols) = response.as_array() {
+            for symbol in symbols {
+                // Handle both DocumentSymbol and SymbolInformation formats
+                if let Some(range) = symbol.get("range").or_else(|| symbol.get("location").and_then(|l| l.get("range"))) {
+                    if let (Some(line), Some(character)) = (
+                        range.get("start").and_then(|s| s.get("line")).and_then(|l| l.as_u64()),
+                        range.get("start").and_then(|s| s.get("character")).and_then(|c| c.as_u64()),
+                    ) {
+                        positions.push((line as u32, character as u32));
+                    }
+                }
+
+                // Recursively handle children (for DocumentSymbol format)
+                if let Some(children) = symbol.get("children") {
+                    positions.extend(self.extract_symbol_positions(children));
+                }
+            }
+        }
+
+        positions
+    }
+
+    /// Find all files that import any file within a directory
+    ///
+    /// This is used for directory moves to find all external importers.
+    pub async fn find_files_that_import_directory(
+        &self,
+        dir_path: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
+        use std::collections::HashSet;
+
+        let mut all_importing_files: HashSet<std::path::PathBuf> = HashSet::new();
+
+        // Walk the directory to find all source files
+        let walker = ignore::WalkBuilder::new(dir_path)
+            .hidden(false)
+            .git_ignore(true)
+            .build();
+
+        let mut files_in_dir = Vec::new();
+        for entry in walker.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    if self.extensions.contains(&ext.to_string()) {
+                        files_in_dir.push(path.to_path_buf());
+                    }
+                }
+            }
+        }
+
+        debug!(
+            dir = %dir_path.display(),
+            files_count = files_in_dir.len(),
+            "Found source files in directory for LSP reference search"
+        );
+
+        // Limit the number of files to check to avoid too many LSP calls
+        const MAX_FILES_TO_CHECK: usize = 20;
+        let files_to_check: Vec<_> = files_in_dir.into_iter().take(MAX_FILES_TO_CHECK).collect();
+
+        // Find importers for each file
+        for file_path in &files_to_check {
+            match self.find_files_that_import(file_path).await {
+                Ok(importers) => {
+                    for importer in importers {
+                        // Skip files inside the directory being moved
+                        if !importer.starts_with(dir_path) {
+                            all_importing_files.insert(importer);
+                        }
+                    }
+                }
+                Err(e) => {
+                    debug!(
+                        file = %file_path.display(),
+                        error = %e,
+                        "Failed to find importers for file in directory"
+                    );
+                    // Continue with other files
+                }
+            }
+        }
+
+        debug!(
+            dir = %dir_path.display(),
+            importing_files_count = all_importing_files.len(),
+            "Found external files that import from directory via LSP"
+        );
+
+        Ok(all_importing_files.into_iter().collect())
+    }
+
     /// Gracefully shutdown all LSP clients
     pub async fn shutdown(&self) -> Result<(), String> {
         let mut clients_map = self.lsp_clients.lock().await;
@@ -564,6 +777,22 @@ impl mill_handler_api::LspAdapter for DirectLspAdapter {
         self.get_or_create_client(file_extension)
             .await
             .map_err(mill_foundation::errors::MillError::lsp)
+    }
+
+    async fn find_files_that_import(
+        &self,
+        file_path: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
+        // Delegate to the inherent implementation
+        DirectLspAdapter::find_files_that_import(self, file_path).await
+    }
+
+    async fn find_files_that_import_directory(
+        &self,
+        dir_path: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
+        // Delegate to the inherent implementation
+        DirectLspAdapter::find_files_that_import_directory(self, dir_path).await
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

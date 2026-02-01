@@ -112,6 +112,28 @@ pub trait LspAdapter: Send + Sync {
     async fn get_or_create_client(&self, file_extension: &str)
         -> Result<Arc<LspClient>, MillError>;
 
+    /// Find all files that import/reference the given file path
+    ///
+    /// Uses LSP's textDocument/references to find all files that reference
+    /// symbols exported from the given file. This is much faster than scanning
+    /// the entire project because LSP maintains an index.
+    async fn find_files_that_import(
+        &self,
+        _file_path: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
+        Err("find_files_that_import not implemented".to_string())
+    }
+
+    /// Find all files that import any file within a directory
+    ///
+    /// This is used for directory moves to find all external importers.
+    async fn find_files_that_import_directory(
+        &self,
+        _dir_path: &std::path::Path,
+    ) -> Result<Vec<std::path::PathBuf>, String> {
+        Err("find_files_that_import_directory not implemented".to_string())
+    }
+
     /// Access to the inner adapter for downcasting
     fn as_any(&self) -> &dyn std::any::Any;
 }
