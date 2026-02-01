@@ -551,41 +551,44 @@ impl ReferenceUpdater {
                     let is_importer_inside_moved_dir = file_path.starts_with(old_path.as_ref());
 
                     if !is_importer_inside_moved_dir {
-                        if let Some(files) = files_in_directory {
-                            // Process each file in the directory that might be referenced
-                            for file_in_dir in files.iter() {
-                                let relative_path = file_in_dir.strip_prefix(old_path.as_ref()).unwrap_or(file_in_dir);
-                                let new_file_path = new_path.join(relative_path);
+                        if let Some(files) = &files_in_directory {
+                            // OPTIMIZATION: Use batch API to process all file renames in one call
+                            // This reduces O(M) plugin calls to O(1) per affected file
+                            let renames: Vec<(PathBuf, PathBuf)> = files
+                                .iter()
+                                .map(|file_in_dir| {
+                                    let relative_path = file_in_dir
+                                        .strip_prefix(old_path.as_ref())
+                                        .unwrap_or(file_in_dir);
+                                    let new_file_path = new_path.join(relative_path);
+                                    (file_in_dir.clone(), new_file_path)
+                                })
+                                .collect();
 
-                                tracing::debug!(
-                                    importer = %file_path.display(),
-                                    old_imported_file = %file_in_dir.display(),
-                                    new_imported_file = %new_file_path.display(),
-                                    "Checking if importer references file in moved directory"
-                                );
+                            tracing::debug!(
+                                importer = %file_path.display(),
+                                renames_count = renames.len(),
+                                "Batch processing {} file renames for directory move",
+                                renames.len()
+                            );
 
-                                // Call plugin to rewrite references for this specific file
-                                let rewrite_result = plugin.rewrite_file_references(
-                                    &combined_content,
-                                    file_in_dir,    // Old path of specific file in directory
-                                    &new_file_path, // New path of specific file in directory
-                                    &file_path,
-                                    &project_root,
-                                    merged_rename_info.as_ref().as_ref(),
-                                );
-
-                                if let Some((updated_content, count)) = rewrite_result {
-                                    if count > 0 && updated_content != combined_content {
-                                        tracing::debug!(
-                                            changes = count,
-                                            importer = %file_path.display(),
-                                            moved_file = %file_in_dir.display(),
-                                            "Applied {} import updates for file in moved directory",
-                                            count
-                                        );
-                                        combined_content = updated_content;
-                                        total_changes += count;
-                                    }
+                            // Single batch call replaces the O(M) loop
+                            if let Some((updated_content, count)) = plugin.rewrite_file_references_batch(
+                                &combined_content,
+                                &renames,
+                                &file_path,
+                                &project_root,
+                                merged_rename_info.as_ref().as_ref(),
+                            ) {
+                                if count > 0 && updated_content != combined_content {
+                                    tracing::debug!(
+                                        changes = count,
+                                        importer = %file_path.display(),
+                                        "Applied {} import updates via batch API for directory rename",
+                                        count
+                                    );
+                                    combined_content = updated_content;
+                                    total_changes += count;
                                 }
                             }
                         }
