@@ -1,29 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { marked } from 'marked';
-	import { afterUpdate } from 'svelte';
-	import hljs from 'highlight.js/lib/core';
-	import javascript from 'highlight.js/lib/languages/javascript';
-	import typescript from 'highlight.js/lib/languages/typescript';
-	import rust from 'highlight.js/lib/languages/rust';
-	import python from 'highlight.js/lib/languages/python';
-	import bash from 'highlight.js/lib/languages/bash';
-	import json from 'highlight.js/lib/languages/json';
-	import yaml from 'highlight.js/lib/languages/yaml';
 	import 'highlight.js/styles/github-dark.css';
 
 	export let data: PageData;
 
-	let htmlContent = '';
-
-	// Register languages
-	hljs.registerLanguage('javascript', javascript);
-	hljs.registerLanguage('typescript', typescript);
-	hljs.registerLanguage('rust', rust);
-	hljs.registerLanguage('python', python);
-	hljs.registerLanguage('bash', bash);
-	hljs.registerLanguage('json', json);
-	hljs.registerLanguage('yaml', yaml);
+	$: htmlContent = data.htmlContent;
 
 	// Extract title from metadata or generate from slug
 	$: title = data.metadata?.title || formatTitle(data.slug);
@@ -59,29 +40,6 @@
 
 		return crumbs;
 	}
-
-	// Convert markdown to HTML with syntax highlighting
-	$: {
-		marked.setOptions({
-			gfm: true,
-			breaks: false,
-		});
-		const parsed = marked.parse(data.content);
-		if (parsed instanceof Promise) {
-			parsed.then((res) => (htmlContent = res));
-		} else {
-			htmlContent = parsed;
-		}
-	}
-
-	// Apply syntax highlighting after updates
-	afterUpdate(() => {
-		document.querySelectorAll('pre code').forEach((block) => {
-			if (!block.classList.contains('hljs')) {
-				hljs.highlightElement(block as HTMLElement);
-			}
-		});
-	});
 </script>
 
 <svelte:head>
