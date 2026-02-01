@@ -205,6 +205,7 @@ impl SearchHandler {
                             needed_extensions.remove(&ext);
                         }
                     }
+                }
 
                 if needed_extensions.is_empty() {
                     break;
