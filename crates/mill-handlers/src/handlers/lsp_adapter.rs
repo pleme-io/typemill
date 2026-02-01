@@ -110,14 +110,29 @@ impl DirectLspAdapter {
     /// Query all active LSP servers for workspace symbols and merge results
     async fn query_all_servers_for_workspace_symbols(
         &self,
-        params: Value,
+        mut params: Value,
     ) -> Result<Value, String> {
         const MAX_WORKSPACE_SYMBOLS: usize = 10_000;
         let mut all_symbols = Vec::new();
         let mut queried_servers = Vec::new();
 
+        // Check for extension filter injected by LspAdapterPlugin
+        let filter_extensions: Option<Vec<String>> = if let Value::Object(ref mut map) = params {
+            map.remove("__mill_extensions")
+                .and_then(|v| serde_json::from_value(v).ok())
+        } else {
+            None
+        };
+
         // Query each supported extension's LSP server
         for extension in &self.extensions {
+            // Apply filter if present - only query servers relevant to the requesting plugin
+            if let Some(ref filter) = filter_extensions {
+                if !filter.contains(extension) {
+                    continue;
+                }
+            }
+
             // Get or create client for this extension
             match self.get_or_create_client(extension).await {
                 Ok(client) => {
