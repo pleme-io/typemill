@@ -280,250 +280,221 @@ impl ReferenceUpdater {
             }
         }
 
-        let mut all_edits = Vec::new();
-
         tracing::info!(
             affected_files_count = affected_files.len(),
             "Processing affected files for reference updates"
         );
 
+        // Prepare shared state for parallel processing
+        let plugin_map = Arc::new(plugin_map);
+        let project_root = Arc::new(self.project_root.clone());
+        let old_path = Arc::new(old_path.to_path_buf());
+        let new_path = Arc::new(new_path.to_path_buf());
+        let merged_rename_info = Arc::new(merged_rename_info);
+
+        // Pre-calculate directory files for directory rename logic
+        let files_in_directory = if is_directory_rename {
+            let files: Vec<PathBuf> = project_files
+                .iter()
+                .filter(|f| f.starts_with(old_path.as_ref()) && f.is_file())
+                .cloned()
+                .collect();
+            Some(Arc::new(files))
+        } else {
+            None
+        };
+
+        let mut join_set = JoinSet::new();
+
         for file_path in affected_files {
-            tracing::debug!(
-                file_path = %file_path.display(),
-                "Processing affected file"
-            );
-            let plugin = if let Some(ext) = file_path.extension() {
-                let ext_str = ext.to_str().unwrap_or("");
-                plugin_map.get(ext_str)
-            } else {
-                None
-            };
+            let plugin_map = plugin_map.clone();
+            let project_root = project_root.clone();
+            let old_path = old_path.clone();
+            let new_path = new_path.clone();
+            let merged_rename_info = merged_rename_info.clone();
+            let files_in_directory = files_in_directory.clone();
 
-            let plugin = match plugin {
-                Some(p) => p,
-                None => continue,
-            };
-
-            let content = match tokio::fs::read_to_string(&file_path).await {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-
-            if is_package_rename {
-                // For Rust crate renames, use simple file rename logic with rename_info
-                // The rename_info contains old_crate_name and new_crate_name which the plugin uses
+            join_set.spawn(async move {
                 tracing::debug!(
                     file_path = %file_path.display(),
-                    old_path = %old_path.display(),
-                    new_path = %new_path.display(),
-                    "Rewriting imports for Rust crate rename"
+                    "Processing affected file"
                 );
 
-                let rewrite_result = plugin.rewrite_file_references(
-                    &content,
-                    old_path, // Pass the directory path (crate root)
-                    new_path, // Pass the new directory path
-                    &file_path,
-                    &self.project_root,
-                    merged_rename_info.as_ref(), // Contains both cargo info AND scope flags
-                );
+                let plugin = if let Some(ext) = file_path.extension() {
+                    let ext_str = ext.to_str().unwrap_or("");
+                    plugin_map.get(ext_str)
+                } else {
+                    None
+                };
 
-                if let Some((updated_content, count)) = rewrite_result {
-                    if count > 0 && updated_content != content {
-                        let line_count = content.lines().count();
-                        let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+                let plugin = match plugin {
+                    Some(p) => p,
+                    None => return None,
+                };
 
-                        // For directory renames, files inside the renamed directory need to use the NEW path
-                        // For file renames, all affected files are outside the renamed file, so use original paths
-                        let edit_file_path =
-                            if is_directory_rename && file_path.starts_with(old_path) {
-                                // File is inside the renamed directory - compute new path
-                                let relative_path =
-                                    file_path.strip_prefix(old_path).unwrap_or(&file_path);
-                                new_path.join(relative_path)
-                            } else {
-                                // File is outside the renamed item (or it's a file rename) - use original path
-                                file_path.clone()
-                            };
+                let content = match tokio::fs::read_to_string(&file_path).await {
+                    Ok(c) => c,
+                    Err(_) => return None,
+                };
 
-                        all_edits.push(TextEdit {
-                            file_path: Some(edit_file_path.to_string_lossy().to_string()),
-                            edit_type: EditType::UpdateImport,
-                            location: EditLocation {
-                                start_line: 0,
-                                start_column: 0,
-                                end_line: line_count.saturating_sub(1) as u32,
-                                end_column: last_line_len as u32,
-                            },
-                            original_text: content.clone(),
-                            new_text: updated_content,
-                            priority: 1,
-                            description: format!(
-                                "Update imports in {} for crate rename",
-                                edit_file_path.display()
-                            ),
-                        });
-                    }
-                }
-            } else if is_directory_rename {
-                // Directory rename logic (for non-Rust crate directories)
-                // Step 1: Call with directory paths to update mod declarations
-                // Step 2: Call with individual file paths to update imports
-                tracing::debug!(
-                    file_path = %file_path.display(),
-                    old_path = %old_path.display(),
-                    new_path = %new_path.display(),
-                    "Rewriting references for directory rename"
-                );
+                let mut file_edits = Vec::new();
 
-                let mut combined_content = content.clone();
-                let mut total_changes = 0;
-
-                // Step 1: Update mod declarations by calling with directory paths
-                // This allows language plugins (especially Rust) to detect and update
-                // mod declarations like "mod utils;" -> "mod helpers;"
-                let mod_decl_result = plugin.rewrite_file_references(
-                    &combined_content,
-                    old_path, // Directory path
-                    new_path, // Directory path
-                    &file_path,
-                    &self.project_root,
-                    merged_rename_info.as_ref(),
-                );
-
-                if let Some((updated_content, count)) = mod_decl_result {
-                    if count > 0 && updated_content != combined_content {
-                        tracing::debug!(
-                            changes = count,
-                            importer = %file_path.display(),
-                            "Applied {} mod declaration updates for directory rename",
-                            count
-                        );
-                        combined_content = updated_content;
-                        total_changes += count;
-                    }
-                }
-
-                // Step 2: Update imports by calling with individual file paths
-                // IMPORTANT: Skip this step for files INSIDE the moved directory.
-                // Step 1 already handled internal updates via directory-level processing.
-                // Processing individual files here would corrupt relative imports between
-                // files that are both moving together.
-                let is_importer_inside_moved_dir = file_path.starts_with(old_path);
-
-                if !is_importer_inside_moved_dir {
-                    // Get all files within the moved directory
-                    let files_in_directory: Vec<&PathBuf> = project_files
-                        .iter()
-                        .filter(|f| f.starts_with(old_path) && f.is_file())
-                        .collect();
-
-                // Process each file in the directory that might be referenced
-                for file_in_dir in &files_in_directory {
-                    let relative_path = file_in_dir.strip_prefix(old_path).unwrap_or(file_in_dir);
-                    let new_file_path = new_path.join(relative_path);
-
+                if is_package_rename {
+                    // For Rust crate renames, use simple file rename logic with rename_info
+                    // The rename_info contains old_crate_name and new_crate_name which the plugin uses
                     tracing::debug!(
-                        importer = %file_path.display(),
-                        old_imported_file = %file_in_dir.display(),
-                        new_imported_file = %new_file_path.display(),
-                        "Checking if importer references file in moved directory"
+                        file_path = %file_path.display(),
+                        old_path = %old_path.display(),
+                        new_path = %new_path.display(),
+                        "Rewriting imports for Rust crate rename"
                     );
 
-                    // Call plugin to rewrite references for this specific file
                     let rewrite_result = plugin.rewrite_file_references(
-                        &combined_content,
-                        file_in_dir,    // Old path of specific file in directory
-                        &new_file_path, // New path of specific file in directory
+                        &content,
+                        &old_path, // Pass the directory path (crate root)
+                        &new_path, // Pass the new directory path
                         &file_path,
-                        &self.project_root,
-                        merged_rename_info.as_ref(),
+                        &project_root,
+                        merged_rename_info.as_ref().as_ref(), // Contains both cargo info AND scope flags
                     );
 
                     if let Some((updated_content, count)) = rewrite_result {
+                        if count > 0 && updated_content != content {
+                            let line_count = content.lines().count();
+                            let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+
+                            // For directory renames, files inside the renamed directory need to use the NEW path
+                            // For file renames, all affected files are outside the renamed file, so use original paths
+                            let edit_file_path =
+                                if is_directory_rename && file_path.starts_with(old_path.as_ref()) {
+                                    // File is inside the renamed directory - compute new path
+                                    let relative_path =
+                                        file_path.strip_prefix(old_path.as_ref()).unwrap_or(&file_path);
+                                    new_path.join(relative_path)
+                                } else {
+                                    // File is outside the renamed item (or it's a file rename) - use original path
+                                    file_path.clone()
+                                };
+
+                            file_edits.push(TextEdit {
+                                file_path: Some(edit_file_path.to_string_lossy().to_string()),
+                                edit_type: EditType::UpdateImport,
+                                location: EditLocation {
+                                    start_line: 0,
+                                    start_column: 0,
+                                    end_line: line_count.saturating_sub(1) as u32,
+                                    end_column: last_line_len as u32,
+                                },
+                                original_text: content.clone(),
+                                new_text: updated_content,
+                                priority: 1,
+                                description: format!(
+                                    "Update imports in {} for crate rename",
+                                    edit_file_path.display()
+                                ),
+                            });
+                        }
+                    }
+                } else if is_directory_rename {
+                    // Directory rename logic (for non-Rust crate directories)
+                    // Step 1: Call with directory paths to update mod declarations
+                    // Step 2: Call with individual file paths to update imports
+                    tracing::debug!(
+                        file_path = %file_path.display(),
+                        old_path = %old_path.display(),
+                        new_path = %new_path.display(),
+                        "Rewriting references for directory rename"
+                    );
+
+                    let mut combined_content = content.clone();
+                    let mut total_changes = 0;
+
+                    // Step 1: Update mod declarations by calling with directory paths
+                    // This allows language plugins (especially Rust) to detect and update
+                    // mod declarations like "mod utils;" -> "mod helpers;"
+                    let mod_decl_result = plugin.rewrite_file_references(
+                        &combined_content,
+                        &old_path, // Directory path
+                        &new_path, // Directory path
+                        &file_path,
+                        &project_root,
+                        merged_rename_info.as_ref().as_ref(),
+                    );
+
+                    if let Some((updated_content, count)) = mod_decl_result {
                         if count > 0 && updated_content != combined_content {
                             tracing::debug!(
                                 changes = count,
                                 importer = %file_path.display(),
-                                moved_file = %file_in_dir.display(),
-                                "Applied {} import updates for file in moved directory",
+                                "Applied {} mod declaration updates for directory rename",
                                 count
                             );
                             combined_content = updated_content;
                             total_changes += count;
                         }
                     }
-                }
-                } // end if !is_importer_inside_moved_dir
 
-                // If any changes were made, add a single edit for this file
-                if total_changes > 0 && combined_content != content {
-                    let line_count = content.lines().count();
-                    let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+                    // Step 2: Update imports by calling with individual file paths
+                    // IMPORTANT: Skip this step for files INSIDE the moved directory.
+                    // Step 1 already handled internal updates via directory-level processing.
+                    // Processing individual files here would corrupt relative imports between
+                    // files that are both moving together.
+                    let is_importer_inside_moved_dir = file_path.starts_with(old_path.as_ref());
 
-                    tracing::info!(
-                        file_path = %file_path.display(),
-                        total_changes,
-                        "Adding edit for directory rename with {} total changes",
-                        total_changes
-                    );
+                    if !is_importer_inside_moved_dir {
+                        if let Some(files) = files_in_directory {
+                            // Process each file in the directory that might be referenced
+                            for file_in_dir in files.iter() {
+                                let relative_path = file_in_dir.strip_prefix(old_path.as_ref()).unwrap_or(file_in_dir);
+                                let new_file_path = new_path.join(relative_path);
 
-                    all_edits.push(TextEdit {
-                        file_path: Some(file_path.to_string_lossy().to_string()),
-                        edit_type: EditType::UpdateImport,
-                        location: EditLocation {
-                            start_line: 0,
-                            start_column: 0,
-                            end_line: line_count.saturating_sub(1) as u32,
-                            end_column: last_line_len as u32,
-                        },
-                        original_text: content.clone(),
-                        new_text: combined_content,
-                        priority: 1,
-                        description: format!(
-                            "Update {} imports in {} for directory rename",
-                            total_changes,
-                            file_path.display()
-                        ),
-                    });
-                }
-            } else {
-                // File rename logic
-                tracing::info!(
-                    file_path = %file_path.display(),
-                    old_path = %old_path.display(),
-                    new_path = %new_path.display(),
-                    content_length = content.len(),
-                    "Calling plugin rewrite_file_references"
-                );
+                                tracing::debug!(
+                                    importer = %file_path.display(),
+                                    old_imported_file = %file_in_dir.display(),
+                                    new_imported_file = %new_file_path.display(),
+                                    "Checking if importer references file in moved directory"
+                                );
 
-                // Add this log right before the plugin method is called
-                tracing::debug!(
-                    plugin_name = plugin.metadata().name,
-                    current_file = %file_path.display(),
-                    "Attempting to call rewrite_file_references on selected plugin"
-                );
+                                // Call plugin to rewrite references for this specific file
+                                let rewrite_result = plugin.rewrite_file_references(
+                                    &combined_content,
+                                    file_in_dir,    // Old path of specific file in directory
+                                    &new_file_path, // New path of specific file in directory
+                                    &file_path,
+                                    &project_root,
+                                    merged_rename_info.as_ref().as_ref(),
+                                );
 
-                let rewrite_result = plugin.rewrite_file_references(
-                    &content,
-                    old_path,
-                    new_path,
-                    &file_path,
-                    &self.project_root,
-                    merged_rename_info.as_ref(),
-                );
+                                if let Some((updated_content, count)) = rewrite_result {
+                                    if count > 0 && updated_content != combined_content {
+                                        tracing::debug!(
+                                            changes = count,
+                                            importer = %file_path.display(),
+                                            moved_file = %file_in_dir.display(),
+                                            "Applied {} import updates for file in moved directory",
+                                            count
+                                        );
+                                        combined_content = updated_content;
+                                        total_changes += count;
+                                    }
+                                }
+                            }
+                        }
+                    }
 
-                tracing::info!(
-                    result = ?rewrite_result,
-                    "Plugin rewrite_file_references returned"
-                );
-
-                if let Some((updated_content, count)) = rewrite_result {
-                    if count > 0 && updated_content != content {
+                    // If any changes were made, add a single edit for this file
+                    if total_changes > 0 && combined_content != content {
                         let line_count = content.lines().count();
                         let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
 
-                        all_edits.push(TextEdit {
+                        tracing::info!(
+                            file_path = %file_path.display(),
+                            total_changes,
+                            "Adding edit for directory rename with {} total changes",
+                            total_changes
+                        );
+
+                        file_edits.push(TextEdit {
                             file_path: Some(file_path.to_string_lossy().to_string()),
                             edit_type: EditType::UpdateImport,
                             location: EditLocation {
@@ -533,14 +504,85 @@ impl ReferenceUpdater {
                                 end_column: last_line_len as u32,
                             },
                             original_text: content.clone(),
-                            new_text: updated_content,
+                            new_text: combined_content,
                             priority: 1,
                             description: format!(
-                                "Update imports in {} for file rename",
+                                "Update {} imports in {} for directory rename",
+                                total_changes,
                                 file_path.display()
                             ),
                         });
                     }
+                } else {
+                    // File rename logic
+                    tracing::info!(
+                        file_path = %file_path.display(),
+                        old_path = %old_path.display(),
+                        new_path = %new_path.display(),
+                        content_length = content.len(),
+                        "Calling plugin rewrite_file_references"
+                    );
+
+                    // Add this log right before the plugin method is called
+                    tracing::debug!(
+                        plugin_name = plugin.metadata().name,
+                        current_file = %file_path.display(),
+                        "Attempting to call rewrite_file_references on selected plugin"
+                    );
+
+                    let rewrite_result = plugin.rewrite_file_references(
+                        &content,
+                        &old_path,
+                        &new_path,
+                        &file_path,
+                        &project_root,
+                        merged_rename_info.as_ref().as_ref(),
+                    );
+
+                    tracing::info!(
+                        result = ?rewrite_result,
+                        "Plugin rewrite_file_references returned"
+                    );
+
+                    if let Some((updated_content, count)) = rewrite_result {
+                        if count > 0 && updated_content != content {
+                            let line_count = content.lines().count();
+                            let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+
+                            file_edits.push(TextEdit {
+                                file_path: Some(file_path.to_string_lossy().to_string()),
+                                edit_type: EditType::UpdateImport,
+                                location: EditLocation {
+                                    start_line: 0,
+                                    start_column: 0,
+                                    end_line: line_count.saturating_sub(1) as u32,
+                                    end_column: last_line_len as u32,
+                                },
+                                original_text: content.clone(),
+                                new_text: updated_content,
+                                priority: 1,
+                                description: format!(
+                                    "Update imports in {} for file rename",
+                                    file_path.display()
+                                ),
+                            });
+                        }
+                    }
+                }
+
+                Some(file_edits)
+            });
+        }
+
+        let mut all_edits = Vec::new();
+        while let Some(res) = join_set.join_next().await {
+            match res {
+                Ok(Some(edits)) => {
+                    all_edits.extend(edits);
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::error!("Task join error in update_references: {}", e);
                 }
             }
         }
