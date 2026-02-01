@@ -68,11 +68,11 @@ fn ensure_repo_cached(repo_url: &str, project_name: &str) -> PathBuf {
     cache_path
 }
 
-/// Copy cached repo to workspace and reset to clean state
+/// Copy from local cache: copy .git + checkout (fastest approach tested)
 fn copy_from_cache(cache_path: &PathBuf, workspace_path: &std::path::Path, project_name: &str) {
     println!("📋 Copying {} from cache...", project_name);
 
-    // Use cp -r for speed (faster than git clone even locally)
+    // Copy just .git directory (small for shallow clones)
     let status = Command::new("cp")
         .args(["-r", &format!("{}/.git", cache_path.display()), ".git"])
         .current_dir(workspace_path)
@@ -81,7 +81,7 @@ fn copy_from_cache(cache_path: &PathBuf, workspace_path: &std::path::Path, proje
 
     assert!(status.success(), "Failed to copy .git from cache");
 
-    // Checkout files and reset to clean state
+    // Checkout files from the copied .git
     let status = Command::new("git")
         .args(["checkout", "."])
         .current_dir(workspace_path)
@@ -89,12 +89,6 @@ fn copy_from_cache(cache_path: &PathBuf, workspace_path: &std::path::Path, proje
         .expect("Failed to checkout files");
 
     assert!(status.success(), "Failed to checkout files from cache");
-
-    // Clean any untracked files (from previous test runs if workspace was reused)
-    let _ = Command::new("git")
-        .args(["clean", "-fd"])
-        .current_dir(workspace_path)
-        .output();
 
     println!("✅ Repo ready from cache");
 }
