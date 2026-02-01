@@ -167,13 +167,11 @@ impl EditingToolsHandler {
             );
 
             if let Ok(response) = context.plugin_manager.handle_request(request).await {
-                if let Some(data) = response.data {
-                    if let Some(arr) = data.as_array() {
-                        for sym in arr {
-                            if sym.get("name").and_then(|n| n.as_str()) == Some(symbol_name) {
-                                target_symbol = Some((sym.clone(), path.to_string()));
-                                break;
-                            }
+                if let Some(Value::Array(arr)) = response.data {
+                    for sym in arr {
+                        if sym.get("name").and_then(|n| n.as_str()) == Some(symbol_name) {
+                            target_symbol = Some((sym, path.to_string()));
+                            break;
                         }
                     }
                 }
@@ -198,10 +196,8 @@ impl EditingToolsHandler {
                 request = request.with_params(serde_json::json!({ "query": symbol_name }));
 
                 if let Ok(response) = plugin.handle_request(request).await {
-                    if let Some(data) = response.data {
-                        if let Some(arr) = data.as_array() {
-                            symbols.extend(arr.clone());
-                        }
+                    if let Some(Value::Array(arr)) = response.data {
+                        symbols.extend(arr);
                     }
                 }
             }
