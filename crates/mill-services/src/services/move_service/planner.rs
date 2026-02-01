@@ -35,6 +35,7 @@ pub async fn plan_file_move(
             true, // dry_run = true
             scan_scope,
             rename_scope,
+            None, // No LSP finder (TODO: pass from handler)
         )
         .await?;
 
@@ -150,6 +151,7 @@ pub async fn plan_directory_move(
             true, // dry_run = true
             effective_scan_scope,
             rename_scope,
+            None, // No LSP finder (TODO: pass from handler)
         )
         .await?;
 
@@ -261,6 +263,12 @@ pub async fn plan_directory_move(
 ///
 /// Scans for markdown files, config files (TOML, YAML), and code files (Rust)
 /// that may reference the old path in string literals, and generates edits to update those references.
+///
+/// # Performance Optimizations
+/// - **Batch API**: Uses `rewrite_file_references_batch` to process all renames in a single
+///   plugin call per file, reducing O(N×M) to O(N) plugin calls.
+/// - **Parallel IO**: Reads files in parallel using `JoinSet` for improved throughput.
+/// - **Single walk**: Collects all target files in one directory traversal.
 async fn plan_documentation_and_config_edits(
     old_path: &Path,
     new_path: &Path,
@@ -270,8 +278,7 @@ async fn plan_documentation_and_config_edits(
 ) -> ServerResult<Vec<mill_foundation::protocol::TextEdit>> {
     use mill_foundation::protocol::{EditLocation, EditType, TextEdit};
     use std::path::PathBuf;
-
-    let mut edits = Vec::new();
+    use std::sync::Arc;
 
     // Find all markdown, TOML, YAML files in the project
     // Note: .rs files are NOT included here - they're fully handled by reference_updater
@@ -296,6 +303,21 @@ async fn plan_documentation_and_config_edits(
             }
         }
     }
+
+    // OPTIMIZATION: Build all renames upfront for batch processing
+    // This includes: (1) the directory rename, (2) all files inside the moved directory
+    // Using batch API reduces O(N×M) plugin calls to O(N) - one call per file
+    let mut all_renames: Vec<(PathBuf, PathBuf)> = Vec::with_capacity(moved_files.len() + 1);
+    all_renames.push((old_path.to_path_buf(), new_path.to_path_buf()));
+    all_renames.extend(moved_files.iter().cloned());
+    let all_renames = Arc::new(all_renames);
+
+    // Convert rename_scope to JSON once for all files
+    let rename_info = rename_scope.and_then(|s| serde_json::to_value(s).ok());
+    let rename_info = Arc::new(rename_info);
+
+    // Wrap moved_files in Arc for sharing across parallel tasks
+    let moved_files = Arc::new(moved_files);
 
     // OPTIMIZATION: Walk the project ONCE and collect all files with target extensions
     // This replaces the previous O(5N) approach (walking 5 times for each extension)
@@ -325,129 +347,138 @@ async fn plan_documentation_and_config_edits(
     info!(
         extensions_found = files_by_extension.len(),
         total_files = files_by_extension.values().map(|v| v.len()).sum::<usize>(),
-        "Collected files for doc/config update in single walk"
+        renames_count = all_renames.len(),
+        "Collected files for doc/config update with batch renames"
     );
 
-    // Process files grouped by extension
-    for (ext, files_to_scan) in &files_by_extension {
-        info!(extension = ext, files_count = files_to_scan.len(), "Processing extension");
+    // OPTIMIZATION: Read all files in parallel using JoinSet
+    // This improves IO throughput significantly on SSDs
+    let mut join_set = tokio::task::JoinSet::new();
+    let project_root = project_root.to_path_buf();
 
+    for (ext, files_to_scan) in &files_by_extension {
         if let Some(plugin) = plugin_registry.find_by_extension(ext) {
             info!(
                 extension = ext,
                 plugin_name = plugin.metadata().name,
-                "Found plugin for extension"
+                files_count = files_to_scan.len(),
+                "Processing extension with batch API"
             );
 
-            // Process each file with its plugin
+            // Spawn parallel file reads
             for file_path in files_to_scan {
-                match tokio::fs::read_to_string(file_path).await {
-                    Ok(content) => {
-                        let mut combined_content = content.clone();
-                        let mut total_changes = 0usize;
+                let file_path = file_path.clone();
+                let all_renames = Arc::clone(&all_renames);
+                let rename_info = Arc::clone(&rename_info);
+                let moved_files = Arc::clone(&moved_files);
+                let project_root = project_root.clone();
+                let ext = ext.clone();
 
-                        // Call the plugin's rewrite_file_references to get updated content
-                        // Returns Option<(String, usize)> where String is new content and usize is change count
-                        // Pass rename_scope as JSON for plugins to customize behavior
-                        let rename_info = rename_scope.and_then(|s| serde_json::to_value(s).ok());
-
-                        if let Some((updated_content, change_count)) = plugin
-                            .rewrite_file_references(
-                                &combined_content,
-                                old_path,
-                                new_path,
-                                file_path,
-                                project_root,
-                                rename_info.as_ref(),
-                            )
-                        {
-                            if change_count > 0 && updated_content != combined_content {
-                                total_changes += change_count;
-                                combined_content = updated_content;
-                            }
-                        }
-
-                        // Also update references to specific files inside the moved directory
-                        for (old_file, new_file) in &moved_files {
-                            if let Some((updated_content, change_count)) = plugin
-                                .rewrite_file_references(
-                                    &combined_content,
-                                    old_file,
-                                    new_file,
-                                    file_path,
-                                    project_root,
-                                    rename_info.as_ref(), // Pass rename_info for consistent behavior
-                                )
-                            {
-                                if change_count > 0 && updated_content != combined_content {
-                                    total_changes += change_count;
-                                    combined_content = updated_content;
-                                }
-                            }
-                        }
-
-                        if total_changes > 0 && combined_content != content {
-                            // File needs updating - create a full-file replacement edit
-                            let line_count = content.lines().count().max(1);
-                            let last_line_len =
-                                content.lines().last().map(|l| l.len()).unwrap_or(0);
-
-                            // CRITICAL: Check if this file will be moved as part of directory rename
-                            // If so, use NEW path in edit (edit_plan.rs will map back to OLD path for snapshots)
-                            let target_file_path = moved_files
-                                .iter()
-                                .find(|(old, _new)| old == file_path)
-                                .map(|(_old, new)| new)
-                                .unwrap_or(file_path);
-
-                            if target_file_path != file_path {
-                                info!(
-                                    old_path = %file_path.display(),
-                                    new_path = %target_file_path.display(),
-                                    "File will be moved - using NEW path in edit for correct snapshot lookup"
-                                );
-                            }
-
-                            let edit = TextEdit {
-                                file_path: Some(target_file_path.to_string_lossy().to_string()),
-                                edit_type: EditType::Replace,
-                                location: EditLocation {
-                                    start_line: 0,
-                                    start_column: 0,
-                                    end_line: (line_count - 1) as u32,
-                                    end_column: last_line_len as u32,
-                                },
-                                original_text: content.clone(),
-                                new_text: combined_content,
-                                priority: 0,
-                                description: format!(
-                                    "Update {} path references in {}",
-                                    total_changes,
-                                    file_path.display()
-                                ),
-                            };
-
-                            info!(
+                join_set.spawn(async move {
+                    // Read file asynchronously
+                    let content = match tokio::fs::read_to_string(&file_path).await {
+                        Ok(c) => c,
+                        Err(e) => {
+                            warn!(
                                 file = %file_path.display(),
-                                extension = ext,
-                                changes = total_changes,
-                                "Generated edit for file"
+                                error = %e,
+                                "Failed to read file, skipping"
                             );
-
-                            edits.push(edit);
+                            return None;
                         }
-                    }
-                    Err(e) => {
-                        warn!(
-                            file = %file_path.display(),
-                            error = %e,
-                            "Failed to read file, skipping"
-                        );
-                    }
-                }
+                    };
+
+                    // Return file info for plugin processing
+                    Some((file_path, content, all_renames, rename_info, moved_files, project_root, ext))
+                });
             }
         } else {
             info!(extension = ext, "No plugin found for extension");
+        }
+    }
+
+    // Collect file reads and process with plugins
+    // Note: Plugin calls are synchronous and happen after parallel IO completes
+    let mut file_infos = Vec::new();
+    while let Some(result) = join_set.join_next().await {
+        match result {
+            Ok(Some(info)) => file_infos.push(info),
+            Ok(None) => {} // File read failed, already logged
+            Err(e) => {
+                warn!(error = %e, "Task failed during file read");
+            }
+        }
+    }
+
+    info!(
+        files_read = file_infos.len(),
+        "Parallel file reads completed, processing with plugins"
+    );
+
+    // Process files with plugins (using batch API)
+    let mut edits = Vec::new();
+    for (file_path, content, all_renames, rename_info, moved_files, project_root, ext) in file_infos {
+        // Find the plugin again for this extension
+        if let Some(plugin) = plugin_registry.find_by_extension(&ext) {
+            // OPTIMIZATION: Use batch API - single call with all renames
+            // This replaces the O(M) nested loop with O(1) plugin call
+            if let Some((combined_content, total_changes)) = plugin.rewrite_file_references_batch(
+                &content,
+                &all_renames,
+                &file_path,
+                &project_root,
+                rename_info.as_ref().as_ref(),
+            ) {
+                if total_changes > 0 && combined_content != content {
+                    // File needs updating - create a full-file replacement edit
+                    let line_count = content.lines().count().max(1);
+                    let last_line_len = content.lines().last().map(|l| l.len()).unwrap_or(0);
+
+                    // CRITICAL: Check if this file will be moved as part of directory rename
+                    // If so, use NEW path in edit (edit_plan.rs will map back to OLD path for snapshots)
+                    let target_file_path = moved_files
+                        .iter()
+                        .find(|(old, _new)| old == &file_path)
+                        .map(|(_old, new)| new.as_path())
+                        .unwrap_or(&file_path);
+
+                    if target_file_path != file_path {
+                        info!(
+                            old_path = %file_path.display(),
+                            new_path = %target_file_path.display(),
+                            "File will be moved - using NEW path in edit for correct snapshot lookup"
+                        );
+                    }
+
+                    let edit = TextEdit {
+                        file_path: Some(target_file_path.to_string_lossy().to_string()),
+                        edit_type: EditType::Replace,
+                        location: EditLocation {
+                            start_line: 0,
+                            start_column: 0,
+                            end_line: (line_count - 1) as u32,
+                            end_column: last_line_len as u32,
+                        },
+                        original_text: content.clone(),
+                        new_text: combined_content,
+                        priority: 0,
+                        description: format!(
+                            "Update {} path references in {}",
+                            total_changes,
+                            file_path.display()
+                        ),
+                    };
+
+                    info!(
+                        file = %file_path.display(),
+                        extension = ext,
+                        changes = total_changes,
+                        "Generated edit for file"
+                    );
+
+                    edits.push(edit);
+                }
+            }
         }
     }
 

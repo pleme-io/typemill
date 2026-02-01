@@ -9,6 +9,7 @@ pub mod detectors;
 
 pub use cache::{FileImportInfo, ImportCache};
 
+use async_trait::async_trait;
 use mill_foundation::errors::MillError as ServerError;
 use mill_foundation::protocol::{
     DependencyUpdate, EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit,
@@ -19,6 +20,20 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::task::JoinSet;
+
+/// Trait for LSP-based import detection
+///
+/// This trait allows the ReferenceUpdater to use LSP servers for fast
+/// import detection when available. LSP servers maintain indexes of the
+/// codebase and can answer "who imports this file?" queries in O(1) time.
+#[async_trait]
+pub trait LspImportFinder: Send + Sync {
+    /// Find all files that import/reference the given file
+    async fn find_files_that_import(&self, file_path: &Path) -> Result<Vec<PathBuf>, String>;
+
+    /// Find all files that import any file within a directory
+    async fn find_files_that_import_directory(&self, dir_path: &Path) -> Result<Vec<PathBuf>, String>;
+}
 
 /// A service for updating references in a workspace.
 pub struct ReferenceUpdater {
@@ -50,6 +65,16 @@ impl ReferenceUpdater {
     }
 
     /// Updates all references to `old_path` to point to `new_path`.
+    ///
+    /// # Arguments
+    /// * `old_path` - The old path being renamed/moved
+    /// * `new_path` - The new path
+    /// * `plugins` - Language plugins for import detection and rewriting
+    /// * `rename_info` - Additional rename information (e.g., Cargo package info)
+    /// * `_dry_run` - Whether to preview changes only
+    /// * `_scan_scope` - Scope for scanning
+    /// * `rename_scope` - Scope configuration for what to update
+    /// * `lsp_finder` - Optional LSP-based import finder for fast detection
     #[allow(clippy::too_many_arguments)]
     pub async fn update_references(
         &self,
@@ -60,6 +85,7 @@ impl ReferenceUpdater {
         _dry_run: bool,
         _scan_scope: Option<mill_plugin_api::ScanScope>,
         rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
+        lsp_finder: Option<&dyn LspImportFinder>,
     ) -> ServerResult<EditPlan> {
         // Build the plugin extension map once for O(1) lookups
         let plugin_map = build_plugin_ext_map(plugins);
@@ -110,6 +136,76 @@ impl ReferenceUpdater {
         // This ensures 100% coverage by letting plugins decide what to update
         let is_comprehensive = rename_scope.is_some_and(|s| s.is_comprehensive());
 
+        // Try LSP-based detection first (fast path using LSP index)
+        // This is O(1) compared to O(N) scanning approach
+        let lsp_detected_files = if let Some(finder) = lsp_finder {
+            if is_directory_rename {
+                match finder.find_files_that_import_directory(old_path).await {
+                    Ok(files) => {
+                        tracing::info!(
+                            files_count = files.len(),
+                            old_path = %old_path.display(),
+                            "LSP detected importing files for directory (fast path)"
+                        );
+                        // Cache the LSP results for future queries
+                        self.import_cache.cache_lsp_directory_importers(
+                            old_path.to_path_buf(),
+                            files.clone(),
+                        );
+                        Some(files)
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            error = %e,
+                            "LSP detection failed, falling back to scanning"
+                        );
+                        None
+                    }
+                }
+            } else {
+                match finder.find_files_that_import(old_path).await {
+                    Ok(files) => {
+                        tracing::info!(
+                            files_count = files.len(),
+                            old_path = %old_path.display(),
+                            "LSP detected importing files (fast path)"
+                        );
+                        // Cache the LSP results for future queries
+                        self.import_cache.cache_lsp_importers(
+                            old_path.to_path_buf(),
+                            files.clone(),
+                        );
+                        Some(files)
+                    }
+                    Err(e) => {
+                        tracing::debug!(
+                            error = %e,
+                            "LSP detection failed, falling back to scanning"
+                        );
+                        None
+                    }
+                }
+            }
+        } else {
+            // Check the cache for previously LSP-detected importers
+            let cached_importers = if is_directory_rename {
+                self.import_cache.get_importers_for_directory(&old_path.to_path_buf())
+            } else {
+                self.import_cache.get_importers(&old_path.to_path_buf())
+            };
+
+            if !cached_importers.is_empty() {
+                tracing::info!(
+                    files_count = cached_importers.len(),
+                    old_path = %old_path.display(),
+                    "Using cached LSP importers (warm lookup)"
+                );
+                Some(cached_importers.into_iter().collect())
+            } else {
+                None
+            }
+        };
+
         let mut affected_files = if is_comprehensive {
             // Comprehensive mode: scan ALL files in scope
             // Plugins will handle detection based on update_exact_matches, update_markdown_prose, etc.
@@ -118,6 +214,19 @@ impl ReferenceUpdater {
                 "Using comprehensive scope - scanning all files matching scope filters"
             );
             project_files.clone()
+        } else if let Some(lsp_files) = lsp_detected_files {
+            // LSP detection succeeded - use those files
+            // But also include files inside the directory for directory renames
+            let mut files = lsp_files;
+            if is_directory_rename {
+                // Add files inside the directory (they need internal reference updates)
+                for file in &project_files {
+                    if file.starts_with(old_path) && !files.contains(file) {
+                        files.push(file.clone());
+                    }
+                }
+            }
+            files
         } else if is_package_rename {
             // For package renames, call the detector ONCE with the directory paths
             // This allows the detector to scan for package-level imports

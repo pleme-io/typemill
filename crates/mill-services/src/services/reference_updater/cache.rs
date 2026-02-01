@@ -128,4 +128,40 @@ impl ImportCache {
         let reverse_count = self.reverse.read().map(|r| r.len()).unwrap_or(0);
         (forward_count, reverse_count)
     }
+
+    /// Populate the reverse index from LSP-detected importers
+    ///
+    /// This allows caching LSP detection results for future queries.
+    /// The LSP provides the reverse mapping directly (who imports this file?),
+    /// so we just need to store it.
+    pub fn cache_lsp_importers(&self, imported_file: PathBuf, importers: Vec<PathBuf>) {
+        if let Ok(mut reverse) = self.reverse.write() {
+            let entry = reverse.entry(imported_file).or_default();
+            for importer in importers {
+                entry.insert(importer);
+            }
+        }
+    }
+
+    /// Populate the reverse index for a directory from LSP-detected importers
+    pub fn cache_lsp_directory_importers(&self, dir: PathBuf, importers: Vec<PathBuf>) {
+        // For directory imports, we store under the directory path itself
+        // This allows get_importers_for_directory to find them
+        if let Ok(mut reverse) = self.reverse.write() {
+            let entry = reverse.entry(dir).or_default();
+            for importer in importers {
+                entry.insert(importer);
+            }
+        }
+    }
+
+    /// Clear the cache (useful for testing or when project structure changes significantly)
+    pub fn clear(&self) {
+        if let Ok(mut forward) = self.forward.write() {
+            forward.clear();
+        }
+        if let Ok(mut reverse) = self.reverse.write() {
+            reverse.clear();
+        }
+    }
 }

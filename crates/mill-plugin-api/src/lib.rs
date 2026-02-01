@@ -617,6 +617,62 @@ pub trait LanguagePlugin: Send + Sync {
             support.rewrite_imports_for_rename(content, &old_name, &new_name)
         })
     }
+
+    /// Rewrite multiple file references in a single pass (batch operation).
+    ///
+    /// This method allows processing multiple renames at once, which is much more
+    /// efficient than calling `rewrite_file_references` in a loop. For directory
+    /// moves with many files, this reduces the complexity from O(N×M) to O(N).
+    ///
+    /// # Arguments
+    /// * `content` - The file content to process
+    /// * `renames` - A slice of (old_path, new_path) pairs to process
+    /// * `current_file` - Path to the file being processed
+    /// * `project_root` - Root directory of the project
+    /// * `rename_info` - Optional additional rename information
+    ///
+    /// # Default Implementation
+    /// The default implementation calls `rewrite_file_references` for each rename
+    /// in sequence. Plugins can override this with an optimized single-pass
+    /// implementation that compiles all patterns once and scans the file once.
+    ///
+    /// # Returns
+    /// The updated content and total number of changes made, or None if no changes.
+    fn rewrite_file_references_batch(
+        &self,
+        content: &str,
+        renames: &[(std::path::PathBuf, std::path::PathBuf)],
+        current_file: &Path,
+        project_root: &Path,
+        rename_info: Option<&serde_json::Value>,
+    ) -> Option<(String, usize)> {
+        // Default implementation: call single-rename method in loop
+        // Plugins can override with optimized single-pass implementation
+        let mut current_content = content.to_string();
+        let mut total_changes = 0usize;
+
+        for (old_path, new_path) in renames {
+            if let Some((updated, count)) = self.rewrite_file_references(
+                &current_content,
+                old_path,
+                new_path,
+                current_file,
+                project_root,
+                rename_info,
+            ) {
+                if count > 0 && updated != current_content {
+                    current_content = updated;
+                    total_changes += count;
+                }
+            }
+        }
+
+        if total_changes > 0 {
+            Some((current_content, total_changes))
+        } else {
+            None
+        }
+    }
 }
 
 // ============================================================================
