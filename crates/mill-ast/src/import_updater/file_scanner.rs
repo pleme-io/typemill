@@ -300,84 +300,73 @@ pub(crate) fn extract_import_path(line: &str) -> Option<String> {
 }
 
 /// Find all project files that match the language adapters
+///
+/// Uses the `ignore` crate to respect .gitignore files automatically.
+/// This means directories like node_modules, target, .svelte-kit, etc.
+/// are skipped if they're in .gitignore (which they typically are).
+///
+/// Additional universal exclusions are applied for directories that should
+/// never be scanned during refactoring (cache directories, version control, etc.)
 pub async fn find_project_files(
     project_root: &Path,
     plugins: &[std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
 ) -> AstResult<Vec<PathBuf>> {
-    let mut files = Vec::new();
+    use ignore::WalkBuilder;
 
-    fn collect_files<'a>(
-        dir: &'a Path,
-        files: &'a mut Vec<PathBuf>,
-        plugins: &'a [std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>],
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = AstResult<()>> + Send + 'a>> {
-        Box::pin(async move {
-            if dir.is_dir() {
-                // Skip common build/cache directories
-                if let Some(dir_name) = dir.file_name() {
-                    const IGNORED_DIRS: &[&str] = &[
-                        // Build and cache directories
-                        ".build",
-                        ".cache",
-                        ".git",
-                        ".next",
-                        ".output",
-                        ".pytest_cache",
-                        ".svelte-kit",
-                        ".tox",
-                        ".turbo",
-                        ".venv",
-                        "__pycache__",
-                        "build",
-                        "coverage",
-                        "dist",
-                        "node_modules",
-                        "target",
-                        "venv",
-                        // Test and example directories (typically don't need import updates)
-                        "__tests__",
-                        "e2e",
-                        "fixtures",
-                        "playgrounds",
-                        "test",
-                        "test-apps",
-                        "tests",
-                    ];
+    let project_root = project_root.to_path_buf();
+    let plugins = plugins.to_vec();
 
-                    let name = dir_name.to_string_lossy();
-                    if IGNORED_DIRS.contains(&name.as_ref()) {
-                        return Ok(());
+    // Run the synchronous walk in a blocking task to not block the async runtime
+    let files = tokio::task::spawn_blocking(move || {
+        let mut files = Vec::new();
+
+        // Universal exclusions that should NEVER be scanned during refactoring
+        // These are cache/generated directories that exist regardless of .gitignore
+        const UNIVERSAL_EXCLUSIONS: &[&str] = &[
+            ".git",         // Version control - never scan
+            "__pycache__",  // Python bytecode cache
+            ".mypy_cache",  // mypy type checker cache
+            ".pytest_cache", // pytest cache
+            ".tox",         // tox virtualenvs
+            ".ruff_cache",  // ruff linter cache
+        ];
+
+        let walker = WalkBuilder::new(&project_root)
+            .hidden(false) // Don't skip hidden files (we want .gitignore, etc.)
+            .git_ignore(true) // Respect .gitignore files
+            .git_global(true) // Respect global gitignore
+            .git_exclude(true) // Respect .git/info/exclude
+            .filter_entry(move |entry| {
+                // Skip universal exclusions
+                if let Some(name) = entry.file_name().to_str() {
+                    if UNIVERSAL_EXCLUSIONS.contains(&name) {
+                        return false;
                     }
                 }
+                true
+            })
+            .build();
 
-                let mut read_dir = tokio::fs::read_dir(dir)
-                    .await
-                    .map_err(|e| AstError::parse(format!("Failed to read directory: {}", e)))?;
-
-                while let Some(entry) = read_dir
-                    .next_entry()
-                    .await
-                    .map_err(|e| AstError::parse(format!("Failed to read entry: {}", e)))?
-                {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        collect_files(&path, files, plugins).await?;
-                    } else if let Some(ext) = path.extension() {
-                        let ext_str = ext.to_str().unwrap_or("");
-                        // Check if any plugin handles this extension
-                        if plugins
-                            .iter()
-                            .any(|plugin| plugin.handles_extension(ext_str))
-                        {
-                            files.push(path);
-                        }
+        for entry in walker.flatten() {
+            let path = entry.path();
+            if path.is_file() {
+                if let Some(ext) = path.extension() {
+                    let ext_str = ext.to_str().unwrap_or("");
+                    // Check if any plugin handles this extension
+                    if plugins
+                        .iter()
+                        .any(|plugin| plugin.handles_extension(ext_str))
+                    {
+                        files.push(path.to_path_buf());
                     }
                 }
             }
-            Ok(())
-        })
-    }
+        }
 
-    collect_files(project_root, &mut files, plugins).await?;
+        files
+    })
+    .await
+    .map_err(|e| AstError::parse(format!("Failed to scan project files: {}", e)))?;
+
     Ok(files)
 }
