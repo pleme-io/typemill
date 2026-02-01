@@ -1,0 +1,7 @@
+# Downloaded binary (postinstall fetches this)
+bin/mill
+bin/mill.exe
+
+# npm artifacts
+node_modules/
+*.tgz
