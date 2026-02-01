@@ -116,13 +116,18 @@ impl SearchHandler {
                 if metadata.is_dir() {
                     if let Ok(mut entries) = fs::read_dir(&search_path).await {
                         while let Ok(Some(entry)) = entries.next_entry().await {
-                            let path = entry.path();
-                            // Check file extension
+                            // Check file type first
                             if let Ok(file_type) = entry.file_type().await {
                                 if file_type.is_file() {
-                                    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                                    // Use file_name() to avoid allocating full path if not needed
+                                    let file_name = entry.file_name();
+                                    let path_from_name = std::path::Path::new(&file_name);
+
+                                    if let Some(ext) =
+                                        path_from_name.extension().and_then(|e| e.to_str())
+                                    {
                                         if remaining_extensions.contains(ext) {
-                                            results.insert(ext.to_string(), path.clone());
+                                            results.insert(ext.to_string(), entry.path());
                                             remaining_extensions.remove(ext);
                                             if remaining_extensions.is_empty() {
                                                 return results;
@@ -169,10 +174,9 @@ impl SearchHandler {
 
         if let Ok(mut entries) = fs::read_dir(dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
-                let path = entry.path();
-
-                // Skip hidden directories and node_modules
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                // Use file_name() to avoid allocating full path for exclusion check
+                let file_name = entry.file_name();
+                if let Some(name) = file_name.to_str() {
                     if name.starts_with('.') || name == "node_modules" || name == "target" {
                         continue;
                     }
@@ -180,14 +184,16 @@ impl SearchHandler {
 
                 if let Ok(file_type) = entry.file_type().await {
                     if file_type.is_file() {
-                        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                        let path_from_name = std::path::Path::new(&file_name);
+                        if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
                             if needed_extensions.contains(ext) {
-                                results.insert(ext.to_string(), path.clone());
+                                results.insert(ext.to_string(), entry.path());
                                 needed_extensions.remove(ext);
                             }
                         }
-                    } else if file_type.is_dir() {
-                        if !needed_extensions.is_empty() {
+                    } else if file_type.is_dir() && !needed_extensions.is_empty() {
+                        // Only allocate full path when recursing
+                        let path = entry.path();
                             let found_in_subdir = Box::pin(Self::find_files_recursive(
                                 &path,
                                 &needed_extensions,
