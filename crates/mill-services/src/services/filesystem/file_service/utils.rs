@@ -469,7 +469,7 @@ fn parse_command_line_internal(input: &str, is_windows: bool) -> Option<(String,
                 in_quote = None;
                 arg_started = true;
             }
-            '"' if in_quote == None => {
+            '"' if in_quote.is_none() => {
                 in_quote = Some('"');
                 arg_started = true;
             }
@@ -477,7 +477,7 @@ fn parse_command_line_internal(input: &str, is_windows: bool) -> Option<(String,
                 in_quote = None;
                 arg_started = true;
             }
-            '\'' if in_quote == None => {
+            '\'' if in_quote.is_none() => {
                 in_quote = Some('\'');
                 arg_started = true;
             }

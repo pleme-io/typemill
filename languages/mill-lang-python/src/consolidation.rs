@@ -389,7 +389,7 @@ fn merge_optional_dependencies(
 
 /// Extract package name from a PEP 508 dependency string
 fn extract_package_name(dep: &str) -> &str {
-    dep.split(|c| c == '>' || c == '<' || c == '=' || c == '!' || c == '[' || c == ';' || c == ' ')
+    dep.split(['>', '<', '=', '!', '[', ';', ' '])
         .next()
         .unwrap_or(dep)
         .trim()

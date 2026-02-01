@@ -18,6 +18,7 @@ use tokio::task::JoinSet;
 /// If cache is provided and populated, uses reverse index for instant lookup.
 /// If cache is provided but empty, populates it while scanning.
 /// If no cache, falls back to full scan.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn find_generic_affected_files_cached(
     old_path: &Path,
     new_path: &Path,

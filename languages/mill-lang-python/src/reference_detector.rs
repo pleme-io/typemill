@@ -209,11 +209,11 @@ impl ReferenceDetector for PythonReferenceDetector {
                                 let module_str = module.as_str();
 
                                 // Handle absolute imports
-                                if !module_str.starts_with('.') {
-                                    if Self::import_matches(module_str, &target, is_dir) {
-                                        has_reference = true;
-                                        break;
-                                    }
+                                if !module_str.starts_with('.')
+                                    && Self::import_matches(module_str, &target, is_dir)
+                                {
+                                    has_reference = true;
+                                    break;
                                 }
                             }
                         }
