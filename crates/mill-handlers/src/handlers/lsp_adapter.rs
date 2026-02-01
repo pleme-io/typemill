@@ -293,14 +293,14 @@ impl DirectLspAdapter {
                         .await
                     {
                         Ok(response) => {
-                            // Extract symbols from response
-                            if let Some(symbols) = response.as_array() {
+                            // Extract symbols from response - consume the response to avoid cloning
+                            if let Value::Array(symbols) = response {
                                 debug!(
                                     extension = %extension,
                                     symbol_count = symbols.len(),
                                     "Got workspace symbols from LSP server"
                                 );
-                                all_symbols.extend_from_slice(symbols);
+                                all_symbols.extend(symbols);
                                 queried_servers.push(extension.clone());
 
                                 // Prevent unbounded symbol collection
@@ -344,7 +344,7 @@ impl DirectLspAdapter {
             "Merged workspace symbols from multiple LSP servers"
         );
 
-        Ok(json!(all_symbols))
+        Ok(Value::Array(all_symbols))
     }
 
     /// Find all files that import/reference the given file path
