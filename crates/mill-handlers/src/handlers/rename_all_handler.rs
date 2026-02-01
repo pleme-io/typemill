@@ -10,10 +10,12 @@ use super::rename_ops::{RenameOptions, RenameService, RenameTarget, SymbolSelect
 use super::tool_definitions::WriteResponse;
 use crate::handlers::tools::ToolHandler;
 use async_trait::async_trait;
-use lsp_types::Position;
+use lsp_types::{DocumentChangeOperation, DocumentChanges, Position, ResourceOp};
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::planning::RefactorPlan;
+use mill_foundation::protocol::RefactorPlanExt;
+use mill_services::services::ExecutionResult;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::collections::HashSet;
@@ -141,208 +143,152 @@ impl RenameAllHandler {
         }
     }
 
-    /// Convert plan or execution result to WriteResponse
-    fn convert_to_write_response(content: Value, dry_run: bool) -> ServerResult<WriteResponse> {
-        if dry_run {
-            // Preview mode - extract plan details
-            // RefactorPlan uses internally tagged serialization: {"planType": "renamePlan", ...}
-            // So fields are directly on content, not nested under "RenamePlan"
-            let plan_type = content
-                .get("planType")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| {
-                    ServerError::internal("Expected planType in preview mode".to_string())
-                })?;
+    /// Convert RefactorPlan to WriteResponse (Preview Mode)
+    fn convert_plan_to_write_response(plan: &RefactorPlan) -> ServerResult<WriteResponse> {
+        // Extract summary directly from struct
+        let summary = match plan {
+            RefactorPlan::RenamePlan(p) => &p.summary,
+            RefactorPlan::ExtractPlan(p) => &p.summary,
+            RefactorPlan::InlinePlan(p) => &p.summary,
+            RefactorPlan::MovePlan(p) => &p.summary,
+            RefactorPlan::ReorderPlan(p) => &p.summary,
+            RefactorPlan::TransformPlan(p) => &p.summary,
+            RefactorPlan::DeletePlan(p) => &p.summary,
+        };
 
-            // Verify it's a rename plan (camelCase due to serde rename_all)
-            if plan_type != "renamePlan" {
-                return Err(ServerError::internal(format!(
-                    "Expected renamePlan, got: {}",
-                    plan_type
-                )));
-            }
+        let affected_files_count = summary.affected_files;
+        let summary_text = format!(
+            "Preview: {} file(s) will be affected by this rename",
+            affected_files_count
+        );
 
-            // Access summary directly on content (not nested)
-            let summary_obj = content.get("summary").ok_or_else(|| {
-                ServerError::internal("Missing summary in RenamePlan".to_string())
-            })?;
+        // Extract affected files using RefactorPlanExt and manual extraction
+        let files_changed = Self::extract_affected_files_from_plan(plan);
 
-            // Field is camelCase: affectedFiles
-            let affected_files = summary_obj
-                .get("affectedFiles")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(0);
-
-            // Extract list of affected file paths from edits
-            let files_changed = Self::extract_affected_files(&content);
-
-            let summary_text = format!(
-                "Preview: {} file(s) will be affected by this rename",
-                affected_files
-            );
-
-            // Extract warnings
-            let diagnostics =
-                if let Some(warnings_arr) = content.get("warnings").and_then(|w| w.as_array()) {
-                    warnings_arr
-                        .iter()
-                        .filter_map(|w| {
-                            let message = w.get("message")?.as_str()?;
-                            Some(super::tool_definitions::Diagnostic {
-                                severity: super::tool_definitions::DiagnosticSeverity::Warning,
-                                message: message.to_string(),
-                                file_path: None,
-                                line: None,
-                            })
-                        })
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-
-            Ok(WriteResponse {
-                status: super::tool_definitions::WriteStatus::Preview,
-                summary: summary_text,
-                files_changed,
-                diagnostics,
-                changes: Some(content),
+        // Extract warnings via RefactorPlanExt
+        let diagnostics = plan
+            .warnings()
+            .iter()
+            .map(|w| super::tool_definitions::Diagnostic {
+                severity: super::tool_definitions::DiagnosticSeverity::Warning,
+                message: w.message.clone(),
+                file_path: None,
+                line: None,
             })
-        } else {
-            // Execution mode - extract result details
-            // Note: content IS the result object now, no longer wrapped in {"content": ...}
-            let success = content
-                .get("success")
-                .and_then(|s| s.as_bool())
-                .unwrap_or(false);
+            .collect();
 
-            let applied_files = content
-                .get("applied_files")
-                .or_else(|| content.get("appliedFiles"))
-                .and_then(|a| a.as_array())
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
+        // Convert plan to JSON for the changes field
+        let changes = serde_json::to_value(plan)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize plan: {}", e)))?;
 
-            let summary_text = if success {
-                format!("Successfully renamed {} file(s)", applied_files.len())
-            } else {
-                "Rename operation failed".to_string()
-            };
-
-            // Extract warnings from execution result
-            let diagnostics =
-                if let Some(warnings_arr) = content.get("warnings").and_then(|w| w.as_array()) {
-                    warnings_arr
-                        .iter()
-                        .filter_map(|w| {
-                            let message = w.as_str()?;
-                            Some(super::tool_definitions::Diagnostic {
-                                severity: super::tool_definitions::DiagnosticSeverity::Warning,
-                                message: message.to_string(),
-                                file_path: None,
-                                line: None,
-                            })
-                        })
-                        .collect()
-                } else {
-                    Vec::new()
-                };
-
-            let status = if success {
-                super::tool_definitions::WriteStatus::Success
-            } else {
-                super::tool_definitions::WriteStatus::Error
-            };
-
-            Ok(WriteResponse {
-                status,
-                summary: summary_text,
-                files_changed: applied_files,
-                diagnostics,
-                changes: Some(content),
-            })
-        }
+        Ok(WriteResponse {
+            status: super::tool_definitions::WriteStatus::Preview,
+            summary: summary_text,
+            files_changed,
+            diagnostics,
+            changes: Some(changes),
+        })
     }
 
-    /// Extract list of affected file paths from a RenamePlan
-    fn extract_affected_files(plan: &Value) -> Vec<String> {
+    /// Convert ExecutionResult to WriteResponse (Execution Mode)
+    fn convert_result_to_write_response(result: &ExecutionResult) -> ServerResult<WriteResponse> {
+        let summary_text = if result.success {
+            format!("Successfully renamed {} file(s)", result.applied_files.len())
+        } else {
+            "Rename operation failed".to_string()
+        };
+
+        let status = if result.success {
+            super::tool_definitions::WriteStatus::Success
+        } else {
+            super::tool_definitions::WriteStatus::Error
+        };
+
+        let diagnostics = result
+            .warnings
+            .iter()
+            .map(|w| super::tool_definitions::Diagnostic {
+                severity: super::tool_definitions::DiagnosticSeverity::Warning,
+                message: w.clone(),
+                file_path: None,
+                line: None,
+            })
+            .collect();
+
+        // Convert result to JSON for the changes field
+        let changes = serde_json::to_value(result)
+            .map_err(|e| ServerError::internal(format!("Failed to serialize result: {}", e)))?;
+
+        Ok(WriteResponse {
+            status,
+            summary: summary_text,
+            files_changed: result.applied_files.clone(),
+            diagnostics,
+            changes: Some(changes),
+        })
+    }
+
+    /// Extract list of affected file paths from a RefactorPlan
+    fn extract_affected_files_from_plan(plan: &RefactorPlan) -> Vec<String> {
         let mut files = HashSet::new();
 
+        // Handle DeletePlan specifically
+        if let RefactorPlan::DeletePlan(delete_plan) = plan {
+            for target in &delete_plan.deletions {
+                files.insert(target.path.clone());
+            }
+        }
+
+        // Handle WorkspaceEdit for all plans
+        let edit = plan.workspace_edit();
+
         // Extract from edits.changes
-        if let Some(changes) = plan.get("edits").and_then(|e| e.get("changes")) {
-            if let Some(changes_obj) = changes.as_object() {
-                for (uri, _) in changes_obj {
-                    if let Ok(url) = url::Url::parse(uri) {
-                        if let Ok(path) = url.to_file_path() {
-                            files.insert(path.to_string_lossy().to_string());
-                        }
-                    }
+        if let Some(changes) = &edit.changes {
+            for uri in changes.keys() {
+                if let Some(path) = Self::uri_to_path(uri) {
+                    files.insert(path);
                 }
             }
         }
 
         // Extract from edits.documentChanges
-        if let Some(doc_changes) = plan.get("edits").and_then(|e| e.get("documentChanges")) {
-            if let Some(operations) = doc_changes.get("Operations").and_then(|o| o.as_array()) {
-                for op in operations {
-                    // Handle Edit operations
-                    if let Some(edit) = op.get("Edit") {
-                        if let Some(uri) = edit
-                            .get("textDocument")
-                            .and_then(|td| td.get("uri"))
-                            .and_then(|u| u.as_str())
-                        {
-                            if let Ok(url) = url::Url::parse(uri) {
-                                if let Ok(path) = url.to_file_path() {
-                                    files.insert(path.to_string_lossy().to_string());
-                                }
-                            }
+        if let Some(doc_changes) = &edit.document_changes {
+            match doc_changes {
+                DocumentChanges::Edits(edits) => {
+                    for text_doc_edit in edits {
+                        if let Some(path) = Self::uri_to_path(&text_doc_edit.text_document.uri) {
+                            files.insert(path);
                         }
                     }
-
-                    // Handle resource operations (Create, Rename, Delete)
-                    if let Some(resource_op) = op.get("Op") {
-                        // Create
-                        if let Some(create) = resource_op.get("Create") {
-                            if let Some(uri) = create.get("uri").and_then(|u| u.as_str()) {
-                                if let Ok(url) = url::Url::parse(uri) {
-                                    if let Ok(path) = url.to_file_path() {
-                                        files.insert(path.to_string_lossy().to_string());
-                                    }
+                }
+                DocumentChanges::Operations(ops) => {
+                    for op in ops {
+                        match op {
+                            DocumentChangeOperation::Edit(edit) => {
+                                if let Some(path) = Self::uri_to_path(&edit.text_document.uri) {
+                                    files.insert(path);
                                 }
                             }
-                        }
-
-                        // Rename
-                        if let Some(rename) = resource_op.get("Rename") {
-                            if let Some(old_uri) = rename.get("oldUri").and_then(|u| u.as_str()) {
-                                if let Ok(url) = url::Url::parse(old_uri) {
-                                    if let Ok(path) = url.to_file_path() {
-                                        files.insert(path.to_string_lossy().to_string());
+                            DocumentChangeOperation::Op(op) => match op {
+                                ResourceOp::Create(create) => {
+                                    if let Some(path) = Self::uri_to_path(&create.uri) {
+                                        files.insert(path);
                                     }
                                 }
-                            }
-                            if let Some(new_uri) = rename.get("newUri").and_then(|u| u.as_str()) {
-                                if let Ok(url) = url::Url::parse(new_uri) {
-                                    if let Ok(path) = url.to_file_path() {
-                                        files.insert(path.to_string_lossy().to_string());
+                                ResourceOp::Rename(rename) => {
+                                    if let Some(path) = Self::uri_to_path(&rename.old_uri) {
+                                        files.insert(path);
+                                    }
+                                    if let Some(path) = Self::uri_to_path(&rename.new_uri) {
+                                        files.insert(path);
                                     }
                                 }
-                            }
-                        }
-
-                        // Delete
-                        if let Some(delete) = resource_op.get("Delete") {
-                            if let Some(uri) = delete.get("uri").and_then(|u| u.as_str()) {
-                                if let Ok(url) = url::Url::parse(uri) {
-                                    if let Ok(path) = url.to_file_path() {
-                                        files.insert(path.to_string_lossy().to_string());
+                                ResourceOp::Delete(delete) => {
+                                    if let Some(path) = Self::uri_to_path(&delete.uri) {
+                                        files.insert(path);
                                     }
                                 }
-                            }
+                            },
                         }
                     }
                 }
@@ -350,6 +296,15 @@ impl RenameAllHandler {
         }
 
         files.into_iter().collect()
+    }
+
+    /// Helper to convert LSP Uri to file path string
+    fn uri_to_path(uri: &lsp_types::Uri) -> Option<String> {
+        url::Url::parse(uri.as_str()).ok().and_then(|url| {
+            url.to_file_path()
+                .ok()
+                .map(|p| p.to_string_lossy().to_string())
+        })
     }
 }
 
@@ -462,19 +417,15 @@ impl ToolHandler for RenameAllHandler {
         let refactor_plan = RefactorPlan::RenamePlan(plan);
 
         // Check if we should execute or just return plan
-        let result_json = if params.options.dry_run {
-            // Preview mode - return plan
-            let plan_json = serde_json::to_value(&refactor_plan).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize rename plan: {}", e))
-            })?;
-
+        let write_response = if params.options.dry_run {
             info!(
                 operation = "rename_all",
                 dry_run = true,
                 "Returning rename plan (preview mode)"
             );
 
-            plan_json
+            // Preview mode - return plan
+            Self::convert_plan_to_write_response(&refactor_plan)?
         } else {
             // Execution mode - execute the plan
             info!(
@@ -486,10 +437,6 @@ impl ToolHandler for RenameAllHandler {
             let result =
                 crate::handlers::common::execute_refactor_plan(context, refactor_plan).await?;
 
-            let result_json = serde_json::to_value(&result).map_err(|e| {
-                ServerError::internal(format!("Failed to serialize execution result: {}", e))
-            })?;
-
             info!(
                 operation = "rename_all",
                 success = result.success,
@@ -497,11 +444,8 @@ impl ToolHandler for RenameAllHandler {
                 "Rename execution completed"
             );
 
-            result_json
+            Self::convert_result_to_write_response(&result)?
         };
-
-        // Convert to WriteResponse envelope
-        let write_response = Self::convert_to_write_response(result_json, params.options.dry_run)?;
 
         // Wrap in MCP content envelope
         Ok(json!({
