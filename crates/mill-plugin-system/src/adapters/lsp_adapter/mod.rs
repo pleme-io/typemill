@@ -85,7 +85,18 @@ impl LanguagePlugin for LspAdapterPlugin {
         }
 
         // Translate plugin request to LSP request
-        let (lsp_method, lsp_params) = self.translate_request(&request).await?;
+        let (lsp_method, mut lsp_params) = self.translate_request(&request).await?;
+
+        // Optimization: If this is a workspace/symbol request, inject the plugin's supported extensions
+        // so DirectLspAdapter knows to only query the relevant servers.
+        if lsp_method == "workspace/symbol" {
+            if let Value::Object(ref mut map) = lsp_params {
+                map.insert(
+                    "__mill_extensions".to_string(),
+                    serde_json::to_value(&self.extensions).unwrap_or(Value::Null),
+                );
+            }
+        }
 
         debug!(
             "Translated to LSP method: {} with params: {}",
