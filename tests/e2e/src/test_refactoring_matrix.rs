@@ -169,6 +169,26 @@ pub const TS_PATTERN_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
     file_template: TS_TEMPLATES,
 };
 
+/// Turborepo starter - pnpm monorepo with multiple packages
+pub const TS_TURBOREPO_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/vercel/turbo.git",
+    project_name: "turborepo",
+    source_dir: "crates/turborepo-lib/src", // Turbo has Rust core, but packages have TS
+    file_ext: "ts",
+    build_verify: BuildVerification::None, // Complex build, skip verification
+    file_template: TS_TEMPLATES,
+};
+
+/// Next.js - App router with server components (real-world framework)
+pub const TS_NEXTJS_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/vercel/next.js.git",
+    project_name: "nextjs",
+    source_dir: "packages/next/src",
+    file_ext: "ts",
+    build_verify: BuildVerification::None, // Complex monorepo, skip verification
+    file_template: TS_TEMPLATES,
+};
+
 // ============================================================================
 // Rust Configurations (Diverse Structures)
 // ============================================================================
@@ -200,6 +220,26 @@ pub const RS_ANYHOW_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
     source_dir: "src",
     file_ext: "rs",
     build_verify: BuildVerification::Rust,
+    file_template: RS_TEMPLATES,
+};
+
+/// ripgrep - Multi-crate workspace with path dependencies (complex structure)
+pub const RS_RIPGREP_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/BurntSushi/ripgrep.git",
+    project_name: "ripgrep",
+    source_dir: "crates/core/src",
+    file_ext: "rs",
+    build_verify: BuildVerification::Rust,
+    file_template: RS_TEMPLATES,
+};
+
+/// tokio - Async runtime workspace (highly inter-dependent crates)
+pub const RS_TOKIO_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/tokio-rs/tokio.git",
+    project_name: "tokio",
+    source_dir: "tokio/src",
+    file_ext: "rs",
+    build_verify: BuildVerification::None, // Complex workspace, skip verification
     file_template: RS_TEMPLATES,
 };
 
@@ -235,6 +275,26 @@ pub const PY_PYDANTIC_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
     file_ext: "py",
     build_verify: BuildVerification::Python,
     file_template: PY_TEMPLATES,
+};
+
+/// FastAPI - Web framework (src-layout, namespace packages)
+pub const PY_FASTAPI_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/tiangolo/fastapi.git",
+    project_name: "fastapi",
+    source_dir: "fastapi",
+    file_ext: "py",
+    build_verify: BuildVerification::Python,
+    file_template: PY_TEMPLATES,
+};
+
+/// Ruff - Fast Python linter (uses maturin/PyO3, complex structure)
+pub const PY_RUFF_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
+    repo_url: "https://github.com/astral-sh/ruff.git",
+    project_name: "ruff",
+    source_dir: "crates/ruff_python_ast/src", // Ruff is Rust-based but tests Python patterns
+    file_ext: "rs", // Actually Rust code that processes Python
+    build_verify: BuildVerification::None, // Complex PyO3 build
+    file_template: RS_TEMPLATES,
 };
 
 // ============================================================================
@@ -670,6 +730,132 @@ impl RefactoringMatrixRunner {
         self.record(test_name, result);
     }
 
+    /// Test: Move folder up one level
+    pub async fn test_folder_move_up(&mut self) {
+        let test_name = "folder_move_up";
+        println!("\n🧪 Running: {}", test_name);
+
+        let result = async {
+            let src_dir = self.config.source_dir;
+            let ext = self.config.file_ext;
+
+            // Create nested folder structure
+            self.ctx.create_test_file(
+                &format!("{}/parent/child/nested.{}", src_dir, ext),
+                self.config.file_template.simple_module,
+            );
+
+            let source = self.ctx.absolute_path(&format!("{}/parent/child", src_dir));
+            let dest = self.ctx.absolute_path(&format!("{}/child", src_dir));
+
+            self.ctx
+                .call_tool(
+                    "rename_all",
+                    json!({
+                        "target": { "kind": "directory", "filePath": source.to_string_lossy() },
+                        "newName": dest.to_string_lossy(),
+                        "options": { "dryRun": false }
+                    }),
+                )
+                .await
+                .map_err(|e| format!("rename_all failed: {}", e))?;
+
+            self.ctx.verify_file_not_exists(&format!("{}/parent/child", src_dir))?;
+            self.ctx.verify_dir_exists(&format!("{}/child", src_dir))?;
+            self.ctx.verify_file_exists(&format!("{}/child/nested.{}", src_dir, ext))?;
+
+            Ok(())
+        }
+        .await;
+
+        self.record(test_name, result);
+    }
+
+    /// Test: Move folder to sibling directory
+    pub async fn test_folder_move_sibling(&mut self) {
+        let test_name = "folder_move_sibling";
+        println!("\n🧪 Running: {}", test_name);
+
+        let result = async {
+            let src_dir = self.config.source_dir;
+            let ext = self.config.file_ext;
+
+            // Create two sibling folders
+            self.ctx.create_test_file(
+                &format!("{}/folder_a/moveme/content.{}", src_dir, ext),
+                self.config.file_template.simple_module,
+            );
+            std::fs::create_dir_all(self.ctx.absolute_path(&format!("{}/folder_b", src_dir))).ok();
+
+            let source = self.ctx.absolute_path(&format!("{}/folder_a/moveme", src_dir));
+            let dest = self.ctx.absolute_path(&format!("{}/folder_b/moveme", src_dir));
+
+            self.ctx
+                .call_tool(
+                    "rename_all",
+                    json!({
+                        "target": { "kind": "directory", "filePath": source.to_string_lossy() },
+                        "newName": dest.to_string_lossy(),
+                        "options": { "dryRun": false }
+                    }),
+                )
+                .await
+                .map_err(|e| format!("rename_all failed: {}", e))?;
+
+            self.ctx.verify_file_not_exists(&format!("{}/folder_a/moveme", src_dir))?;
+            self.ctx.verify_dir_exists(&format!("{}/folder_b/moveme", src_dir))?;
+            self.ctx.verify_file_exists(&format!("{}/folder_b/moveme/content.{}", src_dir, ext))?;
+
+            Ok(())
+        }
+        .await;
+
+        self.record(test_name, result);
+    }
+
+    /// Test: Delete folder with prune operation
+    pub async fn test_prune_folder(&mut self) {
+        let test_name = "prune_folder";
+        println!("\n🧪 Running: {}", test_name);
+
+        let result = async {
+            let src_dir = self.config.source_dir;
+            let ext = self.config.file_ext;
+
+            // Create folder with files to delete
+            self.ctx.create_test_file(
+                &format!("{}/to_delete_folder/file1.{}", src_dir, ext),
+                self.config.file_template.simple_module,
+            );
+            self.ctx.create_test_file(
+                &format!("{}/to_delete_folder/file2.{}", src_dir, ext),
+                self.config.file_template.simple_module,
+            );
+
+            self.ctx.verify_dir_exists(&format!("{}/to_delete_folder", src_dir))?;
+
+            let folder_path = self.ctx.absolute_path(&format!("{}/to_delete_folder", src_dir));
+
+            self.ctx
+                .call_tool(
+                    "prune",
+                    json!({
+                        "target": { "kind": "directory", "filePath": folder_path.to_string_lossy() },
+                        "options": { "dryRun": false }
+                    }),
+                )
+                .await
+                .map_err(|e| format!("prune failed: {}", e))?;
+
+            self.ctx.verify_file_not_exists(&format!("{}/to_delete_folder", src_dir))?;
+
+            Ok(())
+        }
+        .await;
+
+        self.record(test_name, result);
+    }
+
     // =========================================================================
     // Content Operations
     // =========================================================================
@@ -879,6 +1065,9 @@ impl RefactoringMatrixRunner {
         println!("{}", "-".repeat(40));
         self.test_folder_rename().await;
         self.test_folder_move_down().await;
+        self.test_folder_move_up().await;
+        self.test_folder_move_sibling().await;
+        self.test_prune_folder().await;
 
         // Content operations
         println!("\n📝 CONTENT OPERATIONS");
@@ -972,6 +1161,22 @@ async fn test_matrix_ts_pattern() {
     run_matrix_test(TS_PATTERN_CONFIG, 0.5).await;
 }
 
+/// TypeScript: Turborepo (pnpm monorepo with multiple packages)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_turborepo() {
+    run_matrix_test(TS_TURBOREPO_CONFIG, 0.5).await;
+}
+
+/// TypeScript: Next.js (app router with server components)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_ts_nextjs() {
+    run_matrix_test(TS_NEXTJS_CONFIG, 0.5).await;
+}
+
 // ============================================================================
 // Rust Matrix Tests
 // ============================================================================
@@ -1000,6 +1205,22 @@ async fn test_matrix_rs_anyhow() {
     run_matrix_test(RS_ANYHOW_CONFIG, 0.5).await;
 }
 
+/// Rust: ripgrep (multi-crate workspace with path dependencies)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_rs_ripgrep() {
+    run_matrix_test(RS_RIPGREP_CONFIG, 0.5).await;
+}
+
+/// Rust: tokio (async runtime, highly inter-dependent crates)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_rs_tokio() {
+    run_matrix_test(RS_TOKIO_CONFIG, 0.5).await;
+}
+
 // ============================================================================
 // Python Matrix Tests
 // ============================================================================
@@ -1026,6 +1247,22 @@ async fn test_matrix_py_rich() {
 #[ignore]
 async fn test_matrix_py_pydantic() {
     run_matrix_test(PY_PYDANTIC_CONFIG, 0.5).await;
+}
+
+/// Python: FastAPI (src-layout, namespace packages)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_py_fastapi() {
+    run_matrix_test(PY_FASTAPI_CONFIG, 0.5).await;
+}
+
+/// Rust/Python: Ruff (PyO3/maturin, complex cross-language structure)
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_rs_ruff() {
+    run_matrix_test(PY_RUFF_CONFIG, 0.5).await;
 }
 
 // ============================================================================
