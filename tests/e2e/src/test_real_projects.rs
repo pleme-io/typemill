@@ -16,6 +16,89 @@ use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+/// Get the repo cache directory path
+fn get_repo_cache_dir() -> PathBuf {
+    dirs::cache_dir()
+        .unwrap_or_else(|| PathBuf::from("/tmp"))
+        .join("mill-test")
+        .join("repos")
+}
+
+/// Check if a cached repo exists and is valid
+fn is_cache_valid(cache_path: &PathBuf) -> bool {
+    if !cache_path.exists() {
+        return false;
+    }
+    // Check if it's a valid git repo
+    Command::new("git")
+        .args(["rev-parse", "--git-dir"])
+        .current_dir(cache_path)
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Clone or update the cache for a repository
+fn ensure_repo_cached(repo_url: &str, project_name: &str) -> PathBuf {
+    let cache_dir = get_repo_cache_dir();
+    std::fs::create_dir_all(&cache_dir).expect("Failed to create cache directory");
+
+    let cache_path = cache_dir.join(project_name);
+
+    if is_cache_valid(&cache_path) {
+        println!("📦 Using cached repo for {} (fast path)", project_name);
+        // Update the cache with fetch (non-blocking, best effort)
+        let _ = Command::new("git")
+            .args(["fetch", "--depth", "1", "origin"])
+            .current_dir(&cache_path)
+            .output();
+    } else {
+        println!("📥 Cloning {} to cache (first time)...", project_name);
+        // Remove any invalid cache
+        let _ = std::fs::remove_dir_all(&cache_path);
+
+        let status = Command::new("git")
+            .args(["clone", "--depth", "1", repo_url, cache_path.to_string_lossy().as_ref()])
+            .status()
+            .expect("Failed to clone repository to cache");
+
+        assert!(status.success(), "Failed to clone {} to cache", project_name);
+    }
+
+    cache_path
+}
+
+/// Copy cached repo to workspace and reset to clean state
+fn copy_from_cache(cache_path: &PathBuf, workspace_path: &std::path::Path, project_name: &str) {
+    println!("📋 Copying {} from cache...", project_name);
+
+    // Use cp -r for speed (faster than git clone even locally)
+    let status = Command::new("cp")
+        .args(["-r", &format!("{}/.git", cache_path.display()), ".git"])
+        .current_dir(workspace_path)
+        .status()
+        .expect("Failed to copy .git directory");
+
+    assert!(status.success(), "Failed to copy .git from cache");
+
+    // Checkout files and reset to clean state
+    let status = Command::new("git")
+        .args(["checkout", "."])
+        .current_dir(workspace_path)
+        .status()
+        .expect("Failed to checkout files");
+
+    assert!(status.success(), "Failed to checkout files from cache");
+
+    // Clean any untracked files (from previous test runs if workspace was reused)
+    let _ = Command::new("git")
+        .args(["clean", "-fd"])
+        .current_dir(workspace_path)
+        .output();
+
+    println!("✅ Repo ready from cache");
+}
+
 /// Extended timeout for LSP warmup on large projects (3 minutes)
 pub const LSP_WARMUP_TIMEOUT: Duration = Duration::from_secs(180);
 
@@ -32,21 +115,13 @@ pub struct RealProjectContext {
 
 impl RealProjectContext {
     /// Clone a git repository and set up mill
+    /// Uses repo caching for faster subsequent runs
     pub fn new(repo_url: &str, project_name: &str) -> Self {
         let workspace = TestWorkspace::new();
 
-        // Clone the repository
-        let status = Command::new("git")
-            .args(["clone", "--depth", "1", repo_url, "."])
-            .current_dir(workspace.path())
-            .status()
-            .expect("Failed to clone repository");
-
-        assert!(
-            status.success(),
-            "Failed to clone {} repository",
-            project_name
-        );
+        // Use cached repo if available (saves ~20-30s per test)
+        let cache_path = ensure_repo_cached(repo_url, project_name);
+        copy_from_cache(&cache_path, workspace.path(), project_name);
 
         // Run mill setup
         let mill_path = std::env::var("CARGO_MANIFEST_DIR")
@@ -78,26 +153,25 @@ impl RealProjectContext {
     }
 
     /// Ensure LSP is warmed up and connected. Call this before any LSP-dependent operations.
-    /// First call does full warmup (3 min timeout). Subsequent calls verify connection (1 min timeout).
-    /// Note: Each tokio::test has its own runtime, so connection verification is needed per test.
+    /// First call does full warmup (3 min timeout). Subsequent calls are no-ops (fast path).
+    /// The LSP server persists across tests via the shared context, so re-verification is unnecessary.
     pub async fn ensure_warmed_up(&mut self) -> Result<(), String> {
-        let is_first_warmup = !self.warmed_up.load(Ordering::SeqCst);
-        let timeout = if is_first_warmup {
-            println!(
-                "🔥 Warming up LSP for {} (this may take up to 3 minutes)...",
-                self.project_name
-            );
-            LSP_WARMUP_TIMEOUT
-        } else {
-            println!("🔄 Verifying LSP connection for {}...", self.project_name);
-            Duration::from_secs(60)
-        };
+        // Fast path: already warmed up, skip LSP call entirely
+        // The LSP server is kept alive by the TestClient, so no need to verify
+        if self.warmed_up.load(Ordering::SeqCst) {
+            return Ok(());
+        }
+
+        println!(
+            "🔥 Warming up LSP for {} (this may take up to 3 minutes)...",
+            self.project_name
+        );
 
         // Find a representative file to trigger LSP initialization
         let warmup_file = self.find_warmup_file();
 
         if let Some(file_path) = warmup_file {
-            // Use inspect_code to trigger LSP initialization/reconnection
+            // Use inspect_code to trigger LSP initialization
             let result = self
                 .client
                 .call_tool_with_timeout(
@@ -108,22 +182,18 @@ impl RealProjectContext {
                         "character": 0,
                         "include": ["diagnostics"]
                     }),
-                    timeout,
+                    LSP_WARMUP_TIMEOUT,
                 )
                 .await;
 
             match result {
                 Ok(_) => {
-                    if is_first_warmup {
-                        self.warmed_up.store(true, Ordering::SeqCst);
-                        println!("✅ LSP warmed up for {}", self.project_name);
-                    } else {
-                        println!("✅ LSP connection verified for {}", self.project_name);
-                    }
+                    self.warmed_up.store(true, Ordering::SeqCst);
+                    println!("✅ LSP warmed up for {}", self.project_name);
                     Ok(())
                 }
                 Err(e) => {
-                    let msg = format!("LSP warmup/verification failed for {}: {}", self.project_name, e);
+                    let msg = format!("LSP warmup failed for {}: {}", self.project_name, e);
                     println!("❌ {}", msg);
                     Err(msg)
                 }
