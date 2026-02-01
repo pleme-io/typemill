@@ -6,10 +6,10 @@ Pure Rust MCP server bridging Language Server Protocol (LSP) functionality to AI
 
 ```bash
 # Run without installing
-npx typemill start
+npx @goobits/typemill start
 
 # Or install globally
-npm install -g typemill
+npm install -g @goobits/typemill
 typemill start
 ```
 
@@ -46,7 +46,7 @@ Add TypeMill to your Claude Desktop config (`~/.config/claude/claude_desktop_con
   "mcpServers": {
     "typemill": {
       "command": "npx",
-      "args": ["typemill", "start"]
+      "args": ["@goobits/typemill", "start"]
     }
   }
 }

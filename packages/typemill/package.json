@@ -1,5 +1,5 @@
 {
-  "name": "typemill",
+  "name": "@goobits/typemill",
   "version": "0.8.4",
   "description": "Pure Rust MCP server bridging Language Server Protocol functionality to AI coding assistants",
   "keywords": [
