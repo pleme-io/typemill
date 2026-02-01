@@ -324,10 +324,10 @@ impl ToolHandler for RenameAllHandler {
         // Parse parameters
         let args = tool_call
             .arguments
-            .clone()
+            .as_ref()
             .ok_or_else(|| ServerError::invalid_request("Missing arguments for rename_all"))?;
 
-        let params: RenameAllParams = serde_json::from_value(args).map_err(|e| {
+        let params: RenameAllParams = RenameAllParams::deserialize(args).map_err(|e| {
             ServerError::invalid_request(format!("Invalid rename_all parameters: {}", e))
         })?;
 
