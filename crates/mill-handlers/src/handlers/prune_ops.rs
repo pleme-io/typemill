@@ -5,7 +5,7 @@
 //! - File deletion (via FileService)
 //! - Directory deletion (via FileService)
 
-use crate::handlers::common::calculate_checksum;
+use crate::handlers::common::{calculate_checksum, lsp_uri_from_file_path};
 use futures::stream::StreamExt;
 use lsp_types::{Location, Position, Range, TextEdit, Uri};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -165,12 +165,8 @@ impl PrunePlanner {
 
         if let Some(client) = client_opt {
             // Create Uri from path
-            let uri_str = Url::from_file_path(def_file_path)
-                .map_err(|_| ServerError::invalid_request("Invalid definition file path"))?
-                .to_string();
-            let uri: Uri = uri_str
-                .parse()
-                .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+            let uri: Uri = lsp_uri_from_file_path(def_file_path)
+                .map_err(|e| ServerError::invalid_request(format!("Invalid definition file path: {}", e)))?;
 
             // Find references
             let params = lsp_types::ReferenceParams {

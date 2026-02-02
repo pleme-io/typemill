@@ -21,6 +21,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, error};
 
+use crate::handlers::common::lsp_uri_from_file_path;
+
 pub struct RefactorExtractPlanner;
 
 impl RefactorExtractPlanner {
@@ -353,11 +355,8 @@ impl RefactorExtractPlanner {
                 .to_absolute_path_checked(Path::new(file_path))?;
 
             // Convert file path to file:// URI
-            let uri = url::Url::from_file_path(abs_path)
-                .map_err(|_| ServerError::internal(format!("Invalid file path: {}", file_path)))?
-                .to_string()
-                .parse::<lsp_types::Uri>()
-                .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+            let uri = lsp_uri_from_file_path(&abs_path)
+                .map_err(|e| ServerError::internal(format!("Invalid file path: {}", e)))?;
 
             let lsp_edit = lsp_types::TextEdit {
                 range: Range {

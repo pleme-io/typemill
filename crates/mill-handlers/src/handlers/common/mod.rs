@@ -4,7 +4,7 @@
 //! refactoring operations to avoid code duplication.
 
 use crate::handlers::tools::extensions::get_concrete_app_state;
-use mill_foundation::errors::MillResult as ServerResult;
+use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::protocol::RefactorPlan;
 use mill_handler_api::ToolHandlerContext;
 use mill_services::services::{ExecutionOptions, ExecutionResult, PlanExecutor};
@@ -15,6 +15,24 @@ pub use checksums::calculate_checksum;
 pub(crate) use checksums::{
     calculate_checksums_for_directory_rename, calculate_checksums_for_edits,
 };
+
+/// Convert a local file path into an LSP Uri with strict parsing.
+pub fn lsp_uri_from_file_path(path: &std::path::Path) -> ServerResult<lsp_types::Uri> {
+    let uri_str = url::Url::from_file_path(path)
+        .map_err(|_| ServerError::internal(format!("Invalid file path: {}", path.display())))?
+        .to_string();
+    lsp_uri_from_uri_str(&uri_str)
+}
+
+/// Convert a file:// URI string into an LSP Uri, encoding characters rejected by fluent-uri.
+pub fn lsp_uri_from_uri_str(uri_str: &str) -> ServerResult<lsp_types::Uri> {
+    let normalized = uri_str
+        .replace('[', "%5B")
+        .replace(']', "%5D");
+    normalized
+        .parse::<lsp_types::Uri>()
+        .map_err(|e| ServerError::internal(format!("Failed to parse URI '{}': {}", normalized, e)))
+}
 
 use async_trait::async_trait;
 use mill_handler_api::LspAdapter;

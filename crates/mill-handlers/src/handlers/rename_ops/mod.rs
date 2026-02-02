@@ -11,6 +11,7 @@ mod plan_converter;
 pub(crate) mod symbol_rename;
 mod utils;
 
+use crate::handlers::common::lsp_uri_from_uri_str;
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use lsp_types::{Position, WorkspaceEdit};
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
@@ -534,9 +535,7 @@ impl RenameService {
                         all_document_changes.push(lsp_types::DocumentChangeOperation::Edit(
                             lsp_types::TextDocumentEdit {
                                 text_document: lsp_types::OptionalVersionedTextDocumentIdentifier {
-                                    uri: uri.as_str().parse().map_err(|e| {
-                                        ServerError::internal(format!("Failed to parse URI: {}", e))
-                                    })?,
+                                    uri: lsp_uri_from_uri_str(uri.as_str())?,
                                     version: None,
                                 },
                                 edits: vec![lsp_types::OneOf::Left(edit)],

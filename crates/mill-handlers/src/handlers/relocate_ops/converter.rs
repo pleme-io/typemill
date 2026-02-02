@@ -15,7 +15,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, info};
 
-use crate::handlers::common::{calculate_checksums_for_edits, estimate_impact};
+use crate::handlers::common::{
+    calculate_checksums_for_edits, estimate_impact, lsp_uri_from_file_path,
+    lsp_uri_from_uri_str,
+};
 
 /// Convert EditPlan to MovePlan for MCP protocol
 ///
@@ -119,9 +122,7 @@ pub fn convert_edit_plan_to_workspace_edit(
     for edit in &edit_plan.edits {
         let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
         let path = Path::new(file_path);
-        let uri_str = url::Url::from_file_path(path)
-            .map_err(|_| ServerError::invalid_request(format!("Invalid file path: {}", file_path)))?
-            .to_string();
+        let uri_str = lsp_uri_from_file_path(path)?.as_str().to_string();
 
         let lsp_edit = LspTextEdit {
             range: lsp_types::Range {
@@ -142,9 +143,7 @@ pub fn convert_edit_plan_to_workspace_edit(
 
     let mut document_changes = Vec::new();
     for (uri_str, edits) in changes_map {
-        let uri = uri_str
-            .parse::<lsp_types::Uri>()
-            .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+        let uri = lsp_uri_from_uri_str(&uri_str)?;
 
         document_changes.push(lsp_types::TextDocumentEdit {
             text_document: lsp_types::OptionalVersionedTextDocumentIdentifier {
@@ -169,20 +168,17 @@ fn build_workspace_edit(
     edits: &[ProtocolTextEdit],
 ) -> ServerResult<lsp_types::WorkspaceEdit> {
     // Start with the rename operation
-    let old_uri = url::Url::from_file_path(old_path)
-        .map_err(|_| ServerError::invalid_request("Invalid source file path"))?;
-    let new_uri = url::Url::from_file_path(new_path)
-        .map_err(|_| ServerError::invalid_request("Invalid destination file path"))?;
+    let old_uri = lsp_uri_from_file_path(old_path)
+        .map_err(|e| ServerError::invalid_request(format!("Invalid source file path: {}", e)))?;
+    let new_uri = lsp_uri_from_file_path(new_path).map_err(|e| {
+        ServerError::invalid_request(format!("Invalid destination file path: {}", e))
+    })?;
 
     let mut document_changes =
         vec![DocumentChangeOperation::Op(ResourceOp::Rename(
             RenameFile {
-                old_uri: old_uri.as_str().parse().map_err(|e| {
-                    ServerError::internal(format!("Failed to parse old URI: {}", e))
-                })?,
-                new_uri: new_uri.as_str().parse().map_err(|e| {
-                    ServerError::internal(format!("Failed to parse new URI: {}", e))
-                })?,
+                old_uri,
+                new_uri,
                 options: None,
                 annotation_id: None,
             },
@@ -193,11 +189,7 @@ fn build_workspace_edit(
     for edit in edits {
         if let Some(ref file_path) = edit.file_path {
             let path = Path::new(file_path);
-            let file_uri_str = url::Url::from_file_path(path)
-                .map_err(|_| {
-                    ServerError::internal(format!("Invalid file path for edit: {}", file_path))
-                })?
-                .to_string();
+            let file_uri_str = lsp_uri_from_file_path(path)?.as_str().to_string();
 
             let lsp_edit = LspTextEdit {
                 range: lsp_types::Range {
@@ -222,9 +214,7 @@ fn build_workspace_edit(
 
     // Add text document edits
     for (uri_str, text_edits) in files_with_edits {
-        let uri = uri_str
-            .parse::<lsp_types::Uri>()
-            .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+        let uri = lsp_uri_from_uri_str(&uri_str)?;
 
         document_changes.push(DocumentChangeOperation::Edit(TextDocumentEdit {
             text_document: OptionalVersionedTextDocumentIdentifier {

@@ -20,6 +20,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use tracing::{debug, error};
 
+use crate::handlers::common::lsp_uri_from_file_path;
+
 pub struct RefactorInlinePlanner;
 
 impl RefactorInlinePlanner {
@@ -289,11 +291,8 @@ impl RefactorInlinePlanner {
             let file_path = edit.file_path.as_ref().unwrap_or(&edit_plan.source_file);
 
             // Convert file path to file:// URI
-            let uri = url::Url::from_file_path(file_path)
-                .map_err(|_| ServerError::internal(format!("Invalid file path: {}", file_path)))?
-                .to_string()
-                .parse::<lsp_types::Uri>()
-                .map_err(|e| ServerError::internal(format!("Failed to parse URI: {}", e)))?;
+            let uri = lsp_uri_from_file_path(Path::new(file_path))
+                .map_err(|e| ServerError::internal(format!("Invalid file path: {}", e)))?;
 
             let lsp_edit = lsp_types::TextEdit {
                 range: Range {
