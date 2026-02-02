@@ -20,10 +20,6 @@ export function generateNavigation(): NavItem[] {
 				{
 					label: 'Getting Started',
 					href: '/docs'
-				},
-				{
-					label: 'Development Guide',
-					href: '/DEVELOPMENT'
 				}
 			]
 		},
