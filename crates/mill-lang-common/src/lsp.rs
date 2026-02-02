@@ -150,10 +150,10 @@ pub async fn download_file(url: &str, dest: &Path) -> LspResult<()> {
 
     // Create parent directory if it doesn't exist
     if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent)?;
+        tokio::fs::create_dir_all(parent).await?;
     }
 
-    fs::write(dest, bytes)?;
+    tokio::fs::write(dest, bytes).await?;
     debug!("Downloaded {} bytes to {:?}", byte_len, dest);
     Ok(())
 }
