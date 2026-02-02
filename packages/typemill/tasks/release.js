@@ -170,10 +170,6 @@ const main = () => {
 		process.exit(1)
 	}
 
-	console.log(`Building binaries for: ${targets.join(', ')}`)
-	targets.forEach(buildAndStageBinary)
-	console.log('✅ Built and staged binaries')
-
 	// Read current versions
 	const pkg = readPackageJson()
 	const cargoVersion = readCargoVersion()
@@ -215,6 +211,10 @@ const main = () => {
 		updated = true
 	}
 
+	console.log(`Building binaries for: ${targets.join(', ')}`)
+	targets.forEach(buildAndStageBinary)
+	console.log('✅ Built and staged binaries')
+
 	if (updated && !skipGit) {
 		// Git commit
 		run('git', ['add', packageJsonPath, cargoTomlPath])
@@ -243,8 +243,6 @@ const main = () => {
 
 	console.log(`
 🎉 Release v${nextVersion} initiated!
-
-Published to npm from this machine.
 `)
 }
 
