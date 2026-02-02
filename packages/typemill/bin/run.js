@@ -14,7 +14,7 @@ if (!fs.existsSync(binaryPath)) {
   console.error('  1. The postinstall script failed to download the binary');
   console.error('  2. Your platform is not supported');
   console.error('');
-  console.error('Try reinstalling: npm install -g typemill');
+  console.error('Try reinstalling: npm install -g @goobits/typemill');
   console.error('Or build from source: cargo install --git https://github.com/goobits/typemill');
   process.exit(1);
 }

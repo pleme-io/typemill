@@ -24,6 +24,14 @@
     "typemill": "./bin/run.js",
     "mill": "./bin/run.js"
   },
+  "files": [
+    "bin/",
+    "demo/",
+    "scripts/",
+    "README.md",
+    "LICENSE",
+    "package.json"
+  ],
   "scripts": {
     "postinstall": "node scripts/postinstall.js"
   },
