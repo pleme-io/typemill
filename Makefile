@@ -48,6 +48,8 @@ release-npm:
 		current_version=$$(node -p "require('./$$pkg_path').version"); \
 		echo "✅ Bumped to $$current_version"; \
 	fi; \
+	( cd $(NPM_DIR) && npm run release ); \
+	current_version=$$(node -p "require('./$$pkg_path').version"); \
 	platform_dir=$$(uname -s | tr '[:upper:]' '[:lower:]'); \
 	arch=$$(uname -m); \
 	case "$$platform_dir:$$arch" in \
