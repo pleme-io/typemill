@@ -8,51 +8,183 @@ This directory contains focused documentation for each tool category. Each categ
 
 ---
 
-## Quick Catalog
+## Quick Reference
 
-| Tool | Category | Description | Documentation |
-|------|----------|-------------|---------------|
-| **Code Intelligence (2 tools)** ||||
-| `inspect_code` | Intelligence | Aggregate code intelligence (definition, references, types, diagnostics) | [inspect_code.md](inspect_code.md) |
-| `search_code` | Intelligence | Search workspace symbols | [search_code.md](search_code.md) |
-| **Refactoring & Editing (4 tools)** ||||
-| `rename_all` | Refactoring | Rename symbols/files/directories (dryRun option) | [rename_all.md](rename_all.md) |
-| `relocate` | Refactoring | Move symbols/files/directories (dryRun option) | [relocate.md](relocate.md) |
-| `prune` | Refactoring | Delete symbols/files/directories with cleanup (dryRun option) | [prune.md](prune.md) |
-| `refactor` | Refactoring | Extract, inline, reorder, transform code (dryRun option) | [refactor.md](refactor.md) |
-| **Workspace Management (1 tool)** ||||
-| `workspace` | Workspace | Package management, find/replace, dependency extraction, project verification | [workspace.md](workspace.md) |
+| Tool | Description |
+|------|-------------|
+| [`inspect_code`](#inspect_code) | Aggregate code intelligence (definition, references, types, diagnostics) |
+| [`search_code`](#search_code) | Search workspace symbols |
+| [`rename_all`](#rename_all) | Rename symbols/files/directories with reference updates |
+| [`relocate`](#relocate) | Move symbols/files/directories with import updates |
+| [`prune`](#prune) | Delete symbols/files/directories with cleanup |
+| [`refactor`](#refactor) | Extract, inline, reorder, transform code |
+| [`workspace`](#workspace) | Package management, find/replace, project verification |
+
+> All refactoring tools default to `dryRun: true` (preview mode). Set `options.dryRun: false` to apply changes.
 
 ---
 
-## Categories
+## Code Intelligence Tools
 
-### Code Intelligence
-**2 tools** for code navigation and symbol information.
+### inspect_code
 
-- **[inspect_code](inspect_code.md)** - Aggregate code intelligence: definition, references, type info, implementations, call hierarchy, and diagnostics in a single request
-- **[search_code](search_code.md)** - Search workspace symbols with fuzzy matching
+Aggregate code intelligence for a symbol or position in a single request.
 
-Navigate codebases with precision using language server protocol integration. Get rich symbol information with full IDE-quality intelligence.
+```json
+{
+  "name": "inspect_code",
+  "arguments": {
+    "filePath": "src/app.ts",
+    "line": 9,
+    "character": 5,
+    "include": ["definition", "typeInfo", "references"]
+  }
+}
+```
 
-### Refactoring & Editing
-**4 tools** with unified dryRun API for safe, reviewable refactoring.
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `filePath` | Yes | File path |
+| `line` | Yes* | 0-based line number |
+| `character` | Yes* | 0-based column |
+| `symbolName` | Yes* | Alternative to line/character |
+| `include` | No | Array: `definition`, `typeInfo`, `references`, `implementations`, `callHierarchy`, `diagnostics` |
+| `detailLevel` | No | `basic`, `standard`, `detailed` |
+| `limit` | No | Max results (default 50) |
 
-- **[rename_all](rename_all.md)** - Rename symbols, files, directories (updates all references)
-- **[relocate](relocate.md)** - Move symbols, files, directories
-- **[prune](prune.md)** - Delete symbols, files, directories with cleanup
-- **[refactor](refactor.md)** - Extract, inline, reorder, transform code
+*Either `line`+`character` or `symbolName` required.
 
-All refactoring operations support `options.dryRun` parameter: default `true` generates a preview plan without modifying files, explicit `false` applies changes immediately with validation and rollback support.
+### search_code
 
-### Workspace Management
-**1 comprehensive tool** for package and text operations.
+Search for symbols across the workspace.
 
-- **[workspace](workspace.md)** - Package creation, dependency extraction, find/replace, project verification
+```json
+{
+  "name": "search_code",
+  "arguments": {
+    "query": "Config",
+    "kind": "class",
+    "limit": 20
+  }
+}
+```
 
-**Language-specific guides:** [Rust](workspace-rust.md) | [TypeScript](workspace-typescript.md) | [Python](workspace-python.md)
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `query` | Yes | Search query (fuzzy matched) |
+| `kind` | No | Filter: `function`, `class`, `variable`, `interface`, etc. |
+| `limit` | No | Max results (default 50) |
 
-Supports Rust (Cargo), TypeScript (npm/yarn/pnpm), and Python (PDM/Poetry/Hatch) workspaces.
+---
+
+## Refactoring Tools
+
+All refactoring tools use `options.dryRun` (default `true` = preview only).
+
+### rename_all
+
+Rename symbols, files, or directories with reference updates.
+
+```json
+{
+  "name": "rename_all",
+  "arguments": {
+    "target": { "kind": "symbol", "filePath": "src/app.ts", "line": 9, "character": 5 },
+    "newName": "NewName",
+    "options": { "dryRun": false, "scope": "standard" }
+  }
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `target.kind` | Yes | `symbol`, `file`, or `directory` |
+| `target.filePath` | Yes | Path to target |
+| `target.line` | For symbols | 0-based line |
+| `target.character` | For symbols | 0-based column |
+| `newName` | Yes | New name/path |
+| `options.dryRun` | No | Default `true` (preview) |
+| `options.scope` | No | `code`, `standard`, `comments`, `everything` |
+
+### relocate
+
+Move symbols, files, or directories with import updates.
+
+```json
+{
+  "name": "relocate",
+  "arguments": {
+    "target": { "kind": "symbol", "filePath": "src/app.ts", "line": 9, "character": 5 },
+    "destination": { "filePath": "src/utils.ts" },
+    "options": { "dryRun": false }
+  }
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `target` | Yes | Same as rename_all |
+| `destination.filePath` | Yes | Destination path |
+| `options.dryRun` | No | Default `true` |
+
+### prune
+
+Delete symbols, files, or directories with cleanup.
+
+```json
+{
+  "name": "prune",
+  "arguments": {
+    "target": { "kind": "file", "filePath": "src/unused.ts" },
+    "options": { "dryRun": false, "cleanupImports": true }
+  }
+}
+```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `target` | Yes | Same as rename_all |
+| `options.dryRun` | No | Default `true` |
+| `options.cleanupImports` | No | Remove orphaned imports |
+| `options.force` | No | Delete even with references |
+
+### refactor
+
+Extract, inline, reorder, and transform code. See [refactor.md](refactor.md) for full documentation.
+
+```json
+{
+  "name": "refactor",
+  "arguments": {
+    "action": "extract",
+    "params": {
+      "kind": "function",
+      "source": { "filePath": "src/app.ts", "startLine": 10, "endLine": 20 },
+      "name": "extractedFunction"
+    },
+    "options": { "dryRun": false }
+  }
+}
+```
+
+Actions: `extract`, `inline`, `reorder`, `transform`
+
+---
+
+## Workspace Tool
+
+### workspace
+
+Package management, find/replace, and project operations. See [workspace.md](workspace.md) for full documentation.
+
+**Actions:**
+- `create_package` - Create new package/crate
+- `extract_dependencies` - Extract dependencies from code
+- `find_replace` - Workspace-wide find/replace
+- `update_members` - Update workspace members
+- `verify_project` - Validate project structure
+
+**Language guides:** [Rust](workspace-rust.md) | [TypeScript](workspace-typescript.md) | [Python](workspace-python.md)
 
 ---
 
@@ -240,35 +372,7 @@ Common error codes:
 
 ## See Also
 
-- **[CLAUDE.md](../../CLAUDE.md)** - Main project documentation and AI agent instructions
-- **[contributing.md](../../contributing.md)** - How to add new tools and contribute
-
-### Tool Categories
-
-- **[inspect_code](inspect_code.md)** - Aggregate code intelligence
-- **[search_code](search_code.md)** - Symbol search
-- **[rename_all](rename_all.md)** - Rename operations
-- **[relocate](relocate.md)** - Move operations
-- **[prune](prune.md)** - Delete operations
-- **[refactor](refactor.md)** - Extract/inline/transform operations
-- **[workspace](workspace.md)** - Workspace management
-
-### Language-Specific Workspace Guides
-
-- **[TypeScript Workspace](workspace-typescript.md)** - TypeScript project operations
-- **[Rust Workspace](workspace-rust.md)** - Rust/Cargo workspace operations
-- **[Python Workspace](workspace-python.md)** - Python project operations
-
----
-
-## Links
-
-- **[Main Documentation](../README.md)** - Complete documentation index
-- **[Architecture](../architecture/core-concepts.md)** - System architecture
-- **[Contributing](../../contributing.md)** - Development guide
-- **[API Contracts](../architecture/specifications.md)** - JSON schemas and validation rules
-
----
-
-**Last Updated:** 2025-10-25
-**API Version:** 1.0.0-rc5
+- **[CLAUDE.md](../../CLAUDE.md)** - AI agent instructions
+- **[contributing.md](../../contributing.md)** - Development guide
+- **[Architecture](../architecture/core-concepts.md)** - System design
+- **[API Specs](../architecture/specifications.md)** - JSON schemas
