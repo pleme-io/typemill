@@ -1,7 +1,7 @@
 # TypeMill Makefile
 # Simple build automation for common development tasks
 
-.PHONY: build release test test-fast test-full test-lsp install uninstall clean clean-cache first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit deny deny-update check check-duplicates dev watch ci ci-local build-parsers check-parser-deps check-analysis test-analysis check-handlers test-handlers check-core test-core check-lang test-lang dev-handlers dev-analysis dev-core dev-lang check-handlers-nav test-handlers-nav test-integration-refactor test-integration-analysis test-integration-nav
+.PHONY: build release release-rust release-npm release-all test test-fast test-full test-lsp install uninstall clean clean-cache clean-registry first-time-setup install-lsp-servers dev-extras validate-setup help clippy fmt audit deny deny-update check check-duplicates dev watch ci ci-local build-parsers check-parser-deps check-analysis test-analysis check-handlers test-handlers check-core test-core check-lang test-lang dev-handlers dev-analysis dev-core dev-lang check-handlers-nav test-handlers-nav test-integration-refactor test-integration-analysis test-integration-nav doctor
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -24,6 +24,27 @@ build:
 release:
 	@command -v sccache >/dev/null 2>&1 || { echo "⚠️  Warning: sccache not found. Run 'make setup' for faster builds."; echo ""; }
 	$(CARGO) build --release
+
+# Explicit release targets
+NPM_DIR ?= packages/typemill
+NPM_PKG ?= @goobits/typemill
+NPM_VERSION ?= $(shell node -p "require('./$(NPM_DIR)/package.json').version" 2>/dev/null)
+
+release-rust:
+	$(CARGO) build --release
+
+release-npm:
+	@command -v npm >/dev/null 2>&1 || { echo "❌ npm not found"; exit 1; }
+	@npm whoami >/dev/null 2>&1 || { echo "❌ npm not logged in"; exit 1; }
+	@test -f $(NPM_DIR)/package.json || { echo "❌ package.json not found in $(NPM_DIR)"; exit 1; }
+	@npm pkg fix --silent --prefix $(NPM_DIR)
+	@if npm view $(NPM_PKG)@$(NPM_VERSION) version >/dev/null 2>&1; then \
+		echo "❌ $(NPM_PKG) version $(NPM_VERSION) already published. Bump version first (e.g. cd $(NPM_DIR) && npm version patch)."; \
+		exit 1; \
+	fi
+	cd $(NPM_DIR) && npm publish --access public
+
+release-all: release-rust release-npm
 
 # Run fast tests (uses cargo-nextest). This is the recommended command for local development.
 test:
@@ -149,6 +170,18 @@ clean-cache:
 	@echo "🧹 Cleaning build cache..."
 	cargo clean
 	@echo "💡 Tip: Install cargo-sweep for smarter cleanup: cargo install cargo-sweep"
+
+# Clean Cargo registry cache (use if crates are corrupted)
+clean-registry:
+	rm -rf ~/.cargo/registry
+	@echo "✅ Cargo registry cache cleared"
+
+# Quick toolchain sanity check
+doctor:
+	@command -v cargo >/dev/null 2>&1 || { echo "❌ cargo missing"; exit 1; }
+	@command -v node >/dev/null 2>&1 || { echo "❌ node missing"; exit 1; }
+	@command -v npm >/dev/null 2>&1 || { echo "❌ npm missing"; exit 1; }
+	@echo "✅ toolchain ok"
 
 # Removed: Use 'make first-time-setup' instead (does everything)
 # This provides a complete, one-command setup experience
