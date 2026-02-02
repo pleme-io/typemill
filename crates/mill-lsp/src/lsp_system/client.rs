@@ -21,8 +21,31 @@ use std::os::unix::process::CommandExt;
 
 /// Timeout for LSP requests
 const LSP_REQUEST_TIMEOUT: Duration = Duration::from_secs(60); // Increased for slow language servers
-/// Timeout for LSP initialization
-const LSP_INIT_TIMEOUT: Duration = Duration::from_secs(60); // Increased significantly for slow language servers like Python
+
+/// Get the LSP initialization timeout, adjusted for parallel test execution
+///
+/// Under parallel test execution (detected via NEXTEST environment variables),
+/// LSP servers compete for system resources and may take longer to initialize.
+/// This function returns a longer timeout in that case.
+fn get_lsp_init_timeout() -> Duration {
+    // Check for manual override first
+    if let Ok(timeout_str) = std::env::var("TYPEMILL_LSP_INIT_TIMEOUT_SECS") {
+        if let Ok(secs) = timeout_str.parse::<u64>() {
+            return Duration::from_secs(secs);
+        }
+    }
+
+    // Detect parallel test execution via nextest environment variables
+    // NEXTEST is set when running under cargo-nextest
+    if std::env::var("NEXTEST").is_ok() || std::env::var("NEXTEST_EXECUTION_MODE").is_ok() {
+        // 3 minutes for parallel test execution - LSP servers compete for resources
+        Duration::from_secs(180)
+    } else {
+        // 60 seconds for normal operation
+        Duration::from_secs(60)
+    }
+}
+
 /// Buffer size for message channels
 const CHANNEL_BUFFER_SIZE: usize = 1000;
 
@@ -766,23 +789,31 @@ impl LspClient {
 
         debug!(params = ?initialize_params, "LSP initialize params");
 
+        // Get timeout (longer for parallel test execution)
+        let init_timeout = get_lsp_init_timeout();
+
         tracing::warn!(
             command = %self.config.command.join(" "),
-            "Sending LSP initialize request (60s timeout)..."
+            timeout_secs = init_timeout.as_secs(),
+            "Sending LSP initialize request..."
         );
 
         // Send initialize request
         let result = timeout(
-            LSP_INIT_TIMEOUT,
+            init_timeout,
             self.send_request("initialize", initialize_params),
         )
         .await
         .map_err(|_| {
             tracing::error!(
                 command = %self.config.command.join(" "),
-                "LSP initialization TIMEOUT after 60 seconds - server never responded"
+                timeout_secs = init_timeout.as_secs(),
+                "LSP initialization TIMEOUT - server never responded"
             );
-            ServerError::runtime("LSP initialization timeout")
+            ServerError::runtime(format!(
+                "LSP initialization timeout after {} seconds",
+                init_timeout.as_secs()
+            ))
         })??;
 
         tracing::warn!(result = ?result, "LSP server initialization response received");

@@ -5,6 +5,19 @@ fail-fast = false
 # Note: Tests should be run with --release flag for 2-5x speedup (regex optimizations)
 # Example: cargo nextest run --workspace --release
 
+# E2E tests spawn multiple LSP servers which compete for resources.
+# Limit parallelism for E2E tests to avoid resource exhaustion.
+# Non-E2E tests can still run at full parallelism.
+[[profile.default.overrides]]
+filter = 'package(e2e)'
+threads-required = 4  # Each E2E test counts as 4 threads worth of work
+slow-timeout = { period = "120s", terminate-after = 2 }
+
+[[profile.default.overrides]]
+filter = 'package(mill) & test(e2e)'
+threads-required = 4
+slow-timeout = { period = "120s", terminate-after = 2 }
+
 [profile.ci]
 # CI profile for GitHub Actions
 retries = 2
@@ -16,5 +29,12 @@ final-status-level = "fail"
 # Test threads: Use available parallelism
 test-threads = "num-cpus"
 
-# Timeout configuration
-slow-timeout = { period = "60s", terminate-after = 2 }
+[[profile.ci.overrides]]
+filter = 'package(e2e)'
+threads-required = 4  # Each E2E test counts as 4 threads worth of work
+slow-timeout = { period = "180s", terminate-after = 2 }
+
+[[profile.ci.overrides]]
+filter = 'package(mill) & test(e2e)'
+threads-required = 4
+slow-timeout = { period = "180s", terminate-after = 2 }
