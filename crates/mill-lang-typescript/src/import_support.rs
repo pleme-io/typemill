@@ -311,7 +311,12 @@ pub fn rewrite_imports_for_move_with_context(
                     if let Some(resolved_path_str) =
                         resolver.resolve_alias(specifier, importing_file, root)
                     {
-                        let resolved_path = Path::new(&resolved_path_str);
+                        let resolved_path_raw = Path::new(&resolved_path_str);
+
+                        // CRITICAL: Normalize the resolved path to handle ".." components
+                        // The path alias resolver may return paths like ".svelte-kit/../src/lib/api.js"
+                        // which need to be normalized for comparison with canonical old_path
+                        let resolved_path = normalize_path(resolved_path_raw);
 
                         // Check if the resolved path is inside the old_path directory
                         // (for directory moves) or equals old_path (for file moves)
@@ -321,15 +326,18 @@ pub fn rewrite_imports_for_move_with_context(
                         let is_directory_move = old_path.is_dir()
                             || (old_path.extension().is_none() && !old_path.is_file());
 
+                        // Also normalize old_path for consistent comparison
+                        let old_path_normalized = normalize_path(old_path);
+
                         let is_affected = if is_directory_move {
                             // Directory move: check if resolved path is inside old directory
-                            resolved_path.starts_with(old_path)
+                            resolved_path.starts_with(&old_path_normalized)
                         } else {
                             // File move: check if resolved path equals old file (with or without extension)
                             // Resolved path may not have extension (e.g., $lib/utils/helpers resolves to src/lib/utils/helpers)
                             // but old_path has extension (e.g., src/lib/utils/helpers.ts)
-                            resolved_path == old_path
-                                || resolved_path.with_extension("") == old_path.with_extension("")
+                            resolved_path == old_path_normalized
+                                || resolved_path.with_extension("") == old_path_normalized.with_extension("")
                         };
 
                         if !is_affected {
@@ -339,7 +347,8 @@ pub fn rewrite_imports_for_move_with_context(
                         // Calculate the new path after the move
                         let new_resolved_path = if is_directory_move {
                             // For directory moves, preserve the relative structure within
-                            if let Ok(relative) = resolved_path.strip_prefix(old_path) {
+                            // Use normalized paths for consistent strip_prefix behavior
+                            if let Ok(relative) = resolved_path.strip_prefix(&old_path_normalized) {
                                 new_path.join(relative)
                             } else {
                                 continue;
@@ -421,15 +430,31 @@ pub fn rewrite_imports_for_move_with_context(
 
     // Step 2: Handle relative path imports (existing logic)
     let old_import = calculate_relative_import(importing_file, old_path);
-    let new_import = calculate_relative_import(importing_file, new_path);
+    let new_import_relative = calculate_relative_import(importing_file, new_path);
+
+    // Check if the new path falls under an alias pattern - if so, prefer the alias
+    let new_import = if let (Some(resolver), Some(root)) = (path_alias_resolver, project_root) {
+        if let Some(alias) = resolver.path_to_alias(new_path, importing_file, root) {
+            debug!(
+                old_relative = %old_import,
+                new_alias = %alias,
+                "Converting relative import to path alias"
+            );
+            alias
+        } else {
+            new_import_relative.clone()
+        }
+    } else {
+        new_import_relative.clone()
+    };
 
     if old_import != new_import {
         // TypeScript ESM commonly uses .js extensions in imports even for .ts files
         // We need to check for imports both with and without extensions
         let import_variants = vec![
             (old_import.clone(), new_import.clone()), // No extension: ./utils/timer
-            (format!("{}.js", old_import), format!("{}.js", new_import)), // .js extension: ./utils/timer.js
-            (format!("{}.ts", old_import), format!("{}.ts", new_import)), // .ts extension (rare but possible)
+            (format!("{}.js", old_import), format!("{}.js", new_import_relative)), // .js extension: ./utils/timer.js
+            (format!("{}.ts", old_import), format!("{}.ts", new_import_relative)), // .ts extension (rare but possible)
         ];
 
         for (old_variant, new_variant) in import_variants {

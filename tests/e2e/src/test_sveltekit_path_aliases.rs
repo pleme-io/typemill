@@ -2,10 +2,21 @@
 //!
 //! Tests that $lib and other path aliases are correctly handled during file moves
 //! in TypeScript projects. Verifies:
-//! - Moving files within $lib preserves alias imports
-//! - Moving files out of $lib converts to relative imports
-//! - Moving files into $lib converts to alias imports
-//! - Cross-directory moves update imports correctly
+//!
+//! ## Alias Preservation
+//! - Moving files within $lib preserves alias imports (test 1)
+//! - Moving files out of $lib converts to relative imports (test 2)
+//! - Moving files into $lib converts relative imports to alias (test 6)
+//! - Directory moves within $lib update all imports correctly (test 3)
+//!
+//! ## Multiple Alias Patterns
+//! - @/* alias pattern (Next.js style) works correctly (test 4)
+//! - Custom $ aliases beyond $lib (e.g., $utils, $components) (test 8)
+//! - Moving between different alias scopes updates to new alias (test 9)
+//!
+//! ## Safety Guarantees
+//! - Dry run shows correct changes before applying (test 5)
+//! - Imports not affected by move stay unchanged (test 7)
 //!
 //! Note: These tests use .ts files since the TypeScript plugin handles those extensions.
 //! The path alias logic applies equally to any file type that uses TypeScript-style imports.
@@ -488,4 +499,505 @@ export function getUser() {
     );
 
     println!("✅ Dry run correctly shows alias update plan");
+}
+
+/// Test 6: Move file INTO $lib - should convert relative imports to alias
+#[tokio::test]
+async fn test_move_into_lib_converts_to_alias() {
+    let workspace = TestWorkspace::new();
+    setup_typescript_workspace(&workspace);
+
+    // Create a utility file OUTSIDE of $lib
+    workspace.create_directory("src/server");
+    workspace.create_file(
+        "src/server/database.ts",
+        r#"export function connect(): void {
+    console.log('Connected to database');
+}
+
+export function query(sql: string): any[] {
+    return [];
+}"#,
+    );
+
+    // Create a route that imports with a relative path (because it's outside $lib)
+    workspace.create_file(
+        "src/routes/api/data.ts",
+        r#"import { query } from '../../server/database';
+
+export async function GET() {
+    const results = query('SELECT * FROM users');
+    return new Response(JSON.stringify(results));
+}"#,
+    );
+
+    let mut client = TestClient::new(workspace.path());
+
+    // Move database.ts INTO $lib
+    let old_path = workspace.path().join("src/server/database.ts");
+    let new_path = workspace.path().join("src/lib/server/database.ts");
+
+    workspace.create_directory("src/lib/server");
+
+    let params = json!({
+        "target": {
+            "kind": "file",
+            "filePath": old_path.to_string_lossy()
+        },
+        "destination": new_path.to_string_lossy(),
+        "options": { "dryRun": false }
+    });
+
+    let result = client
+        .call_tool("relocate", params)
+        .await
+        .expect("relocate should succeed");
+
+    let content = result
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Should have result.content");
+
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success"),
+        "Move should succeed"
+    );
+
+    // Verify file was moved
+    assert!(!workspace.file_exists("src/server/database.ts"));
+    assert!(workspace.file_exists("src/lib/server/database.ts"));
+
+    // Verify imports were converted to $lib alias
+    let route_content = workspace.read_file("src/routes/api/data.ts");
+    assert!(
+        route_content.contains("$lib/server/database"),
+        "Route should have $lib alias import after moving file into $lib.\nActual content:\n{}",
+        route_content
+    );
+    assert!(
+        !route_content.contains("../../server/database"),
+        "Should NOT have old relative import.\nActual content:\n{}",
+        route_content
+    );
+
+    println!("✅ Move into $lib converts relative imports to alias");
+}
+
+/// Test 7: Imports not affected by move should stay unchanged
+#[tokio::test]
+async fn test_unaffected_imports_stay_unchanged() {
+    let workspace = TestWorkspace::new();
+    setup_typescript_workspace(&workspace);
+
+    // Create two separate utility files in $lib
+    workspace.create_file(
+        "src/lib/utils/helpers.ts",
+        r#"export function formatDate(date: Date): string {
+    return date.toISOString();
+}"#,
+    );
+
+    workspace.create_file(
+        "src/lib/utils/validators.ts",
+        r#"export function isEmail(str: string): boolean {
+    return str.includes('@');
+}"#,
+    );
+
+    // Create a component that imports BOTH utilities
+    workspace.create_file(
+        "src/lib/components/Form.ts",
+        r#"import { formatDate } from '$lib/utils/helpers';
+import { isEmail } from '$lib/utils/validators';
+
+export function validateForm(email: string, date: Date): boolean {
+    console.log(formatDate(date));
+    return isEmail(email);
+}"#,
+    );
+
+    let mut client = TestClient::new(workspace.path());
+
+    // Move ONLY helpers.ts - validators.ts import should NOT change
+    let old_path = workspace.path().join("src/lib/utils/helpers.ts");
+    let new_path = workspace.path().join("src/lib/utils/date/helpers.ts");
+
+    workspace.create_directory("src/lib/utils/date");
+
+    let params = json!({
+        "target": {
+            "kind": "file",
+            "filePath": old_path.to_string_lossy()
+        },
+        "destination": new_path.to_string_lossy(),
+        "options": { "dryRun": false }
+    });
+
+    let result = client
+        .call_tool("relocate", params)
+        .await
+        .expect("relocate should succeed");
+
+    let content = result
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Should have result.content");
+
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success"),
+        "Move should succeed"
+    );
+
+    // Verify the component file
+    let form_content = workspace.read_file("src/lib/components/Form.ts");
+
+    // The helpers import SHOULD be updated
+    assert!(
+        form_content.contains("$lib/utils/date/helpers"),
+        "helpers import should be updated.\nActual content:\n{}",
+        form_content
+    );
+
+    // The validators import should NOT be changed (still exactly as before)
+    assert!(
+        form_content.contains("from '$lib/utils/validators'"),
+        "validators import should remain UNCHANGED.\nActual content:\n{}",
+        form_content
+    );
+
+    println!("✅ Unaffected imports stay unchanged");
+}
+
+/// Test 8: Custom $ aliases beyond $lib (e.g., $utils, $components)
+#[tokio::test]
+async fn test_custom_dollar_aliases() {
+    let workspace = TestWorkspace::new();
+
+    // Create tsconfig.json with multiple custom $ aliases
+    workspace.create_file(
+        "tsconfig.json",
+        r#"{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "$lib": ["src/lib"],
+      "$lib/*": ["src/lib/*"],
+      "$utils": ["src/utils"],
+      "$utils/*": ["src/utils/*"],
+      "$components": ["src/components"],
+      "$components/*": ["src/components/*"]
+    }
+  }
+}"#,
+    );
+
+    workspace.create_file(
+        "package.json",
+        r#"{"name": "test-custom-aliases", "type": "module"}"#,
+    );
+
+    // Create directory structure matching aliases
+    workspace.create_directory("src/lib");
+    workspace.create_directory("src/utils");
+    workspace.create_directory("src/components");
+    workspace.create_directory("src/routes");
+
+    // Create files using different aliases
+    workspace.create_file(
+        "src/utils/format.ts",
+        r#"export function formatNumber(n: number): string {
+    return n.toFixed(2);
+}"#,
+    );
+
+    workspace.create_file(
+        "src/components/Display.ts",
+        r#"import { formatNumber } from '$utils/format';
+
+export function Display(value: number): string {
+    return `<span>${formatNumber(value)}</span>`;
+}"#,
+    );
+
+    workspace.create_file(
+        "src/routes/page.ts",
+        r#"import { Display } from '$components/Display';
+import { formatNumber } from '$utils/format';
+
+export function render() {
+    return Display(42);
+}"#,
+    );
+
+    let mut client = TestClient::new(workspace.path());
+
+    // Move format.ts to a subdirectory within $utils
+    let old_path = workspace.path().join("src/utils/format.ts");
+    let new_path = workspace.path().join("src/utils/number/format.ts");
+
+    workspace.create_directory("src/utils/number");
+
+    let params = json!({
+        "target": {
+            "kind": "file",
+            "filePath": old_path.to_string_lossy()
+        },
+        "destination": new_path.to_string_lossy(),
+        "options": { "dryRun": false }
+    });
+
+    let result = client
+        .call_tool("relocate", params)
+        .await
+        .expect("relocate should succeed");
+
+    let content = result
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Should have result.content");
+
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success"),
+        "Move should succeed"
+    );
+
+    // Verify $utils imports were updated
+    let display_content = workspace.read_file("src/components/Display.ts");
+    assert!(
+        display_content.contains("$utils/number/format"),
+        "Display should have updated $utils import.\nActual content:\n{}",
+        display_content
+    );
+
+    let page_content = workspace.read_file("src/routes/page.ts");
+    assert!(
+        page_content.contains("$utils/number/format"),
+        "Page should have updated $utils import.\nActual content:\n{}",
+        page_content
+    );
+
+    // $components import should be unchanged
+    assert!(
+        page_content.contains("from '$components/Display'"),
+        "$components import should be unchanged.\nActual content:\n{}",
+        page_content
+    );
+
+    println!("✅ Custom $ aliases work correctly");
+}
+
+/// Test 9: Moving file between different alias scopes
+#[tokio::test]
+async fn test_move_between_alias_scopes() {
+    let workspace = TestWorkspace::new();
+
+    // Create tsconfig.json with multiple alias scopes
+    workspace.create_file(
+        "tsconfig.json",
+        r#"{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": ["src/lib/*"],
+      "$server/*": ["src/server/*"]
+    }
+  }
+}"#,
+    );
+
+    workspace.create_file(
+        "package.json",
+        r#"{"name": "test-multi-scope", "type": "module"}"#,
+    );
+
+    workspace.create_directory("src/lib/utils");
+    workspace.create_directory("src/server");
+    workspace.create_directory("src/routes");
+
+    // Create a utility in $lib
+    workspace.create_file(
+        "src/lib/utils/auth.ts",
+        r#"export function validateToken(token: string): boolean {
+    return token.length > 0;
+}"#,
+    );
+
+    // Create files that import using $lib alias
+    workspace.create_file(
+        "src/routes/login.ts",
+        r#"import { validateToken } from '$lib/utils/auth';
+
+export function login(token: string) {
+    return validateToken(token);
+}"#,
+    );
+
+    let mut client = TestClient::new(workspace.path());
+
+    // Move auth.ts from $lib scope to $server scope
+    let old_path = workspace.path().join("src/lib/utils/auth.ts");
+    let new_path = workspace.path().join("src/server/auth.ts");
+
+    let params = json!({
+        "target": {
+            "kind": "file",
+            "filePath": old_path.to_string_lossy()
+        },
+        "destination": new_path.to_string_lossy(),
+        "options": { "dryRun": false }
+    });
+
+    let result = client
+        .call_tool("relocate", params)
+        .await
+        .expect("relocate should succeed");
+
+    let content = result
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Should have result.content");
+
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success"),
+        "Move should succeed"
+    );
+
+    // Verify file was moved
+    assert!(!workspace.file_exists("src/lib/utils/auth.ts"));
+    assert!(workspace.file_exists("src/server/auth.ts"));
+
+    // Verify imports were updated to use $server alias (new scope)
+    let login_content = workspace.read_file("src/routes/login.ts");
+    assert!(
+        login_content.contains("$server/auth"),
+        "Import should be updated to $server alias.\nActual content:\n{}",
+        login_content
+    );
+    assert!(
+        !login_content.contains("$lib/utils/auth"),
+        "Should NOT have old $lib import.\nActual content:\n{}",
+        login_content
+    );
+
+    println!("✅ Move between alias scopes updates to new alias");
+}
+
+/// Test 10: Exact SvelteKit structure with jsconfig.json extending .svelte-kit/tsconfig.json
+/// This mimics the exact structure of a real SvelteKit project
+#[tokio::test]
+async fn test_sveltekit_exact_structure() {
+    let workspace = TestWorkspace::new();
+
+    // Create .svelte-kit directory with tsconfig.json (generated by SvelteKit build)
+    workspace.create_directory(".svelte-kit");
+    workspace.create_file(
+        ".svelte-kit/tsconfig.json",
+        r#"{
+  "compilerOptions": {
+    "paths": {
+      "$lib": ["../src/lib"],
+      "$lib/*": ["../src/lib/*"]
+    }
+  }
+}"#,
+    );
+
+    // Create jsconfig.json that extends .svelte-kit/tsconfig.json (typical SvelteKit setup)
+    workspace.create_file(
+        "jsconfig.json",
+        r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+    );
+
+    workspace.create_file(
+        "package.json",
+        r#"{"name": "test-sveltekit-exact", "type": "module"}"#,
+    );
+
+    // Create src/lib/api.js (the file we'll move)
+    workspace.create_directory("src/lib");
+    workspace.create_file(
+        "src/lib/api.js",
+        r#"export function get(path) { return fetch(path); }
+export function post(path, data) { return fetch(path, { method: 'POST', body: JSON.stringify(data) }); }"#,
+    );
+
+    // Create src/routes/+page.server.js that imports from $lib/api
+    workspace.create_directory("src/routes");
+    workspace.create_file(
+        "src/routes/+page.server.js",
+        r#"import * as api from '$lib/api';
+
+export async function load() {
+    const data = await api.get('/data');
+    return { data };
+}"#,
+    );
+
+    // Also create a file that imports with .js extension
+    workspace.create_file(
+        "src/routes/other.server.js",
+        r#"import * as api from '$lib/api.js';
+
+export async function load() {
+    return api.post('/submit', {});
+}"#,
+    );
+
+    let mut client = TestClient::new(workspace.path());
+
+    // Move api.js to a subdirectory within $lib
+    let old_path = workspace.path().join("src/lib/api.js");
+    let new_path = workspace.path().join("src/lib/services/api.js");
+
+    workspace.create_directory("src/lib/services");
+
+    let params = json!({
+        "target": {
+            "kind": "file",
+            "filePath": old_path.to_string_lossy()
+        },
+        "destination": new_path.to_string_lossy(),
+        "options": { "dryRun": false }
+    });
+
+    let result = client
+        .call_tool("relocate", params)
+        .await
+        .expect("relocate should succeed");
+
+    let content = result
+        .get("result")
+        .and_then(|r| r.get("content"))
+        .expect("Should have result.content");
+
+    assert_eq!(
+        content.get("status").and_then(|v| v.as_str()),
+        Some("success"),
+        "Move should succeed"
+    );
+
+    // Verify file was moved
+    assert!(!workspace.file_exists("src/lib/api.js"));
+    assert!(workspace.file_exists("src/lib/services/api.js"));
+
+    // Verify imports were updated in BOTH files
+    let page_content = workspace.read_file("src/routes/+page.server.js");
+    assert!(
+        page_content.contains("$lib/services/api"),
+        "+page.server.js should have updated $lib import.\nActual content:\n{}",
+        page_content
+    );
+
+    let other_content = workspace.read_file("src/routes/other.server.js");
+    assert!(
+        other_content.contains("$lib/services/api"),
+        "other.server.js should have updated $lib import (with .js extension).\nActual content:\n{}",
+        other_content
+    );
+
+    println!("✅ SvelteKit exact structure (jsconfig extending .svelte-kit/tsconfig.json) works correctly");
 }

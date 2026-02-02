@@ -550,4 +550,87 @@ mod tests {
             project_root
         ));
     }
+
+    /// Test detection of $lib path alias imports with jsconfig.json that extends .svelte-kit/tsconfig.json
+    #[tokio::test]
+    async fn test_sveltekit_lib_alias_detection() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_root = temp_dir.path();
+
+        // Create SvelteKit-style structure:
+        // .svelte-kit/tsconfig.json (with $lib paths)
+        // jsconfig.json (extends .svelte-kit/tsconfig.json)
+        // src/lib/api.js
+        // src/routes/+page.server.js (imports from $lib/api)
+
+        // Create .svelte-kit directory and tsconfig
+        tokio::fs::create_dir_all(project_root.join(".svelte-kit"))
+            .await
+            .unwrap();
+        tokio::fs::write(
+            project_root.join(".svelte-kit/tsconfig.json"),
+            r#"{
+  "compilerOptions": {
+    "paths": {
+      "$lib": ["../src/lib"],
+      "$lib/*": ["../src/lib/*"]
+    }
+  }
+}"#,
+        )
+        .await
+        .unwrap();
+
+        // Create jsconfig.json that extends .svelte-kit/tsconfig.json
+        tokio::fs::write(
+            project_root.join("jsconfig.json"),
+            r#"{ "extends": "./.svelte-kit/tsconfig.json" }"#,
+        )
+        .await
+        .unwrap();
+
+        // Create src/lib/api.js
+        tokio::fs::create_dir_all(project_root.join("src/lib"))
+            .await
+            .unwrap();
+        tokio::fs::write(
+            project_root.join("src/lib/api.js"),
+            "export function get(path) { return fetch(path); }",
+        )
+        .await
+        .unwrap();
+
+        // Create src/routes/+page.server.js that uses $lib/api
+        tokio::fs::create_dir_all(project_root.join("src/routes"))
+            .await
+            .unwrap();
+        tokio::fs::write(
+            project_root.join("src/routes/+page.server.js"),
+            "import * as api from '$lib/api';\nexport async function load() { return api.get('/data'); }",
+        )
+        .await
+        .unwrap();
+
+        let old_path = project_root.join("src/lib/api.js");
+        let new_path = project_root.join("src/lib/services/api.js");
+
+        let project_files = vec![
+            project_root.join("src/lib/api.js"),
+            project_root.join("src/routes/+page.server.js"),
+        ];
+
+        let detector = TypeScriptReferenceDetector::new();
+        let affected = detector
+            .find_affected_files(&old_path, &new_path, project_root, &project_files)
+            .await;
+
+        assert!(
+            affected.contains(&project_root.join("src/routes/+page.server.js")),
+            "+page.server.js should be detected as affected (uses $lib/api).\n\
+             Affected files: {:?}\n\
+             Expected: {:?}",
+            affected,
+            project_root.join("src/routes/+page.server.js")
+        );
+    }
 }

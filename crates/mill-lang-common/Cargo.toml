@@ -56,3 +56,7 @@ harness = false
 [[bench]]
 name = "lsp_io_bench"
 harness = false
+
+[[bench]]
+name = "io_bench"
+harness = false

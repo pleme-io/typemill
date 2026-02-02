@@ -143,51 +143,50 @@ impl ReferenceUpdater {
         // Try LSP-based detection first (fast path using LSP index)
         // This is O(1) compared to O(N) scanning approach
         let lsp_detected_files = if let Some(finder) = lsp_finder {
-            if is_directory_rename {
-                match finder.find_files_that_import_directory(old_path).await {
-                    Ok(files) => {
-                        tracing::info!(
-                            files_count = files.len(),
-                            old_path = %old_path.display(),
-                            "LSP detected importing files for directory (fast path)"
-                        );
-                        // Cache the LSP results for future queries
+            // Query LSP for importing files (directory or file)
+            let lsp_result = if is_directory_rename {
+                finder.find_files_that_import_directory(old_path).await
+            } else {
+                finder.find_files_that_import(old_path).await
+            };
+
+            match lsp_result {
+                Ok(files) => {
+                    // CRITICAL: Filter LSP results to only include project files
+                    // LSP may return references from node_modules or TypeScript lib files
+                    let filtered_files: Vec<PathBuf> = files
+                        .into_iter()
+                        .filter(|f| f.starts_with(&self.project_root))
+                        .collect();
+
+                    let kind = if is_directory_rename { "directory" } else { "file" };
+                    tracing::info!(
+                        files_count = filtered_files.len(),
+                        old_path = %old_path.display(),
+                        kind = kind,
+                        "LSP detected importing files (fast path, filtered to project)"
+                    );
+
+                    // Cache the filtered LSP results for future queries
+                    if is_directory_rename {
                         self.import_cache.cache_lsp_directory_importers(
                             old_path.to_path_buf(),
-                            files.clone(),
+                            filtered_files.clone(),
                         );
-                        Some(files)
-                    }
-                    Err(e) => {
-                        tracing::debug!(
-                            error = %e,
-                            "LSP detection failed, falling back to scanning"
-                        );
-                        None
-                    }
-                }
-            } else {
-                match finder.find_files_that_import(old_path).await {
-                    Ok(files) => {
-                        tracing::info!(
-                            files_count = files.len(),
-                            old_path = %old_path.display(),
-                            "LSP detected importing files (fast path)"
-                        );
-                        // Cache the LSP results for future queries
+                    } else {
                         self.import_cache.cache_lsp_importers(
                             old_path.to_path_buf(),
-                            files.clone(),
+                            filtered_files.clone(),
                         );
-                        Some(files)
                     }
-                    Err(e) => {
-                        tracing::debug!(
-                            error = %e,
-                            "LSP detection failed, falling back to scanning"
-                        );
-                        None
-                    }
+                    Some(filtered_files)
+                }
+                Err(e) => {
+                    tracing::debug!(
+                        error = %e,
+                        "LSP detection failed, falling back to scanning"
+                    );
+                    None
                 }
             }
         } else {
@@ -230,7 +229,25 @@ impl ReferenceUpdater {
                     }
                 }
             }
-            files
+            // If LSP returned empty for file moves, fall back to plugin-based scanning
+            // LSP may not have indexed all files (e.g., files with path aliases)
+            if files.is_empty() && !is_directory_rename {
+                tracing::info!(
+                    old_path = %old_path.display(),
+                    "LSP returned empty results for file move, falling back to plugin scanning"
+                );
+                self.find_affected_files_for_rename_with_map(
+                    old_path,
+                    new_path,
+                    &project_files,
+                    plugins,
+                    &plugin_map,
+                    merged_rename_info.as_ref(),
+                )
+                .await?
+            } else {
+                files
+            }
         } else if is_package_rename {
             // For package renames, call the detector ONCE with the directory paths
             // This allows the detector to scan for package-level imports
