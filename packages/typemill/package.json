@@ -33,7 +33,8 @@
     "package.json"
   ],
   "scripts": {
-    "postinstall": "node scripts/postinstall.js"
+    "postinstall": "node scripts/postinstall.js",
+    "release": "node tasks/release.js"
   },
   "dependencies": {
     "tar": "^6.2.0"
