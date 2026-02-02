@@ -421,15 +421,31 @@ pub fn rewrite_imports_for_move_with_context(
 
     // Step 2: Handle relative path imports (existing logic)
     let old_import = calculate_relative_import(importing_file, old_path);
-    let new_import = calculate_relative_import(importing_file, new_path);
+    let new_import_relative = calculate_relative_import(importing_file, new_path);
+
+    // Check if the new path falls under an alias pattern - if so, prefer the alias
+    let new_import = if let (Some(resolver), Some(root)) = (path_alias_resolver, project_root) {
+        if let Some(alias) = resolver.path_to_alias(new_path, importing_file, root) {
+            debug!(
+                old_relative = %old_import,
+                new_alias = %alias,
+                "Converting relative import to path alias"
+            );
+            alias
+        } else {
+            new_import_relative.clone()
+        }
+    } else {
+        new_import_relative.clone()
+    };
 
     if old_import != new_import {
         // TypeScript ESM commonly uses .js extensions in imports even for .ts files
         // We need to check for imports both with and without extensions
         let import_variants = vec![
             (old_import.clone(), new_import.clone()), // No extension: ./utils/timer
-            (format!("{}.js", old_import), format!("{}.js", new_import)), // .js extension: ./utils/timer.js
-            (format!("{}.ts", old_import), format!("{}.ts", new_import)), // .ts extension (rare but possible)
+            (format!("{}.js", old_import), format!("{}.js", new_import_relative)), // .js extension: ./utils/timer.js
+            (format!("{}.ts", old_import), format!("{}.ts", new_import_relative)), // .ts extension (rare but possible)
         ];
 
         for (old_variant, new_variant) in import_variants {
