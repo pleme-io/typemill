@@ -133,6 +133,11 @@ pub mod test_real_project_python;
 #[cfg(test)]
 pub mod test_refactoring_matrix;
 
+// LSP vs AST performance comparison tests
+// Run: cargo test -p e2e test_lsp_ast -- --ignored --nocapture
+#[cfg(test)]
+pub mod test_lsp_ast_performance;
+
 // SvelteKit path alias tests ($lib, @/ patterns)
 #[cfg(test)]
 pub mod test_sveltekit_path_aliases;
