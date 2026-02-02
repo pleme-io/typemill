@@ -1,124 +1,28 @@
 # TypeMill Demo
 
-## Recording Tools
+## Recording
 
-### Option 1: VHS (Recommended)
-Generates deterministic GIFs from a script.
+The demo was recorded using asciinema and converted to SVG:
 
 ```bash
-# Install VHS
-brew install charmbracelet/tap/vhs
-
 # Record
-vhs demo.tape
+TERM=xterm-256color asciinema rec demo.cast -c "./record.sh"
+
+# Convert to animated SVG
+npm install -g svg-term-cli
+svg-term --in demo.cast --out demo.svg --window --no-cursor
 ```
 
-### Option 2: asciinema
-Records live terminal sessions.
+## Files
 
-```bash
-# Install asciinema
-pip install asciinema
+- `record.sh` - Demo script showing TypeMill commands
+- `demo.cast` - asciinema recording
+- `demo.svg` - Animated SVG for README
 
-# Record interactively
-asciinema rec demo.cast
+## Demo Content
 
-# Or run the script
-asciinema rec demo.cast -c "./record.sh"
-
-# Convert to GIF (optional)
-npm install -g asciicast2gif
-asciicast2gif demo.cast demo.gif
-```
-
-## Demo Script
-
-The `record.sh` script demonstrates:
-1. Version check
-2. Available tools list
-3. LSP server status
-4. Live rename operation with dry-run
-
-## Real Output Examples
-
-### `mill status`
-```
-TypeMill Status
-
-Server Status
-  Not running
-  Start with: mill start
-
-Configuration
-  Configuration loaded
-  Path: .typemill/config.json
-  Log level: info
-  Log format: Pretty
-
-LSP Servers
-✅ typescript-language-server: Extensions: ts, tsx, js, jsx
-✅ pylsp: Extensions: py
-✅ rust-analyzer: Extensions: rs
-
-Status check complete
-```
-
-### `mill tools`
-```
-Available MCP Tools
-
-Tool Name           Handler
-------------------  ----------------
-inspect_code        InspectHandler
-prune               PruneHandler
-refactor            RefactorHandler
-relocate            RelocateHandler
-rename_all          RenameAllHandler
-search_code         SearchHandler
-workspace           WorkspaceHandler
-
-Public tools: 7 across 7 handlers
-```
-
-### Rename Operation (dry-run)
-
-**Before:**
-```
-src/
-├── utils.ts      ← File to rename
-└── app.ts        ← Imports from utils.ts
-```
-
-**Command:**
-```bash
-mill tool rename_all '{
-  "target": {"kind": "file", "filePath": "src/utils.ts"},
-  "newName": "src/helpers.ts",
-  "options": {"dryRun": true}
-}'
-```
-
-**Output:**
-```json
-{
-  "status": "preview",
-  "summary": "Preview: 2 file(s) will be affected",
-  "changes": {
-    "rename": "src/utils.ts → src/helpers.ts",
-    "importUpdates": [
-      {
-        "file": "src/app.ts",
-        "before": "import { formatDate } from './utils'",
-        "after": "import { formatDate } from './helpers'"
-      }
-    ]
-  }
-}
-```
-
-**After (when dryRun: false):**
-```
-src/
-├── helpers.ts    ← Renamed!
-└── app.ts        ← Import automatically updated!
-```
+The script demonstrates:
+1. Version check (`npx @goobits/typemill --version`)
+2. Available tools list (`npx @goobits/typemill tools`)
+3. LSP server status (`npx @goobits/typemill status`)
+4. Rename preview with dry-run mode
