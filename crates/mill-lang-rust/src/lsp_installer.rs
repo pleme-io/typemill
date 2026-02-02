@@ -104,17 +104,19 @@ impl LspInstaller for RustLspInstaller {
             .map_err(|e| PluginApiError::internal(format!("Download failed: {}", e)))?;
 
         // Verify checksum
-        verify_checksum(&download_path, &checksum).map_err(|e| {
-            PluginApiError::internal(format!("Checksum verification failed: {}", e))
-        })?;
+        verify_checksum(&download_path, &checksum)
+            .await
+            .map_err(|e| PluginApiError::internal(format!("Checksum verification failed: {}", e)))?;
 
         // Decompress
         let binary_path = cache_dir.join("rust-analyzer");
         decompress_gzip(&download_path, &binary_path)
+            .await
             .map_err(|e| PluginApiError::internal(format!("Decompression failed: {}", e)))?;
 
         // Make executable
         make_executable(&binary_path)
+            .await
             .map_err(|e| PluginApiError::internal(format!("Failed to make executable: {}", e)))?;
 
         // Clean up compressed file

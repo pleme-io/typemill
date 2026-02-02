@@ -159,7 +159,7 @@ pub async fn download_file(url: &str, dest: &Path) -> LspResult<()> {
 }
 
 /// Verify file checksum
-pub fn verify_checksum(file_path: &Path, expected_checksum: &str) -> LspResult<()> {
+pub async fn verify_checksum(file_path: &Path, expected_checksum: &str) -> LspResult<()> {
     // Check env var bypass
     if env::var("TYPEMILL_SKIP_CHECKSUM_VERIFICATION")
         .map(|v| v == "1" || v.to_lowercase() == "true")
@@ -178,7 +178,7 @@ pub fn verify_checksum(file_path: &Path, expected_checksum: &str) -> LspResult<(
     }
 
     debug!("Verifying checksum for {:?}", file_path);
-    let actual = sha256(file_path)?;
+    let actual = sha256(file_path).await?;
 
     if actual != expected_checksum {
         return Err(LspError::ChecksumMismatch {
@@ -192,48 +192,60 @@ pub fn verify_checksum(file_path: &Path, expected_checksum: &str) -> LspResult<(
 }
 
 /// Calculate SHA256 checksum of a file
-pub fn sha256(path: &Path) -> LspResult<String> {
-    let bytes = fs::read(path)?;
-    let hash = Sha256::digest(&bytes);
-    Ok(format!("{:x}", hash))
+pub async fn sha256(path: &Path) -> LspResult<String> {
+    let path = path.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let bytes = fs::read(&path)?;
+        let hash = Sha256::digest(&bytes);
+        Ok(format!("{:x}", hash))
+    })
+    .await
+    .map_err(|e| LspError::InstallationFailed(format!("Task failed: {}", e)))?
 }
 
 /// Decompress a gzip file
-pub fn decompress_gzip(src: &Path, dest: &Path) -> LspResult<()> {
-    use flate2::read::GzDecoder;
-    use std::io::copy;
+pub async fn decompress_gzip(src: &Path, dest: &Path) -> LspResult<()> {
+    let src = src.to_path_buf();
+    let dest = dest.to_path_buf();
 
-    debug!("Decompressing {:?} to {:?}", src, dest);
+    tokio::task::spawn_blocking(move || {
+        use flate2::read::GzDecoder;
+        use std::io::copy;
 
-    let file = fs::File::open(src)?;
-    let mut decoder = GzDecoder::new(file);
+        debug!("Decompressing {:?} to {:?}", src, dest);
 
-    // Create parent directory
-    if let Some(parent) = dest.parent() {
-        fs::create_dir_all(parent)?;
-    }
+        let file = fs::File::open(&src)?;
+        let mut decoder = GzDecoder::new(file);
 
-    let mut out_file = fs::File::create(dest)?;
-    copy(&mut decoder, &mut out_file)?;
+        // Create parent directory
+        if let Some(parent) = dest.parent() {
+            fs::create_dir_all(parent)?;
+        }
 
-    debug!("Decompressed to {:?}", dest);
-    Ok(())
+        let mut out_file = fs::File::create(&dest)?;
+        copy(&mut decoder, &mut out_file)?;
+
+        debug!("Decompressed to {:?}", dest);
+        Ok(())
+    })
+    .await
+    .map_err(|e| LspError::InstallationFailed(format!("Task failed: {}", e)))?
 }
 
 /// Make a file executable (Unix only)
 #[cfg(unix)]
-pub fn make_executable(path: &Path) -> LspResult<()> {
+pub async fn make_executable(path: &Path) -> LspResult<()> {
     use std::os::unix::fs::PermissionsExt;
 
     debug!("Making {:?} executable", path);
-    let mut perms = fs::metadata(path)?.permissions();
+    let mut perms = tokio::fs::metadata(path).await?.permissions();
     perms.set_mode(0o755);
-    fs::set_permissions(path, perms)?;
+    tokio::fs::set_permissions(path, perms).await?;
     Ok(())
 }
 
 #[cfg(not(unix))]
-pub fn make_executable(_path: &Path) -> LspResult<()> {
+pub async fn make_executable(_path: &Path) -> LspResult<()> {
     // No-op on non-Unix platforms
     Ok(())
 }
@@ -390,20 +402,34 @@ mod tests {
 
     #[test]
     fn test_checksum_bypass() {
-        // Test that env var bypass works
-        env::set_var("TYPEMILL_SKIP_CHECKSUM_VERIFICATION", "1");
-        let result = verify_checksum(Path::new("/nonexistent"), "placeholder");
-        env::remove_var("TYPEMILL_SKIP_CHECKSUM_VERIFICATION");
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
 
-        // Should succeed due to bypass
-        assert!(result.is_ok());
+        rt.block_on(async {
+            // Test that env var bypass works
+            env::set_var("TYPEMILL_SKIP_CHECKSUM_VERIFICATION", "1");
+            let result = verify_checksum(Path::new("/nonexistent"), "placeholder").await;
+            env::remove_var("TYPEMILL_SKIP_CHECKSUM_VERIFICATION");
+
+            // Should succeed due to bypass
+            assert!(result.is_ok());
+        });
     }
 
     #[test]
     fn test_placeholder_checksum() {
-        // Test that placeholder checksums pass with warning
-        let result = verify_checksum(Path::new("/nonexistent"), "placeholder_abc123");
-        // Should succeed with warning
-        assert!(result.is_ok());
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        rt.block_on(async {
+            // Test that placeholder checksums pass with warning
+            let result = verify_checksum(Path::new("/nonexistent"), "placeholder_abc123").await;
+            // Should succeed with warning
+            assert!(result.is_ok());
+        });
     }
 }
