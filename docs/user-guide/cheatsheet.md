@@ -351,7 +351,7 @@ mill tool rename_all '{"target": {"kind": "file", "filePath": "old.ts"}, "newNam
 
 **Example:**
 ```bash
-mill tool workspace '{"action": "create_package", "name": "my-crate", "packageType": "rust_library", "path": "crates/my-crate", "options": {"dryRun": false}}'
+mill tool workspace '{"action": "create_package", "params": {"name": "my-crate", "packageType": "library", "packagePath": "crates/my-crate"}, "options": {"dryRun": false}}'
 ```
 
 ---

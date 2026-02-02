@@ -512,15 +512,17 @@ pub struct ToolHandlerContext {
 }
 ```
 
-**Current Handlers** (Magnificent Seven API):
-- **CodeHandler** (2 public tools): `inspect_code`, `search_code`
-- **RefactorHandler** (4 public tools): `rename_all`, `relocate`, `prune`, `refactor`
-- **WorkspaceHandler** (1 public tool): `workspace`
+**Current Handlers** (Magnificent Seven API - 7 public tools):
+- **InspectHandler**: `inspect_code` - unified code intelligence
+- **SearchHandler**: `search_code` - symbol search
+- **RenameAllHandler**: `rename_all` - rename files, directories, symbols
+- **RelocateHandler**: `relocate` - move files, directories, symbols
+- **PruneHandler**: `prune` - delete with cleanup
+- **RefactorHandler**: `refactor` - extract/inline operations
+- **WorkspaceHandler**: `workspace` - workspace operations (multiple actions)
 
 **Internal Handlers**:
-- **SystemHandler**: health_check (use `workspace` with `action: "verify_project"` for public API)
-- **LifecycleHandler**: file open/save/close notifications
-- **FileOpsHandler**: internal file operations
+- **SystemHandler**: health_check (internal - use `workspace` with `action: "verify_project"` instead)
 
 ---
 
@@ -619,7 +621,7 @@ pub struct AppState {
 - **[README.md](README.md)** - Architecture navigation hub
 - **[specifications.md](specifications.md)** - API contracts, tool visibility
 - **[lang_common_api.md](lang_common_api.md)** - Language plugin development
-- **[internal_tools.md](internal_tools.md)** - Internal tool reference
+- **[public_api.md](public_api.md)** - Public API reference (Magnificent Seven)
 
 ### Project Documentation
 - **[../../CLAUDE.md](../../CLAUDE.md)** - AI agent quick reference

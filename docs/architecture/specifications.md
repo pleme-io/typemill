@@ -20,19 +20,16 @@ This document provides authoritative specifications for TypeMill's public and in
 
 ```mermaid
 graph TB
-    subgraph "Public API - 17 Tools"
-        Nav[Navigation 8<br/>Point Queries]
-        Ref[Refactoring 5<br/>dryRun API]
-        Work[Workspace 3<br/>Operations]
-        Sys[System 1<br/>Health]
+    subgraph "Public API - 7 Tools (Magnificent Seven)"
+        Nav[Code Intelligence 2<br/>inspect_code, search_code]
+        Ref[Refactoring 4<br/>rename_all, relocate, prune, refactor]
+        Work[Workspace 1<br/>workspace with actions]
     end
 
-    subgraph "Internal API - 20 Tools"
-        Life[Lifecycle 3<br/>Event Hooks]
-        IntEdit[Internal Edit 1<br/>Backend]
-        IntWS[Internal WS 1<br/>Backend]
-        IntInt[Intelligence 2<br/>LSP]
-        Legacy[Legacy 13<br/>Compatibility]
+    subgraph "Internal API"
+        Life[Lifecycle<br/>Event Hooks]
+        IntEdit[Internal Edit<br/>Backend]
+        IntWS[Internal WS<br/>Backend]
     end
 
     subgraph "Clients"
@@ -49,23 +46,18 @@ graph TB
     MCP --> Nav
     MCP --> Ref
     MCP --> Work
-    MCP --> Sys
 
     CLI --> Nav
     CLI --> Ref
     CLI --> Work
-    CLI --> Sys
 
     Handler --> Life
     Handler --> IntEdit
     Handler --> IntWS
-    Handler --> IntInt
-    Service --> Legacy
 
     Nav --> Handler
     Ref --> Handler
     Work --> Handler
-    Sys --> Handler
 
     Handler --> Service
     Service --> Plugin
@@ -73,12 +65,9 @@ graph TB
     style Nav fill:#87CEEB
     style Ref fill:#FFB6C1
     style Work fill:#FFD700
-    style Sys fill:#DDA0DD
     style Life fill:#D3D3D3
     style IntEdit fill:#D3D3D3
     style IntWS fill:#D3D3D3
-    style IntInt fill:#D3D3D3
-    style Legacy fill:#D3D3D3
     style MCP fill:#4ECDC4
     style CLI fill:#4ECDC4
 ```

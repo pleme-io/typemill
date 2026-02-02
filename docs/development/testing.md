@@ -385,30 +385,19 @@ async fn test_integration_manifest_dependencies() {
 
 ### Current Plugin Status
 
-All 13 language plugins meet baseline standards:
+Language plugins with full support:
 
-| Plugin | Tests | Integration | Edge Cases | Performance | Status |
-|--------|-------|-------------|------------|-------------|--------|
-| Rust | 29 | 0 (0%) | 8 (28%) | 2 | ✅ |
-| TypeScript | 15 | 2 (13%) | 8 (53%) | 2 | ✅ |
-| Python | 17 | 3 (18%) | 0 (0%) | 2 | ✅ |
-| Go | 33 | 3 (9%) | 0 (0%) | 3 | ✅ |
-| C# | 18 | 3 (17%) | 0 (0%) | 2 | ✅ |
-| C++ | 17 | 2 (12%) | 8 (47%) | 2 | ✅ |
-| C | 12 | 2 (17%) | 2 (17%) | 1 | ✅ |
-| Java | 15 | 1 (7%) | 2 (13%) | 2 | ⚠️ (4 pre-existing failures) |
-| Swift | 63 | 5 (8%) | 0 (0%) | 2 | ✅ |
-| Markdown | 6 | 1 (17%) | 0 (0%) | 0 | ✅ |
-| TOML | 11 | 2 (18%) | 2 (18%) | 0 | ✅ |
-| YAML | 11 | 2 (18%) | 1 (9%) | 0 | ✅ |
-| Gitignore | 6 | 2 (33%) | 1 (17%) | 0 | ✅ |
+| Plugin | Purpose | Status |
+|--------|---------|--------|
+| Rust | Full LSP support | ✅ |
+| TypeScript | Full LSP support | ✅ |
+| Python | Full LSP support | ✅ |
+| Markdown | Config file support | ✅ |
+| TOML | Config file support | ✅ |
+| YAML | Config file support | ✅ |
+| Gitignore | Config file support | ✅ |
 
-**Overall Summary**:
-- Total Tests: 253
-- Integration Tests: 28 (11% coverage)
-- Edge Case Tests: 32 (13% coverage)
-- Performance Tests: 18
-- Success Rate: 12/13 plugins ✅
+**Note**: Language plugins are located in `languages/mill-lang-*` directory.
 
 ### Adding a New Language Plugin
 

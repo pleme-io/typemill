@@ -39,18 +39,19 @@ Returns an `EditPlan` (preview) or `ExecutionResult` (applied).
   "name": "refactor",
   "arguments": {
     "action": "extract",
-    "kind": "function",
-    "source": {
+    "params": {
       "filePath": "src/app.ts",
-      "startLine": 9,
-      "startCharacter": 0,
-      "endLine": 19,
-      "endCharacter": 0
+      "kind": "function",
+      "range": {
+        "startLine": 9,
+        "startCharacter": 0,
+        "endLine": 19,
+        "endCharacter": 0
+      },
+      "name": "extractedFn"
     },
-    "name": "extractedFn",
     "options": {
-      "dryRun": true,
-      "visibility": "private"
+      "dryRun": true
     }
   }
 }
@@ -64,17 +65,15 @@ Returns an `EditPlan` (preview) or `ExecutionResult` (applied).
   "name": "refactor",
   "arguments": {
     "action": "inline",
-    "kind": "variable",
-    "target": {
+    "params": {
       "filePath": "src/app.ts",
-      "position": {
-        "line": 15,
-        "character": 10
-      }
+      "kind": "variable",
+      "line": 15,
+      "character": 10
     },
     "options": {
       "dryRun": true,
-      "inline_all": false
+      "inlineAll": false
     }
   }
 }
@@ -84,5 +83,5 @@ Returns an `EditPlan` (preview) or `ExecutionResult` (applied).
 
 - **Dry Run**: Defaults to `true`. Use `options: { "dryRun": false }` to apply changes.
 - **Coordinates**: All line/character coordinates are **0-based**.
-- **Visibility**: For extraction, `options.visibility` defaults to `"private"`.
+- **Params wrapper**: All action-specific parameters must be inside a `params` object.
 - **Validation**: Ensures extracted code is valid and doesn't break references.

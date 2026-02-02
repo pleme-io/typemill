@@ -80,10 +80,7 @@ mill setup --interactive
   },
   "server": {
     "host": "127.0.0.1",
-    "port": 3000,
-    "auth": {
-      "enabled": false
-    }
+    "port": 3040
   }
 }
 ```
@@ -147,10 +144,9 @@ You can configure multiple instances of the same LSP for different directories:
 ```bash
 # Server host and port
 export TYPEMILL__SERVER__HOST="127.0.0.1"
-export TYPEMILL__SERVER__PORT=3000
+export TYPEMILL__SERVER__PORT=3040
 
-# Authentication
-export TYPEMILL__SERVER__AUTH__ENABLED=true
+# Authentication (JWT secret)
 export TYPEMILL__SERVER__AUTH__JWT_SECRET="your-secret-key"
 ```
 ### Cache Configuration
@@ -310,10 +306,12 @@ mill start 2>&1 | tee logs.txt
 {
   "server": {
     "host": "127.0.0.1",
-    "port": 3000,
+    "port": 3040,
     "auth": {
-      "enabled": true,
-      "jwtSecret": "your-secret-key"
+      "jwtSecret": "your-secret-key",
+      "jwtExpirySeconds": 86400,
+      "jwtIssuer": "mill",
+      "jwtAudience": "codeflow-clients"
     }
   }
 }
@@ -338,7 +336,7 @@ mill serve
 {
   "server": {
     "host": "127.0.0.1",
-    "port": 3000
+    "port": 3040
   }
 }
 ```
@@ -347,7 +345,7 @@ mill serve
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 3000,
+    "port": 3040,
     "auth": {
       "enabled": true
     }
@@ -525,7 +523,7 @@ mill serve
   },
   "server": {
     "host": "0.0.0.0",
-    "port": 3000,
+    "port": 3040,
     "auth": {
       "enabled": true
     }
