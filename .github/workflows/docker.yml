@@ -1,10 +1,7 @@
 name: Docker
 
 on:
-  workflow_dispatch:  # Manual trigger only
-  push:
-    tags:
-      - 'v*.*.*'  # Still auto-build on version tags
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io

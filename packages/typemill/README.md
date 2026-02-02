@@ -142,6 +142,7 @@ All refactoring tools support **dry-run mode** (default) for safe previews.
 ```bash
 npx @goobits/typemill start
 ```
+Supported platforms for the npm package build: macOS (arm64) and Linux (arm64).
 
 ### Option 2: Global Install
 ```bash
@@ -189,4 +190,3 @@ Add to Claude Desktop (`~/.config/claude/claude_desktop_config.json`):
 ## License
 
 MIT
-

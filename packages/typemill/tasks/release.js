@@ -18,11 +18,17 @@ const { spawnSync } = require('child_process')
 
 const allowedBumps = new Set(['patch', 'minor', 'major', 'premajor', 'preminor', 'prepatch', 'prerelease'])
 const bump = process.argv[2] || 'patch'
+const targetList = process.env.TYPEMILL_TARGETS || 'aarch64-apple-darwin,aarch64-unknown-linux-gnu'
+const targets = targetList
+	.split(',')
+	.map((entry) => entry.trim())
+	.filter(Boolean)
 
 const packageDir = path.join(__dirname, '..')
 const repoRoot = path.join(packageDir, '..', '..')
 const packageJsonPath = path.join(packageDir, 'package.json')
 const cargoTomlPath = path.join(repoRoot, 'Cargo.toml')
+const binaryName = process.platform === 'win32' ? 'mill.exe' : 'mill'
 
 if (!allowedBumps.has(bump)) {
 	console.error(`Unknown bump type: ${bump}`)
@@ -63,6 +69,25 @@ const writeCargoVersion = (version) => {
 	let content = fs.readFileSync(cargoTomlPath, 'utf8')
 	content = content.replace(/^(version\s*=\s*)"[^"]+"/m, `$1"${version}"`)
 	fs.writeFileSync(cargoTomlPath, content)
+}
+
+const buildAndStageBinary = (target) => {
+	run('cargo', ['build', '--release', '--target', target])
+	const sourceBinary = path.join(repoRoot, 'target', target, 'release', binaryName)
+	const destDir = path.join(packageDir, 'bin', target)
+	const destBinary = path.join(destDir, binaryName)
+
+	if (!fs.existsSync(sourceBinary)) {
+		console.error(`❌ Missing binary for target ${target}: ${sourceBinary}`)
+		process.exit(1)
+	}
+
+	fs.mkdirSync(destDir, { recursive: true })
+	fs.copyFileSync(sourceBinary, destBinary)
+
+	if (process.platform !== 'win32') {
+		fs.chmodSync(destBinary, 0o755)
+	}
 }
 
 const repoDirty = () => {
@@ -129,6 +154,15 @@ const main = () => {
 		console.error('❌ Working tree is dirty. Commit or stash changes before releasing.')
 		process.exit(1)
 	}
+
+	if (targets.length === 0) {
+		console.error('❌ No targets specified. Set TYPEMILL_TARGETS env var to a comma-separated list.')
+		process.exit(1)
+	}
+
+	console.log(`Building binaries for: ${targets.join(', ')}`)
+	targets.forEach(buildAndStageBinary)
+	console.log('✅ Built and staged binaries')
 
 	// Read current versions
 	const pkg = readPackageJson()

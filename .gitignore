@@ -79,6 +79,10 @@ mcp/*/storage.json
 .typemill/config.json
 .typemill/tls/
 
+# Typemill packaged binaries (generated during release)
+packages/typemill/bin/*/mill
+packages/typemill/bin/*/mill.exe
+
 # Spacebase local database
 .spacebase/
 

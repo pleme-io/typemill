@@ -33,25 +33,16 @@
     "package.json"
   ],
   "scripts": {
-    "postinstall": "node scripts/postinstall.js",
     "release": "node tasks/release.js"
-  },
-  "dependencies": {
-    "tar": "^6.2.0"
-  },
-  "optionalDependencies": {
-    "adm-zip": "^0.5.10"
   },
   "engines": {
     "node": ">=16"
   },
   "os": [
     "darwin",
-    "linux",
-    "win32"
+    "linux"
   ],
   "cpu": [
-    "x64",
     "arm64"
   ]
 }
