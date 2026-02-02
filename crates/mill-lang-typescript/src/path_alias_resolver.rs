@@ -731,20 +731,21 @@ fn load_aliases_from_config_runtime(
     kind: ConfigKind,
 ) -> Option<IndexMap<String, Vec<PathBuf>>> {
     let ext = config_path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    if ext == "ts" {
-        return None;
-    }
 
     let absolute = config_path.canonicalize().ok()?;
     let file_arg = absolute.to_string_lossy().to_string();
 
     let output = if ext == "mjs" {
-        run_node_alias_script(&file_arg, kind, NodeMode::Esm)
+        run_node_alias_script(&file_arg, kind, NodeMode::Esm, config_dir)
     } else if ext == "cjs" {
-        run_node_alias_script(&file_arg, kind, NodeMode::Cjs)
+        run_node_alias_script(&file_arg, kind, NodeMode::Cjs, config_dir)
+    } else if ext == "ts" {
+        run_node_alias_script(&file_arg, kind, NodeMode::EsmTsx, config_dir)
+            .or_else(|| run_node_alias_script(&file_arg, kind, NodeMode::EsmTsxNearest, config_dir))
+            .or_else(|| run_node_alias_script(&file_arg, kind, NodeMode::NpxTsx, config_dir))
     } else {
-        run_node_alias_script(&file_arg, kind, NodeMode::Esm)
-            .or_else(|| run_node_alias_script(&file_arg, kind, NodeMode::Cjs))
+        run_node_alias_script(&file_arg, kind, NodeMode::Esm, config_dir)
+            .or_else(|| run_node_alias_script(&file_arg, kind, NodeMode::Cjs, config_dir))
     }?;
 
     let alias_values: Vec<(String, String)> = parse_alias_json(&output)?;
@@ -767,19 +768,23 @@ fn load_aliases_from_config_runtime(
 enum NodeMode {
     Esm,
     Cjs,
+    EsmTsx,
+    EsmTsxNearest,
+    NpxTsx,
 }
 
 fn run_node_alias_script(
     file_arg: &str,
     kind: ConfigKind,
     mode: NodeMode,
+    config_dir: &Path,
 ) -> Option<String> {
     let kind_str = match kind {
         ConfigKind::Svelte => "svelte",
         ConfigKind::Vite => "vite",
     };
 
-    let (arg0, arg1) = match mode {
+    let (arg0, arg1, use_npx, cwd_override) = match mode {
         NodeMode::Esm => (
             "--input-type=module",
             r#"import { pathToFileURL } from "url";
@@ -808,6 +813,8 @@ if (Array.isArray(alias)) {
   }
 }
 process.stdout.write(JSON.stringify(normalized));"#,
+            false,
+            None,
         ),
         NodeMode::Cjs => (
             "",
@@ -836,20 +843,123 @@ if (Array.isArray(alias)) {
   }
 }
 process.stdout.write(JSON.stringify(normalized));"#,
+            false,
+            None,
+        ),
+        NodeMode::EsmTsx => (
+            "--loader",
+            "tsx",
+            false,
+            None,
+        ),
+        NodeMode::EsmTsxNearest => (
+            "--loader",
+            "tsx",
+            false,
+            find_nearest_node_modules(config_dir),
+        ),
+        NodeMode::NpxTsx => (
+            "",
+            "",
+            true,
+            None,
         ),
     };
 
-    let mut cmd = Command::new("node");
-    if !arg0.is_empty() {
-        cmd.arg(arg0);
+    let output = if use_npx {
+        let script = r#"import { pathToFileURL } from "url";
+const file = process.argv[1];
+const kind = process.argv[2];
+const mod = await import(pathToFileURL(file).href);
+const cfg = mod?.default ?? mod;
+const resolved = typeof cfg === "function" ? await cfg({ command: "build", mode: "production" }) : cfg;
+const alias = kind === "svelte" ? resolved?.kit?.alias : resolved?.resolve?.alias;
+const normalized = [];
+const pushEntry = (find, replacement) => {
+  if (!find || !replacement) return;
+  if (typeof replacement === "string") normalized.push([find, replacement]);
+  else if (Array.isArray(replacement)) replacement.forEach(r => { if (typeof r === "string") normalized.push([find, r]); });
+};
+if (Array.isArray(alias)) {
+  alias.forEach(entry => {
+    if (!entry) return;
+    if (typeof entry.find === "string" && typeof entry.replacement === "string") {
+      pushEntry(entry.find, entry.replacement);
     }
-    let output = cmd
-        .arg("-e")
-        .arg(arg1)
-        .arg(file_arg)
-        .arg(kind_str)
-        .output()
-        .ok()?;
+  });
+} else if (alias && typeof alias === "object") {
+  for (const [key, value] of Object.entries(alias)) {
+    pushEntry(key, value);
+  }
+}
+process.stdout.write(JSON.stringify(normalized));"#;
+
+        let mut cmd = Command::new("npx");
+        cmd.arg("--yes")
+            .arg("tsx")
+            .arg("-e")
+            .arg(script)
+            .arg(file_arg)
+            .arg(kind_str)
+            .current_dir(config_dir);
+        cmd.output().ok()?
+    } else if matches!(mode, NodeMode::EsmTsx | NodeMode::EsmTsxNearest) {
+        let script = r#"import { pathToFileURL } from "url";
+const file = process.argv[1];
+const kind = process.argv[2];
+const mod = await import(pathToFileURL(file).href);
+const cfg = mod?.default ?? mod;
+const resolved = typeof cfg === "function" ? await cfg({ command: "build", mode: "production" }) : cfg;
+const alias = kind === "svelte" ? resolved?.kit?.alias : resolved?.resolve?.alias;
+const normalized = [];
+const pushEntry = (find, replacement) => {
+  if (!find || !replacement) return;
+  if (typeof replacement === "string") normalized.push([find, replacement]);
+  else if (Array.isArray(replacement)) replacement.forEach(r => { if (typeof r === "string") normalized.push([find, r]); });
+};
+if (Array.isArray(alias)) {
+  alias.forEach(entry => {
+    if (!entry) return;
+    if (typeof entry.find === "string" && typeof entry.replacement === "string") {
+      pushEntry(entry.find, entry.replacement);
+    }
+  });
+} else if (alias && typeof alias === "object") {
+  for (const [key, value] of Object.entries(alias)) {
+    pushEntry(key, value);
+  }
+}
+process.stdout.write(JSON.stringify(normalized));"#;
+
+        let mut cmd = Command::new("node");
+        cmd.arg(arg0)
+            .arg(arg1)
+            .arg("--input-type=module")
+            .arg("-e")
+            .arg(script)
+            .arg(file_arg)
+            .arg(kind_str);
+        if let Some(cwd) = cwd_override.as_ref() {
+            cmd.current_dir(cwd);
+        } else {
+            cmd.current_dir(config_dir);
+        }
+        cmd.output().ok()?
+    } else {
+        let mut cmd = Command::new("node");
+        if !arg0.is_empty() {
+            cmd.arg(arg0);
+        }
+        let output = cmd
+            .arg("-e")
+            .arg(arg1)
+            .arg(file_arg)
+            .arg(kind_str)
+            .current_dir(config_dir)
+            .output()
+            .ok()?;
+        output
+    };
 
     if !output.status.success() {
         return None;
@@ -861,6 +971,21 @@ process.stdout.write(JSON.stringify(normalized));"#,
     } else {
         Some(stdout)
     }
+}
+
+fn find_nearest_node_modules(start_dir: &Path) -> Option<PathBuf> {
+    let mut current = start_dir;
+    loop {
+        let candidate = current.join("node_modules").join("tsx");
+        if candidate.exists() {
+            return Some(current.to_path_buf());
+        }
+        match current.parent() {
+            Some(parent) => current = parent,
+            None => break,
+        }
+    }
+    None
 }
 
 fn parse_alias_json(json_str: &str) -> Option<Vec<(String, String)>> {
