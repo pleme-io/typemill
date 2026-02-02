@@ -49,6 +49,8 @@ pub struct AppState {
     pub workspace_manager: Arc<WorkspaceManager>,
     /// Language plugin registry for dynamic language support
     pub language_plugins: crate::LanguagePluginRegistry,
+    /// LSP usage mode
+    pub lsp_mode: mill_config::config::LspMode,
 }
 
 impl AppState {
@@ -627,6 +629,7 @@ pub async fn create_test_dispatcher() -> PluginDispatcher {
         start_time: std::time::Instant::now(),
         workspace_manager,
         language_plugins: crate::LanguagePluginRegistry::from_registry(plugin_registry),
+        lsp_mode: config.lsp.mode,
     });
 
     PluginDispatcher::new(app_state, plugin_manager)
@@ -682,6 +685,7 @@ mod tests {
             start_time: std::time::Instant::now(),
             workspace_manager,
             language_plugins,
+            lsp_mode: config.lsp.mode,
         })
     }
 

@@ -122,6 +122,7 @@ pub async fn bootstrap(options: ServerOptions) -> ServerResult<ServerHandle> {
         start_time: std::time::Instant::now(),
         workspace_manager,
         language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        lsp_mode: options.config.lsp.mode,
     });
 
     // Create dispatcher
@@ -232,6 +233,7 @@ pub async fn create_dispatcher_with_workspace(
         start_time: std::time::Instant::now(),
         workspace_manager,
         language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        lsp_mode: config.lsp.mode,
     });
 
     // Create and return dispatcher
