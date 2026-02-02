@@ -9,3 +9,7 @@
 ## 2024-05-30 - SearchHandler File Scanning Allocations
 **Learning:** `SearchHandler::find_representative_files` and `find_files_recursive` were allocating `PathBuf` for every file scanned using `entry.path()`, even if the file was excluded or didn't match the extension. `DirEntry::file_name()` is much cheaper (allocates only the filename) and avoids constructing the full path.
 **Action:** Use `entry.file_name()` for filtering files by name or extension during directory traversal, and only call `entry.path()` when a match is found or full path is needed.
+
+## 2024-05-31 - HashSet Insert vs Contains
+**Learning:** In `convert_find_replace_response`, attempting to optimize `HashSet<String>::insert` by checking `contains(&str)` first (to avoid `to_string()` allocation) resulted in a 2x slowdown in debug builds (1.2s -> 2.3s). This suggests that for `HashSet<String>`, the cost of hashing and probing twice (once for `contains`, once for `insert`) outweighs the cost of allocating a short string and hashing once, at least in some environments or for small strings.
+**Action:** Be cautious when optimizing `HashSet::insert` with `contains`. Benchmark first. `insert` already handles existence checks efficiently.

@@ -688,10 +688,14 @@ impl WorkspaceHandler {
                             .collect();
 
                         let mut members_after = members_before.clone();
+                        // Use HashSet for O(1) lookup
+                        let mut members_set: std::collections::HashSet<_> = members_before.iter().collect();
+
                         let mut added = 0;
                         for member in &new_members {
-                            if !members_after.contains(member) {
+                            if !members_set.contains(member) {
                                 members_after.push(member.clone());
+                                members_set.insert(member);
                                 added += 1;
                             }
                         }
@@ -715,7 +719,8 @@ impl WorkspaceHandler {
                         Ok((members_before, members_after, added, added > 0, content))
                     }
                     "remove" => {
-                        let remove_members = members_arg;
+                        // Use HashSet for O(1) lookup
+                        let remove_members: std::collections::HashSet<_> = members_arg.iter().collect();
 
                         let members_after: Vec<String> = members_before
                             .iter()
