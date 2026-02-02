@@ -16,6 +16,29 @@ pub(crate) use checksums::{
     calculate_checksums_for_directory_rename, calculate_checksums_for_edits,
 };
 
+use async_trait::async_trait;
+use mill_handler_api::LspAdapter;
+use mill_services::services::reference_updater::LspImportFinder;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+/// Wrapper to adapt LspAdapter to LspImportFinder trait
+pub struct LspFinderWrapper(pub Arc<dyn LspAdapter>);
+
+#[async_trait]
+impl LspImportFinder for LspFinderWrapper {
+    async fn find_files_that_import(&self, file_path: &Path) -> Result<Vec<PathBuf>, String> {
+        self.0.find_files_that_import(file_path).await
+    }
+
+    async fn find_files_that_import_directory(
+        &self,
+        dir_path: &Path,
+    ) -> Result<Vec<PathBuf>, String> {
+        self.0.find_files_that_import_directory(dir_path).await
+    }
+}
+
 /// Execute a refactoring plan using the file service from the app state
 ///
 /// This is a shared helper function used by refactoring handlers (inline, extract,

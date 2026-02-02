@@ -8,7 +8,9 @@ use mill_foundation::planning::MovePlan;
 use std::path::Path;
 use tracing::{debug, error, info};
 
+use crate::handlers::common::LspFinderWrapper;
 use crate::handlers::tools::extensions::get_concrete_app_state;
+use mill_services::services::reference_updater::LspImportFinder;
 
 use super::converter::editplan_to_moveplan;
 
@@ -57,8 +59,20 @@ pub async fn plan_file_move(
         .file_service
         .to_absolute_path_checked(new_path)?;
 
+    // Prepare LSP finder if available
+    let lsp_adapter_lock = context.lsp_adapter.lock().await;
+    let lsp_finder = lsp_adapter_lock.as_ref().map(|adapter| {
+        // Create a wrapper for LspImportFinder trait
+        LspFinderWrapper(adapter.clone())
+    });
+
     let edit_plan = move_service
-        .plan_file_move(&abs_old, &abs_new, None)
+        .plan_file_move(
+            &abs_old,
+            &abs_new,
+            None,
+            lsp_finder.as_ref().map(|w| w as &dyn LspImportFinder),
+        )
         .await
         .map_err(|e| {
             error!(

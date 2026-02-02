@@ -2,6 +2,7 @@
 
 use crate::services::reference_updater::ReferenceUpdater;
 use crate::services::reference_updater::helpers::create_import_update_edit;
+use crate::services::reference_updater::LspImportFinder;
 use mill_foundation::errors::MillError as ServerError;
 use mill_foundation::protocol::EditPlan;
 use mill_plugin_api::{PluginDiscovery, ScanScope};
@@ -18,6 +19,7 @@ pub async fn plan_file_move(
     plugin_registry: &PluginDiscovery,
     scan_scope: Option<ScanScope>,
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
+    lsp_finder: Option<&dyn LspImportFinder>,
 ) -> ServerResult<EditPlan> {
     info!(
         old_path = %old_abs.display(),
@@ -36,7 +38,7 @@ pub async fn plan_file_move(
             true, // dry_run = true
             scan_scope,
             rename_scope,
-            None, // No LSP finder (TODO: pass from handler)
+            lsp_finder,
         )
         .await?;
 
@@ -162,6 +164,7 @@ pub async fn plan_directory_move(
     project_root: &Path,
     scan_scope: Option<ScanScope>,
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
+    lsp_finder: Option<&dyn LspImportFinder>,
 ) -> ServerResult<EditPlan> {
     info!(
         old_path = %old_abs.display(),
@@ -220,7 +223,7 @@ pub async fn plan_directory_move(
             true, // dry_run = true
             effective_scan_scope,
             rename_scope,
-            None, // No LSP finder (TODO: pass from handler)
+            lsp_finder,
         )
         .await?;
 

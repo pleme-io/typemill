@@ -1,8 +1,9 @@
 use super::{RenameOptions, RenameService, RenameTarget};
-use crate::handlers::common::calculate_checksums_for_directory_rename;
+use crate::handlers::common::{calculate_checksums_for_directory_rename, LspFinderWrapper};
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::errors::MillResult as ServerResult;
 use mill_foundation::planning::{PlanMetadata, PlanSummary, PlanWarning, RenamePlan};
+use mill_services::services::reference_updater::LspImportFinder;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
 
@@ -258,10 +259,24 @@ impl RenameService {
         // Get concrete AppState to access move_service()
         let concrete_state = get_concrete_app_state(&context.app_state)?;
 
+        // Prepare LSP finder if available
+        let lsp_adapter_lock = context.lsp_adapter.lock().await;
+        let lsp_finder = lsp_adapter_lock.as_ref().map(|adapter| {
+            // Create a wrapper for LspImportFinder trait
+            LspFinderWrapper(adapter.clone())
+        });
+
         // Get the EditPlan with import updates (call MoveService directly)
         let edit_plan = concrete_state
             .move_service()
-            .plan_directory_move_with_scope(&old_path, &new_path, Some(&rename_scope))
+            .plan_directory_move_with_scope(
+                &old_path,
+                &new_path,
+                Some(&rename_scope),
+                lsp_finder
+                    .as_ref()
+                    .map(|w| w as &dyn LspImportFinder),
+            )
             .await?;
 
         debug!(

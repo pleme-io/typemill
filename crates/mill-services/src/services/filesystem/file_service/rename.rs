@@ -125,7 +125,7 @@ impl FileService {
         // Use MoveService for planning (includes all import update logic)
         let edit_plan = self
             .move_service()
-            .plan_file_move(old_abs, new_abs, scan_scope)
+            .plan_file_move(old_abs, new_abs, scan_scope, None)
             .await?;
 
         Ok(DryRunnable::new(
@@ -173,7 +173,7 @@ impl FileService {
         info!("Finding affected files before rename");
         let mut edit_plan = self
             .move_service()
-            .plan_file_move(old_abs, new_abs, scan_scope)
+            .plan_file_move(old_abs, new_abs, scan_scope, None)
             .await
             .map_err(|e| {
                 warn!(error = %e, "Failed to find affected files");
@@ -343,7 +343,7 @@ impl FileService {
         // Use MoveService for planning - it handles all Cargo package logic internally
         let edit_plan = self
             .move_service()
-            .plan_directory_move(old_abs_dir, new_abs_dir, scan_scope)
+            .plan_directory_move(old_abs_dir, new_abs_dir, scan_scope, None)
             .await?; // Fail fast if planning fails
 
         info!(
