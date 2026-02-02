@@ -32,6 +32,7 @@ const repoRoot = path.join(packageDir, '..', '..')
 const packageJsonPath = path.join(packageDir, 'package.json')
 const cargoTomlPath = path.join(repoRoot, 'Cargo.toml')
 const binaryName = process.platform === 'win32' ? 'mill.exe' : 'mill'
+const npmToken = process.env.NPM_TOKEN || process.env.NODE_AUTH_TOKEN || ''
 
 if (!allowedBumps.has(bump)) {
 	console.error(`Unknown bump type: ${bump}`)
@@ -72,6 +73,26 @@ const writeCargoVersion = (version) => {
 	let content = fs.readFileSync(cargoTomlPath, 'utf8')
 	content = content.replace(/^(version\s*=\s*)"[^"]+"/m, `$1"${version}"`)
 	fs.writeFileSync(cargoTomlPath, content)
+}
+
+const withNpmAuth = (fn) => {
+	let npmrcPath = null
+	try {
+		if (npmToken) {
+			npmrcPath = path.join(packageDir, '.npmrc')
+			const npmrc = `registry=https://registry.npmjs.org/\n//registry.npmjs.org/:_authToken=${npmToken}\nalways-auth=true\n`
+			fs.writeFileSync(npmrcPath, npmrc)
+		}
+		return fn(npmrcPath)
+	} finally {
+		if (npmrcPath) {
+			try {
+				fs.unlinkSync(npmrcPath)
+			} catch {
+				// ignore cleanup errors
+			}
+		}
+	}
 }
 
 const buildAndStageBinary = (target) => {
@@ -230,7 +251,13 @@ const main = () => {
 
 	if (!skipPublish) {
 		// Publish to npm (local)
-		run('npm', ['publish', '--access', 'public'], { cwd: packageDir })
+		withNpmAuth((npmrcPath) => {
+			const args = ['publish', '--access', 'public']
+			if (npmrcPath) {
+				args.push('--userconfig', npmrcPath)
+			}
+			run('npm', args, { cwd: packageDir })
+		})
 		console.log('✅ Published to npm')
 	}
 
