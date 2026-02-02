@@ -74,12 +74,12 @@ pub async fn find_source_files(dir: &Path, extensions: &[&str]) -> PluginResult<
             .map_err(|e| MillError::internal(format!("Failed to read entry: {}", e)))?
         {
             let path = entry.path();
-            let metadata = entry
-                .metadata()
+            let file_type = entry
+                .file_type()
                 .await
-                .map_err(|e| MillError::internal(format!("Failed to get metadata: {}", e)))?;
+                .map_err(|e| MillError::internal(format!("Failed to get file type: {}", e)))?;
 
-            if metadata.is_dir() {
+            if file_type.is_dir() {
                 queue.push(path);
             } else if let Some(ext) = path.extension().and_then(|s| s.to_str()) {
                 if extensions.contains(&ext) {
