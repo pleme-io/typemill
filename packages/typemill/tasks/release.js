@@ -202,7 +202,11 @@ const main = () => {
 	run('git', ['tag', '-a', `v${nextVersion}`, '-m', `Release v${nextVersion}`])
 	console.log('✅ Created git tag')
 
-	// Push (tag will trigger GitHub Actions for binary builds)
+	// Publish to npm (local)
+	run('npm', ['publish', '--access', 'public'], { cwd: packageDir })
+	console.log('✅ Published to npm')
+
+	// Push (optional, for source history)
 	run('git', ['push'])
 	run('git', ['push', '--tags'])
 	console.log('✅ Pushed to remote')
@@ -210,12 +214,7 @@ const main = () => {
 	console.log(`
 🎉 Release v${nextVersion} initiated!
 
-The GitHub Actions workflow will:
-1. Build binaries for all platforms
-2. Create GitHub release with binaries
-3. Publish to npm
-
-Monitor at: https://github.com/goobits/typemill/actions
+Published to npm from this machine.
 `)
 }
 
