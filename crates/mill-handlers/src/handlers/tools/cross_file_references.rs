@@ -12,6 +12,7 @@
 use futures::stream::{self, StreamExt};
 use ignore::WalkBuilder;
 use mill_foundation::errors::MillResult as ServerResult;
+use regex::bytes::Regex;
 use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -99,15 +100,6 @@ fn extract_locations(response: &Value) -> Vec<Location> {
     }
 }
 
-/// Search parameters for finding importing files
-struct ImportSearchPatterns {
-    source_name: String,
-    source_filename: String,
-    source_path_str: String,
-    source_without_ext: String,
-    parent_filename: String,
-}
-
 /// Discover files that might import the source file
 pub async fn discover_importing_files(
     workspace_root: &Path,
@@ -173,13 +165,34 @@ pub async fn discover_importing_files(
         String::new()
     };
 
-    let search_patterns = Arc::new(ImportSearchPatterns {
-        source_name: source_name.clone(),
-        source_filename,
-        source_path_str,
-        source_without_ext,
-        parent_filename,
-    });
+    // Compile Regex patterns
+    // 1. Keywords (constant)
+    let keywords_re = Arc::new(Regex::new(r"import |require\(|use |from |import ").unwrap());
+
+    // 2. Specific patterns (dynamic)
+    // We want to match: word boundary + source_name + word boundary
+    // OR literal source_path_str
+    // OR literal source_without_ext
+    // OR literal source_filename
+    // OR literal parent_filename
+
+    let mut patterns = Vec::new();
+    // \bSOURCE_NAME\b
+    patterns.push(format!(r"\b{}\b", regex::escape(&source_name)));
+    // Literals (escaped)
+    patterns.push(regex::escape(&source_path_str));
+    patterns.push(regex::escape(&source_without_ext));
+    patterns.push(regex::escape(&source_filename));
+    if !parent_filename.is_empty() {
+        patterns.push(regex::escape(&parent_filename));
+    }
+
+    // Join with OR (|)
+    let combined_pattern = patterns.join("|");
+    let match_re = Arc::new(Regex::new(&combined_pattern).unwrap_or_else(|_| {
+        // Fallback to just source name if compilation fails (e.g. too complex)
+        Regex::new(&format!(r"\b{}\b", regex::escape(&source_name))).unwrap()
+    }));
 
     // Walk workspace in a blocking task to avoid blocking the executor
     let workspace_root_owned = workspace_root.to_path_buf();
@@ -229,38 +242,17 @@ pub async fn discover_importing_files(
     // Process files in parallel
     let mut importing_files: Vec<PathBuf> = stream::iter(candidate_files)
         .map(|path| {
-            let patterns = search_patterns.clone();
+            let keywords_re = keywords_re.clone();
+            let match_re = match_re.clone();
+
             async move {
-                // Read file asynchronously
+                // Read file asynchronously as bytes (no String allocation, no UTF-8 check)
                 // Use tokio::fs to avoid blocking the executor
-                if let Ok(content) = tokio::fs::read_to_string(&path).await {
-                    // Check various import patterns - use word boundaries to avoid false positives
-                    // e.g., "is" shouldn't match inside "promise"
-                    let has_import = contains_word(&content, &patterns.source_name)
-                        && (
-                            // ES6 import
-                            content.contains("import ")
-                            // CommonJS require
-                            || content.contains("require(")
-                            // Rust use
-                            || content.contains("use ")
-                            // Python import
-                            || content.contains("from ")
-                            // Go import
-                            || content.contains("import \"")
-                        );
-
-                    if has_import {
-                        // More specific check: does it reference the source file?
-                        // Path-based checks can use contains() since paths are specific
-                        // Word boundary check for source_name to avoid false positives
-                        let matches = content.contains(&patterns.source_path_str)  // Full relative path from workspace
-                            || content.contains(&patterns.source_without_ext)      // Without extension
-                            || content.contains(&patterns.source_filename)         // Just filename with ext
-                            || (!patterns.parent_filename.is_empty() && content.contains(&patterns.parent_filename))  // parent/file pattern
-                            || contains_word(&content, &patterns.source_name); // Just file stem (with word boundary)
-
-                        if matches {
+                if let Ok(content) = tokio::fs::read(&path).await {
+                    // Check if file contains any import keyword
+                    if keywords_re.is_match(&content) {
+                        // Check if file references the source
+                        if match_re.is_match(&content) {
                             debug!(
                                 file = %path.display(),
                                 "Found importing file"
@@ -340,7 +332,7 @@ pub async fn enhance_find_references(
     // This is where we'd ideally open the file in LSP and query
     // For now, we'll do a simpler grep-based approach
 
-    // Read source content once
+    // Read source content once (as string, we need char position)
     let source_content = tokio::fs::read_to_string(source_file).await.ok();
     let symbol_name = source_content
         .as_deref()
@@ -354,7 +346,7 @@ pub async fn enhance_find_references(
             .map(|importing_file| {
                 let symbol_name = symbol_name.clone();
                 async move {
-                    // Read file content using tokio::fs to avoid blocking
+                    // Read file content as string for line/char calculation
                     if let Ok(content) = tokio::fs::read_to_string(&importing_file).await {
                         // Find occurrences of the symbol in the importing file
                         let file_uri = format!("file://{}", importing_file.display());
@@ -493,38 +485,6 @@ fn extract_symbol_at_position(content: &str, line: u32, character: u32) -> Optio
     }
 
     Some(symbol)
-}
-
-/// Check if content contains a word with proper word boundaries
-/// This prevents "is" from matching inside "promise"
-fn contains_word(content: &str, word: &str) -> bool {
-    let mut search_start = 0;
-    while let Some(pos) = content[search_start..].find(word) {
-        let absolute_pos = search_start + pos;
-
-        // Check word boundaries
-        let before_ok = absolute_pos == 0
-            || !content
-                .chars()
-                .nth(absolute_pos - 1)
-                .map(|c| c.is_alphanumeric() || c == '_')
-                .unwrap_or(false);
-
-        let after_pos = absolute_pos + word.len();
-        let after_ok = after_pos >= content.len()
-            || !content
-                .chars()
-                .nth(after_pos)
-                .map(|c| c.is_alphanumeric() || c == '_')
-                .unwrap_or(false);
-
-        if before_ok && after_ok {
-            return true;
-        }
-
-        search_start = absolute_pos + 1;
-    }
-    false
 }
 
 /// Find all occurrences of a symbol in content
@@ -776,5 +736,21 @@ mod tests {
             },
         ];
         assert!(!is_same_file_only(&cross_file, source_uri));
+    }
+
+    #[test]
+    fn test_regex_multibyte_correctness() {
+        // "Hello € world"
+        // '€' is 3 bytes.
+        let content = "Hello € world";
+        let pattern = r"\bworld\b";
+        let re = Regex::new(pattern).unwrap();
+
+        // This should pass because regex handles word boundaries correctly on UTF-8 bytes
+        assert!(re.is_match(content.as_bytes()), "Should find 'world' in multibyte string using Regex");
+
+        // Also check ignoring part of word
+        let content2 = "Hello worldy";
+        assert!(!re.is_match(content2.as_bytes()), "Should not find 'world' in 'worldy'");
     }
 }
