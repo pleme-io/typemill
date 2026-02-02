@@ -13,7 +13,7 @@ use mill_foundation::planning::{
     DeletePlan, DeletionTarget, PlanMetadata, PlanSummary, PlanWarning,
 };
 use serde::Deserialize;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info};
 use url::Url;
@@ -100,34 +100,50 @@ impl PrunePlanner {
         let end_brace = line.find('}')?;
         let imports_section = &line[start_brace + 1..end_brace];
 
-        let mut found = false;
+        // Optimization: Check if we are deleting the only identifier, or if identifier is missing
+        // This avoids allocation for "delete line" and "keep line" cases.
+        let mut target_found = false;
+        let mut other_found = false;
+
+        for s in imports_section.split(',') {
+            let s = s.trim();
+            if s.is_empty() {
+                continue;
+            }
+            if s == identifier {
+                target_found = true;
+            } else {
+                other_found = true;
+            }
+            // If we found both, we know we need to reconstruct (modify line).
+            if target_found && other_found {
+                break;
+            }
+        }
+
+        if !target_found {
+            // Identifier not found, keep line as is
+            return Some(line.to_string());
+        }
+
+        if !other_found {
+            // Only target found (or nothing found but target_found is true implies target was found)
+            // If target_found is true and !other_found, then ONLY target is present.
+            // Delete line
+            return None;
+        }
+
+        // Reconstruct the import with remaining identifiers
         let identifiers: Vec<&str> = imports_section
             .split(',')
             .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-            .filter(|s| {
-                if *s == identifier {
-                    found = true;
-                    false
-                } else {
-                    true
-                }
-            })
+            .filter(|s| !s.is_empty() && *s != identifier)
             .collect();
 
-        if identifiers.is_empty() {
-            // No identifiers left, delete entire line
-            None
-        } else if !found {
-            // Identifier wasn't found, keep line as is
-            Some(line.to_string())
-        } else {
-            // Reconstruct the import with remaining identifiers
-            let prefix = &line[..start_brace + 1];
-            let suffix = &line[end_brace..];
-            let new_imports = identifiers.join(", ");
-            Some(format!("{} {} {}", prefix, new_imports, suffix))
-        }
+        let prefix = &line[..start_brace + 1];
+        let suffix = &line[end_brace..];
+        let new_imports = identifiers.join(", ");
+        Some(format!("{} {} {}", prefix, new_imports, suffix))
     }
 
     /// Generate edits to clean up imports of a symbol in other files
@@ -224,66 +240,81 @@ impl PrunePlanner {
                     .await
                     .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
 
-                let lines: Vec<&str> = content.lines().collect();
                 let mut edits = Vec::new();
-                let mut processed_lines = HashSet::new();
 
-                for location in locations {
-                    let line_idx = location.range.start.line as usize;
-                    if line_idx >= lines.len() {
-                        continue;
+                // Sort and dedup locations by line to process sequentially without collecting lines
+                let mut sorted_locations = locations;
+                sorted_locations.sort_by_key(|loc| loc.range.start.line);
+                sorted_locations.dedup_by_key(|loc| loc.range.start.line);
+
+                let mut lines_iter = content.lines().enumerate();
+                let mut loc_iter = sorted_locations.into_iter();
+                let mut next_loc = loc_iter.next();
+
+                while let Some(loc) = next_loc {
+                    let target_line_idx = loc.range.start.line as usize;
+
+                    // Advance iterator to the target line
+                    let mut found_line = None;
+                    while let Some((idx, line)) = lines_iter.next() {
+                        if idx == target_line_idx {
+                            found_line = Some(line);
+                            break;
+                        }
+                        if idx > target_line_idx {
+                            // This shouldn't happen if locations are sorted and lines are monotonic,
+                            // but safeguard against exhausted iterator or logic errors.
+                            break;
+                        }
                     }
 
-                    // Avoid processing the same line multiple times
-                    if processed_lines.contains(&line_idx) {
-                        continue;
-                    }
-                    processed_lines.insert(line_idx);
+                    if let Some(line) = found_line {
+                        // Only process import statements
+                        if !line.trim_start().starts_with("import") {
+                            next_loc = loc_iter.next();
+                            continue;
+                        }
 
-                    let line = lines[line_idx];
+                        // Attempt to remove identifier
+                        if let Some(new_line) = self.remove_import_identifier(line, symbol_name) {
+                            if new_line != line {
+                                // Replace line
+                                let range = Range {
+                                    start: Position {
+                                        line: target_line_idx as u32,
+                                        character: 0,
+                                    },
+                                    end: Position {
+                                        line: target_line_idx as u32,
+                                        character: line.len() as u32,
+                                    },
+                                };
 
-                    // Only process import statements
-                    if !line.trim_start().starts_with("import") {
-                        continue;
-                    }
-
-                    // Attempt to remove identifier
-                    if let Some(new_line) = self.remove_import_identifier(line, symbol_name) {
-                        if new_line != line {
-                            // Replace line
-                            let range = Range {
-                                start: Position {
-                                    line: line_idx as u32,
-                                    character: 0,
-                                },
-                                end: Position {
-                                    line: line_idx as u32,
-                                    character: line.len() as u32,
-                                },
+                                edits.push(TextEdit {
+                                    range,
+                                    new_text: new_line,
+                                });
+                            }
+                        } else {
+                            // Delete line (including newline if possible)
+                            // To delete the line completely, we delete from start of this line to start of next line
+                            let start = Position {
+                                line: target_line_idx as u32,
+                                character: 0,
+                            };
+                            let end = Position {
+                                line: (target_line_idx + 1) as u32,
+                                character: 0,
                             };
 
                             edits.push(TextEdit {
-                                range,
-                                new_text: new_line,
+                                range: Range { start, end },
+                                new_text: "".to_string(),
                             });
                         }
-                    } else {
-                        // Delete line (including newline if possible)
-                        // To delete the line completely, we delete from start of this line to start of next line
-                        let start = Position {
-                            line: line_idx as u32,
-                            character: 0,
-                        };
-                        let end = Position {
-                            line: (line_idx + 1) as u32,
-                            character: 0,
-                        };
-
-                        edits.push(TextEdit {
-                            range: Range { start, end },
-                            new_text: "".to_string(),
-                        });
                     }
+
+                    next_loc = loc_iter.next();
                 }
 
                 if !edits.is_empty() {
@@ -359,7 +390,7 @@ impl PrunePlanner {
                 "Plugin does not support refactoring operations"
             );
             ServerError::not_supported(format!(
-                "{} plugin does not support symbol deletion refactoring",
+                "{} plugin does not support refactoring operations",
                 plugin.metadata().name
             ))
         })?;
