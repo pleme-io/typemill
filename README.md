@@ -6,6 +6,8 @@
 
 **Pure Rust MCP server bridging Language Server Protocol (LSP) to AI coding assistants.**
 
+![TypeMill Demo](packages/typemill/demo/demo.svg)
+
 TypeMill gives your AI assistant (Claude, Cursor, etc.) direct access to language server intelligence. It enables safe refactoring, precise code navigation, and workspace-aware operations across TypeScript, Rust, and Python projects.
 
 ## ✨ Key Features
