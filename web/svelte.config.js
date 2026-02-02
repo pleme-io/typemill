@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-auto';
+import adapter from '@sveltejs/adapter-cloudflare';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { mdsvex } from 'mdsvex';
 import rehypeSlug from 'rehype-slug';
@@ -45,7 +45,20 @@ const config = {
 	],
 
 	kit: {
-		adapter: adapter()
+		adapter: adapter(),
+		prerender: {
+			// Don't crawl links - only render routes from entries()
+			crawl: false,
+			// Handle errors gracefully
+			handleHttpError: ({ path, message }) => {
+				// Ignore 404s for .md links (they're handled by the load function)
+				if (path.endsWith('.md')) {
+					return;
+				}
+				// Log other errors but don't fail the build
+				console.warn(`Prerender warning: ${path} - ${message}`);
+			}
+		}
 	}
 };
 

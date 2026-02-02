@@ -1,7 +1,52 @@
-import { readFile } from 'fs/promises';
-import { join, isAbsolute } from 'path';
+import { readFile, access } from 'fs/promises';
+import { join, isAbsolute, dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
+
+// Resolve project root by trying multiple strategies
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+async function findProjectRoot(): Promise<string> {
+	// Strategy 1: WORKSPACE_ROOT env var
+	if (process.env.WORKSPACE_ROOT) {
+		return process.env.WORKSPACE_ROOT;
+	}
+
+	// Strategy 2: Navigate up from this file's location
+	// This file is at: web/src/lib/server/markdown.ts
+	// Project root is 4 levels up
+	const fromFile = resolve(__dirname, '..', '..', '..', '..');
+
+	// Strategy 3: From cwd, check if we're in web/ or project root
+	const cwd = process.cwd();
+	const fromCwdParent = resolve(cwd, '..');
+
+	// Test each potential root by checking for docs/ directory
+	const candidates = [fromFile, cwd, fromCwdParent];
+
+	for (const candidate of candidates) {
+		try {
+			await access(join(candidate, 'docs'));
+			return candidate;
+		} catch {
+			// Continue to next candidate
+		}
+	}
+
+	// Fallback to the file-based calculation
+	return fromFile;
+}
+
+// Cache the project root
+let projectRootPromise: Promise<string> | null = null;
+
+function getProjectRoot(): Promise<string> {
+	if (!projectRootPromise) {
+		projectRootPromise = findProjectRoot();
+	}
+	return projectRootPromise;
+}
 
 // Configure marked once
 const renderer = {
@@ -58,7 +103,7 @@ export async function readMarkdownFile(relativePath: string): Promise<{ content:
 		throw new Error('Invalid path');
 	}
 
-	const root = process.env.WORKSPACE_ROOT || process.cwd();
+	const root = await getProjectRoot();
 	const filePath = join(root, relativePath);
 
 	try {
@@ -79,3 +124,6 @@ export async function renderMarkdown(markdown: string): Promise<string> {
 	}
 	return result;
 }
+
+// Export for use in entries generator
+export { getProjectRoot };

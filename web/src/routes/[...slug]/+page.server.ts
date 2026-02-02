@@ -1,9 +1,62 @@
 import { error } from '@sveltejs/kit';
-import { readMarkdownFile, renderMarkdown } from '$lib/server/markdown';
-import type { PageServerLoad } from './$types';
+import { readMarkdownFile, renderMarkdown, getProjectRoot } from '$lib/server/markdown';
+import { readdir } from 'fs/promises';
+import { join } from 'path';
+import type { PageServerLoad, EntryGenerator } from './$types';
+
+// Automatically discover all doc routes by scanning the docs directory
+export const entries: EntryGenerator = async () => {
+	const root = await getProjectRoot();
+	const routes: Array<{ slug: string }> = [];
+
+	// Add top-level routes that exist
+	routes.push({ slug: 'docs' });
+	routes.push({ slug: 'contributing' });
+
+	// Recursively scan docs directory
+	async function scanDir(dir: string, prefix: string = '') {
+		try {
+			const dirEntries = await readdir(join(root, 'docs', dir), { withFileTypes: true });
+
+			// Check if directory has a README.md
+			const hasReadme = dirEntries.some(e => e.isFile() && e.name.toLowerCase() === 'readme.md');
+
+			for (const entry of dirEntries) {
+				if (entry.isDirectory()) {
+					const slug = prefix ? `${prefix}/${entry.name}` : entry.name;
+					// Recursively scan subdirectory (which will add routes if it has README)
+					await scanDir(join(dir, entry.name), slug);
+				} else if (entry.isFile() && entry.name.endsWith('.md')) {
+					const baseName = entry.name.replace(/\.md$/, '');
+					// Skip README files - only add as directory route if README exists
+					if (baseName.toLowerCase() === 'readme') {
+						// Add directory route since it has a README
+						if (prefix) {
+							routes.push({ slug: prefix });
+						}
+						continue;
+					}
+					const slug = prefix ? `${prefix}/${baseName}` : baseName;
+					routes.push({ slug });
+				}
+			}
+		} catch {
+			// Directory doesn't exist or isn't readable
+		}
+	}
+
+	// Scan the docs directory
+	await scanDir('');
+
+	return routes;
+};
 
 export const load: PageServerLoad = async ({ params }) => {
-	const { slug } = params;
+	// Strip .md extension from slug if present (handles markdown links)
+	let slug = params.slug;
+	if (slug?.endsWith('.md')) {
+		slug = slug.slice(0, -3);
+	}
 
 	// Determine the file path based on the slug
 	let filePath: string;
@@ -16,8 +69,6 @@ export const load: PageServerLoad = async ({ params }) => {
 		filePath = 'docs/README.md';
 	} else if (slug === 'contributing') {
 		filePath = 'contributing.md';
-	} else if (slug === 'DEVELOPMENT') {
-		filePath = 'docs/DEVELOPMENT.md';
 	} else {
 		// Try docs directory first
 		filePath = `docs/${slug}.md`;
