@@ -3,6 +3,7 @@ import { join, isAbsolute, dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { marked } from 'marked';
 import hljs from 'highlight.js';
+import DOMPurify from 'isomorphic-dompurify';
 
 // Resolve project root by trying multiple strategies
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -119,10 +120,8 @@ export async function readMarkdownFile(relativePath: string): Promise<{ content:
 
 export async function renderMarkdown(markdown: string): Promise<string> {
 	const result = marked.parse(markdown);
-	if (result instanceof Promise) {
-		return await result;
-	}
-	return result;
+	const html = result instanceof Promise ? await result : result;
+	return DOMPurify.sanitize(html);
 }
 
 // Export for use in entries generator
