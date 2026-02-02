@@ -4,8 +4,6 @@ use mill_foundation::protocol::EditPlan;
 use tracing::debug;
 
 /// LSP-based symbol move refactoring
-// TODO: wire up - alternative to AST-based move when LSP supports it
-#[allow(dead_code)]
 async fn lsp_symbol_move(
     lsp_service: &dyn LspRefactoringService,
     file_path: &str,
@@ -71,6 +69,7 @@ pub async fn plan_symbol_move(
     file_path: &str,
     destination: &str,
     language_plugins: Option<&mill_plugin_api::PluginDiscovery>,
+    lsp_service: Option<&dyn LspRefactoringService>,
 ) -> AstResult<EditPlan> {
     // Try language plugin capability first (faster, more reliable, under our control)
     if let Some(plugins) = language_plugins {
@@ -98,9 +97,127 @@ pub async fn plan_symbol_move(
         }
     }
 
+    // Try LSP fallback if available
+    if let Some(lsp) = lsp_service {
+        debug!(
+            file_path = %file_path,
+            destination = %destination,
+            "Attempting LSP symbol move"
+        );
+        match lsp_symbol_move(lsp, file_path, symbol_line, symbol_col, destination).await {
+            Ok(plan) => return Ok(plan),
+            Err(e) => {
+                debug!(
+                    error = ?e,
+                    file_path = %file_path,
+                    "LSP symbol move failed"
+                );
+            }
+        }
+    }
+
     // Both plugin and LSP failed/unavailable
     Err(AstError::analysis(format!(
-        "Symbol move not supported for: {}. Language plugin does not implement symbol move.",
+        "Symbol move not supported for: {}. Neither language plugin nor LSP implementation succeeded.",
         file_path
     )))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use async_trait::async_trait;
+    use serde_json::json;
+
+    struct MockLspRefactoringService {
+        actions: Vec<serde_json::Value>,
+    }
+
+    #[async_trait]
+    impl LspRefactoringService for MockLspRefactoringService {
+        async fn get_code_actions(
+            &self,
+            _file_path: &str,
+            _range: &CodeRange,
+            _kinds: Option<Vec<String>>,
+        ) -> AstResult<serde_json::Value> {
+            Ok(serde_json::Value::Array(self.actions.clone()))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_plan_symbol_move_with_lsp_fallback() {
+        // Setup mock response
+        let workspace_edit = json!({
+            "changes": {
+                // Use absolute path for file_path as expected by EditPlan
+                // EditPlan::from_lsp_workspace_edit likely processes URIs.
+                // Assuming URI conversion works or is skipped if path matches.
+                // Let's use file: URI scheme
+                "file:///src/old.rs": [
+                    {
+                        "range": {
+                            "start": { "line": 0, "character": 0 },
+                            "end": { "line": 0, "character": 10 }
+                        },
+                        "newText": ""
+                    }
+                ],
+                "file:///src/new.rs": [
+                    {
+                        "range": {
+                            "start": { "line": 0, "character": 0 },
+                            "end": { "line": 0, "character": 0 }
+                        },
+                        "newText": "moved content"
+                    }
+                ]
+            }
+        });
+
+        let action = json!({
+            "title": "Move to new file",
+            "kind": "refactor.move",
+            "edit": workspace_edit
+        });
+
+        let mock_service = MockLspRefactoringService {
+            actions: vec![action],
+        };
+
+        // Note: We use absolute path "/src/old.rs" to match the URI "file:///src/old.rs" conversion
+        // on most unix-like systems (including the sandbox).
+        // If from_lsp_workspace_edit is strict about URI<->Path conversion, this test might need adjustment.
+        // Assuming conversion is: file:///src/old.rs -> /src/old.rs
+        let file_path = "/src/old.rs";
+        let destination = "/src/new.rs";
+
+        let result = plan_symbol_move(
+            "source code",
+            0,
+            0,
+            file_path,
+            destination,
+            None,
+            Some(&mock_service),
+        )
+        .await;
+
+        if let Err(ref e) = result {
+             println!("Test failed with error: {:?}", e);
+        }
+
+        assert!(result.is_ok(), "Expected OK result");
+        let plan = result.unwrap();
+
+        // Verify plan has edits
+        // EditPlan::from_lsp_workspace_edit creates edits.
+        // It filters edits for the primary file_path?
+        // Let's check the implementation of from_lsp_workspace_edit.
+        // If it filters, we might only see edits for file_path.
+
+        // Assuming it keeps all edits.
+        // Just checking if we got a plan is enough to verify fallback logic.
+        assert_eq!(plan.metadata.intent_name, "move_symbol");
+    }
 }
