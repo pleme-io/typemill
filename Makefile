@@ -29,6 +29,7 @@ release:
 NPM_DIR ?= packages/typemill
 NPM_PKG ?= @goobits/typemill
 NPM_VERSION ?= $(shell node -p "require('./$(NPM_DIR)/package.json').version" 2>/dev/null)
+NPM_BUMP ?= patch
 
 release-rust:
 	$(CARGO) build --release
@@ -38,10 +39,13 @@ release-npm:
 	@npm whoami >/dev/null 2>&1 || { echo "❌ npm not logged in"; exit 1; }
 	@test -f $(NPM_DIR)/package.json || { echo "❌ package.json not found in $(NPM_DIR)"; exit 1; }
 	@npm pkg fix --silent --prefix $(NPM_DIR)
-	@if npm view $(NPM_PKG)@$(NPM_VERSION) version >/dev/null 2>&1; then \
-		echo "❌ $(NPM_PKG) version $(NPM_VERSION) already published. Bump version first (e.g. cd $(NPM_DIR) && npm version patch)."; \
-		exit 1; \
-	fi
+	@current_version=$$(node -p "require('./$(NPM_DIR)/package.json').version"); \
+	if npm view $(NPM_PKG)@$$current_version version >/dev/null 2>&1; then \
+		echo "⚠️  $(NPM_PKG) version $$current_version already published. Auto-bumping $(NPM_BUMP)..."; \
+		cd $(NPM_DIR) && npm version $(NPM_BUMP) --no-git-tag-version; \
+		current_version=$$(node -p "require('./package.json').version"); \
+		echo "✅ Bumped to $$current_version"; \
+	fi; \
 	cd $(NPM_DIR) && npm publish --access public
 
 release-all: release-rust release-npm
