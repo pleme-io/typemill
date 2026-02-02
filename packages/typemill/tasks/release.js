@@ -18,6 +18,9 @@ const { spawnSync } = require('child_process')
 
 const allowedBumps = new Set(['patch', 'minor', 'major', 'premajor', 'preminor', 'prepatch', 'prerelease'])
 const bump = process.argv[2] || 'patch'
+const allowDirty = process.env.TYPEMILL_ALLOW_DIRTY === '1'
+const skipPublish = process.env.TYPEMILL_SKIP_PUBLISH === '1'
+const skipGit = process.env.TYPEMILL_SKIP_GIT === '1'
 const targetList = process.env.TYPEMILL_TARGETS || 'aarch64-apple-darwin,aarch64-unknown-linux-gnu'
 const targets = targetList
 	.split(',')
@@ -157,7 +160,7 @@ const main = () => {
 	console.log('\n📦 TypeMill Release Script\n')
 
 	// Check for uncommitted changes
-	if (repoDirty()) {
+	if (!allowDirty && repoDirty()) {
 		console.error('❌ Working tree is dirty. Commit or stash changes before releasing.')
 		process.exit(1)
 	}
@@ -181,42 +184,62 @@ const main = () => {
 	console.log(`Published npm version: ${publishedVersion || 'none'}`)
 
 	// Calculate next version
-	const baseVersion = cargoVersion || pkg.version
-	const nextVersion = bumpVersion(baseVersion, bump)
+	const baseVersion = pkg.version
+	const shouldBump = publishedVersion && publishedVersion === baseVersion
+	const nextVersion = shouldBump ? bumpVersion(baseVersion, bump) : baseVersion
 
 	if (!nextVersion) {
 		console.error(`❌ Could not calculate next version from ${baseVersion} with bump type ${bump}`)
 		process.exit(1)
 	}
 
-	console.log(`\n🚀 Bumping to version: ${nextVersion}\n`)
+	if (shouldBump) {
+		console.log(`\n🚀 Bumping to version: ${nextVersion}\n`)
+	} else {
+		console.log(`\n✅ Keeping version: ${nextVersion}\n`)
+	}
 
-	// Update package.json
-	pkg.version = nextVersion
-	writePackageJson(pkg)
-	console.log('✅ Updated package.json')
+	let updated = false
+	// Update package.json if needed
+	if (pkg.version !== nextVersion) {
+		pkg.version = nextVersion
+		writePackageJson(pkg)
+		console.log('✅ Updated package.json')
+		updated = true
+	}
 
 	// Update Cargo.toml
-	writeCargoVersion(nextVersion)
-	console.log('✅ Updated Cargo.toml')
+	if (cargoVersion !== nextVersion) {
+		writeCargoVersion(nextVersion)
+		console.log('✅ Updated Cargo.toml')
+		updated = true
+	}
 
-	// Git commit
-	run('git', ['add', packageJsonPath, cargoTomlPath])
-	run('git', ['commit', '-m', `chore: release v${nextVersion}`])
-	console.log('✅ Committed version bump')
+	if (updated && !skipGit) {
+		// Git commit
+		run('git', ['add', packageJsonPath, cargoTomlPath])
+		run('git', ['commit', '-m', `chore: release v${nextVersion}`])
+		console.log('✅ Committed version bump')
+	}
 
-	// Git tag
-	run('git', ['tag', '-a', `v${nextVersion}`, '-m', `Release v${nextVersion}`])
-	console.log('✅ Created git tag')
+	if (updated && !skipGit) {
+		// Git tag
+		run('git', ['tag', '-a', `v${nextVersion}`, '-m', `Release v${nextVersion}`])
+		console.log('✅ Created git tag')
+	}
 
-	// Publish to npm (local)
-	run('npm', ['publish', '--access', 'public'], { cwd: packageDir })
-	console.log('✅ Published to npm')
+	if (!skipPublish) {
+		// Publish to npm (local)
+		run('npm', ['publish', '--access', 'public'], { cwd: packageDir })
+		console.log('✅ Published to npm')
+	}
 
-	// Push (optional, for source history)
-	run('git', ['push'])
-	run('git', ['push', '--tags'])
-	console.log('✅ Pushed to remote')
+	if (!skipGit) {
+		// Push (optional, for source history)
+		run('git', ['push'])
+		run('git', ['push', '--tags'])
+		console.log('✅ Pushed to remote')
+	}
 
 	console.log(`
 🎉 Release v${nextVersion} initiated!

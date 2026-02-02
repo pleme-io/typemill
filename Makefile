@@ -55,7 +55,7 @@ release-npm:
 			git stash push -u -m "typemill-release-npm" >/dev/null 2>&1 && stashed="yes"; \
 		fi; \
 	fi; \
-	( cd $(NPM_DIR) && npm run release ); \
+	( cd $(NPM_DIR) && TYPEMILL_ALLOW_DIRTY=1 TYPEMILL_SKIP_PUBLISH=1 TYPEMILL_SKIP_GIT=1 npm run release ); \
 	status=$$?; \
 	if [ "$$stashed" = "yes" ]; then \
 		git stash pop >/dev/null 2>&1 || true; \
