@@ -1,0 +1,6 @@
+# Cloudflare Pages configuration
+name = "typemill-docs"
+pages_build_output_dir = "web/.svelte-kit/cloudflare"
+
+[build]
+command = "cd web && pnpm install && pnpm run build"
