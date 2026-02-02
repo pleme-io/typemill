@@ -57,12 +57,11 @@ pub async fn plan_file_move(
         .file_service
         .to_absolute_path_checked(new_path)?;
 
-    // Get LSP finder if available
-    let lsp_adapter = context.lsp_adapter.lock().await.clone();
-    let lsp_finder = lsp_adapter.as_ref().map(|a| a.as_import_finder());
-
+    // NOTE: Not using LSP finder for import detection because LSP's textDocument/references
+    // returns symbol usage references (where functions are called), not import statements.
+    // The plugin-based scanner (TypeScriptReferenceDetector) correctly parses import statements.
     let edit_plan = move_service
-        .plan_file_move(&abs_old, &abs_new, None, lsp_finder)
+        .plan_file_move(&abs_old, &abs_new, None, None)
         .await
         .map_err(|e| {
             error!(

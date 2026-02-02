@@ -52,14 +52,11 @@ impl RenameService {
         // Get concrete AppState to access move_service()
         let concrete_state = get_concrete_app_state(&context.app_state)?;
 
-        // Get LSP finder if available
-        let lsp_adapter = context.lsp_adapter.lock().await.clone();
-        let lsp_finder = lsp_adapter.as_ref().map(|a| a.as_import_finder());
-
+        // NOTE: Not using LSP finder - see relocate_ops/file_move.rs for explanation
         // Call MoveService directly to get the EditPlan (using absolute paths)
         let edit_plan = concrete_state
             .move_service()
-            .plan_file_move_with_scope(&abs_old, &abs_new, Some(&rename_scope), lsp_finder)
+            .plan_file_move_with_scope(&abs_old, &abs_new, Some(&rename_scope), None)
             .await?;
 
         debug!(
