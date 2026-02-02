@@ -1,9 +1,8 @@
 use super::{RenameOptions, RenameService, RenameTarget};
-use crate::handlers::common::{calculate_checksums_for_directory_rename, LspFinderWrapper};
+use crate::handlers::common::calculate_checksums_for_directory_rename;
 use crate::handlers::tools::extensions::get_concrete_app_state;
 use mill_foundation::errors::MillResult as ServerResult;
 use mill_foundation::planning::{PlanMetadata, PlanSummary, PlanWarning, RenamePlan};
-use mill_services::services::reference_updater::LspImportFinder;
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
 
@@ -72,42 +71,31 @@ impl RenameService {
     /// Detects when moving a package into another package's src/ directory.
     /// Supports: Rust (Cargo.toml), TypeScript/JS (package.json), Python (pyproject.toml)
     async fn detect_consolidation_type(old_path: &Path, new_path: &Path) -> Option<PackageType> {
-        let check_cargo = async {
-            let has_cargo = tokio::fs::try_exists(old_path.join("Cargo.toml"))
-                .await
-                .unwrap_or(false);
-            if has_cargo && Self::find_target_crate_root(new_path).await.is_some() {
-                Some(PackageType::Cargo)
-            } else {
-                None
-            }
-        };
+        // Check for Rust/Cargo consolidation
+        let has_cargo = tokio::fs::try_exists(old_path.join("Cargo.toml"))
+            .await
+            .unwrap_or(false);
+        if has_cargo && Self::find_target_crate_root(new_path).await.is_some() {
+            return Some(PackageType::Cargo);
+        }
 
-        let check_npm = async {
-            let has_package_json = tokio::fs::try_exists(old_path.join("package.json"))
-                .await
-                .unwrap_or(false);
-            if has_package_json && Self::find_target_npm_root(new_path).await.is_some() {
-                Some(PackageType::Npm)
-            } else {
-                None
-            }
-        };
+        // Check for npm/TypeScript consolidation
+        let has_package_json = tokio::fs::try_exists(old_path.join("package.json"))
+            .await
+            .unwrap_or(false);
+        if has_package_json && Self::find_target_npm_root(new_path).await.is_some() {
+            return Some(PackageType::Npm);
+        }
 
-        let check_python = async {
-            let has_pyproject = tokio::fs::try_exists(old_path.join("pyproject.toml"))
-                .await
-                .unwrap_or(false);
-            if has_pyproject && Self::find_target_python_root(new_path).await.is_some() {
-                Some(PackageType::Python)
-            } else {
-                None
-            }
-        };
+        // Check for Python consolidation
+        let has_pyproject = tokio::fs::try_exists(old_path.join("pyproject.toml"))
+            .await
+            .unwrap_or(false);
+        if has_pyproject && Self::find_target_python_root(new_path).await.is_some() {
+            return Some(PackageType::Python);
+        }
 
-        let (cargo, npm, python) = tokio::join!(check_cargo, check_npm, check_python);
-
-        cargo.or(npm).or(python)
+        None
     }
 
     /// Generate plan for directory rename using FileService
@@ -270,24 +258,14 @@ impl RenameService {
         // Get concrete AppState to access move_service()
         let concrete_state = get_concrete_app_state(&context.app_state)?;
 
-        // Prepare LSP finder if available
-        let lsp_adapter_lock = context.lsp_adapter.lock().await;
-        let lsp_finder = lsp_adapter_lock.as_ref().map(|adapter| {
-            // Create a wrapper for LspImportFinder trait
-            LspFinderWrapper(adapter.clone())
-        });
+        // Get LSP finder if available
+        let lsp_adapter = context.lsp_adapter.lock().await.clone();
+        let lsp_finder = lsp_adapter.as_ref().map(|a| a.as_import_finder());
 
         // Get the EditPlan with import updates (call MoveService directly)
         let edit_plan = concrete_state
             .move_service()
-            .plan_directory_move_with_scope(
-                &old_path,
-                &new_path,
-                Some(&rename_scope),
-                lsp_finder
-                    .as_ref()
-                    .map(|w| w as &dyn LspImportFinder),
-            )
+            .plan_directory_move_with_scope(&old_path, &new_path, Some(&rename_scope), lsp_finder)
             .await?;
 
         debug!(
@@ -296,24 +274,13 @@ impl RenameService {
         );
 
         // Calculate files_to_move by walking the directory
-        // Run in spawn_blocking to avoid blocking the async runtime with synchronous I/O
-        let files_to_move = {
-            let old_path = old_path.clone();
-            tokio::task::spawn_blocking(move || {
-                let mut count = 0;
-                let walker = ignore::WalkBuilder::new(&old_path).hidden(false).build();
-                for entry in walker.flatten() {
-                    if entry.path().is_file() {
-                        count += 1;
-                    }
-                }
-                count
-            })
-            .await
-            .map_err(|e| {
-                mill_foundation::errors::MillError::internal(format!("Failed to count files: {}", e))
-            })?
-        };
+        let mut files_to_move = 0;
+        let walker = ignore::WalkBuilder::new(&old_path).hidden(false).build();
+        for entry in walker.flatten() {
+            if entry.path().is_file() {
+                files_to_move += 1;
+            }
+        }
 
         // Check if this is a Cargo package
         let is_cargo_package = tokio::fs::try_exists(old_path.join("Cargo.toml"))
@@ -602,5 +569,4 @@ name = "target"
         let result = RenameService::detect_consolidation_type(&src, &new_path).await;
         assert_eq!(result, Some(PackageType::Cargo));
     }
-
 }

@@ -1,6 +1,6 @@
 //! Planning logic for file and directory moves
 
-use crate::services::reference_updater::ReferenceUpdater;
+use crate::services::reference_updater::{LspImportFinder, ReferenceUpdater};
 use crate::services::reference_updater::helpers::create_import_update_edit;
 use crate::services::reference_updater::LspImportFinder;
 use mill_foundation::errors::MillError as ServerError;

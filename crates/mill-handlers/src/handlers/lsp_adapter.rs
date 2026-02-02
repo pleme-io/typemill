@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 use mill_plugin_system::LspService;
+use mill_services::services::reference_updater::LspImportFinder;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
@@ -462,6 +463,108 @@ impl DirectLspAdapter {
         Ok(Value::Array(all_symbols))
     }
 
+    /// Extract symbol positions (line, character) from documentSymbol response
+    fn extract_symbol_positions(&self, response: &Value) -> Vec<(u32, u32)> {
+        let mut positions = Vec::new();
+
+        if let Some(symbols) = response.as_array() {
+            for symbol in symbols {
+                // Handle both DocumentSymbol and SymbolInformation formats
+                if let Some(range) = symbol.get("range").or_else(|| symbol.get("location").and_then(|l| l.get("range"))) {
+                    if let (Some(line), Some(character)) = (
+                        range.get("start").and_then(|s| s.get("line")).and_then(|l| l.as_u64()),
+                        range.get("start").and_then(|s| s.get("character")).and_then(|c| c.as_u64()),
+                    ) {
+                        positions.push((line as u32, character as u32));
+                    }
+                }
+
+                // Recursively handle children (for DocumentSymbol format)
+                if let Some(children) = symbol.get("children") {
+                    positions.extend(self.extract_symbol_positions(children));
+                }
+            }
+        }
+
+        positions
+    }
+
+    /// Gracefully shutdown all LSP clients
+    pub async fn shutdown(&self) -> Result<(), String> {
+        let mut clients_map = self.lsp_clients.lock().await;
+        let client_count = clients_map.len();
+
+        if client_count == 0 {
+            return Ok(());
+        }
+
+        debug!(
+            adapter_name = %self.name,
+            client_count = client_count,
+            "Shutting down all LSP clients in DirectLspAdapter"
+        );
+
+        let mut errors = Vec::new();
+
+        // Drain all clients and shutdown
+        for (extension, client) in clients_map.drain() {
+            let strong_count = Arc::strong_count(&client);
+
+            // Force shutdown (kill + wait) to prevent zombies
+            if let Err(e) = client.force_shutdown().await {
+                warn!(
+                    extension = %extension,
+                    error = %e,
+                    "Failed to force shutdown LSP client during adapter shutdown"
+                );
+                errors.push(format!(
+                    "Failed to force shutdown {} client: {}",
+                    extension, e
+                ));
+            } else {
+                debug!(
+                    extension = %extension,
+                    arc_strong_count = strong_count,
+                    "Force shutdown LSP client completed during adapter shutdown"
+                );
+            }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
+    }
+
+    /// Extract file extension from LSP params
+    fn extract_extension_from_params(&self, params: &Value, method: &str) -> Option<String> {
+        // For workspace-level operations, no longer needed since we handle them specially
+        match method {
+            "workspace/symbol" => {
+                // This path should not be reached anymore - handled in request() method
+                warn!("extract_extension_from_params called for workspace/symbol - should be handled specially");
+                None
+            }
+            _ => {
+                // For file-specific operations, extract from textDocument.uri
+                if let Some(uri) = params.get("textDocument")?.get("uri")?.as_str() {
+                    if uri.starts_with("file://") {
+                        let path = uri.trim_start_matches("file://");
+                        return std::path::Path::new(path)
+                            .extension()?
+                            .to_str()
+                            .map(|s| s.to_string());
+                    }
+                }
+                None
+            }
+        }
+    }
+}
+
+#[async_trait]
+impl LspImportFinder for DirectLspAdapter {
     /// Find all files that import/reference the given file path
     ///
     /// Uses LSP's textDocument/references to find all files that reference
@@ -469,7 +572,7 @@ impl DirectLspAdapter {
     /// the entire project because LSP maintains an index.
     ///
     /// Returns a list of file paths that import/reference the given file.
-    pub async fn find_files_that_import(
+    async fn find_files_that_import(
         &self,
         file_path: &std::path::Path,
     ) -> Result<Vec<std::path::PathBuf>, String> {
@@ -579,36 +682,10 @@ impl DirectLspAdapter {
         Ok(importing_files.into_iter().collect())
     }
 
-    /// Extract symbol positions (line, character) from documentSymbol response
-    fn extract_symbol_positions(&self, response: &Value) -> Vec<(u32, u32)> {
-        let mut positions = Vec::new();
-
-        if let Some(symbols) = response.as_array() {
-            for symbol in symbols {
-                // Handle both DocumentSymbol and SymbolInformation formats
-                if let Some(range) = symbol.get("range").or_else(|| symbol.get("location").and_then(|l| l.get("range"))) {
-                    if let (Some(line), Some(character)) = (
-                        range.get("start").and_then(|s| s.get("line")).and_then(|l| l.as_u64()),
-                        range.get("start").and_then(|s| s.get("character")).and_then(|c| c.as_u64()),
-                    ) {
-                        positions.push((line as u32, character as u32));
-                    }
-                }
-
-                // Recursively handle children (for DocumentSymbol format)
-                if let Some(children) = symbol.get("children") {
-                    positions.extend(self.extract_symbol_positions(children));
-                }
-            }
-        }
-
-        positions
-    }
-
     /// Find all files that import any file within a directory
     ///
     /// This is used for directory moves to find all external importers.
-    pub async fn find_files_that_import_directory(
+    async fn find_files_that_import_directory(
         &self,
         dir_path: &std::path::Path,
     ) -> Result<Vec<std::path::PathBuf>, String> {
@@ -673,79 +750,6 @@ impl DirectLspAdapter {
         );
 
         Ok(all_importing_files.into_iter().collect())
-    }
-
-    /// Gracefully shutdown all LSP clients
-    pub async fn shutdown(&self) -> Result<(), String> {
-        let mut clients_map = self.lsp_clients.lock().await;
-        let client_count = clients_map.len();
-
-        if client_count == 0 {
-            return Ok(());
-        }
-
-        debug!(
-            adapter_name = %self.name,
-            client_count = client_count,
-            "Shutting down all LSP clients in DirectLspAdapter"
-        );
-
-        let mut errors = Vec::new();
-
-        // Drain all clients and shutdown
-        for (extension, client) in clients_map.drain() {
-            let strong_count = Arc::strong_count(&client);
-
-            // Force shutdown (kill + wait) to prevent zombies
-            if let Err(e) = client.force_shutdown().await {
-                warn!(
-                    extension = %extension,
-                    error = %e,
-                    "Failed to force shutdown LSP client during adapter shutdown"
-                );
-                errors.push(format!(
-                    "Failed to force shutdown {} client: {}",
-                    extension, e
-                ));
-            } else {
-                debug!(
-                    extension = %extension,
-                    arc_strong_count = strong_count,
-                    "Force shutdown LSP client completed during adapter shutdown"
-                );
-            }
-        }
-
-        if errors.is_empty() {
-            Ok(())
-        } else {
-            Err(errors.join("; "))
-        }
-    }
-
-    /// Extract file extension from LSP params
-    fn extract_extension_from_params(&self, params: &Value, method: &str) -> Option<String> {
-        // For workspace-level operations, no longer needed since we handle them specially
-        match method {
-            "workspace/symbol" => {
-                // This path should not be reached anymore - handled in request() method
-                warn!("extract_extension_from_params called for workspace/symbol - should be handled specially");
-                None
-            }
-            _ => {
-                // For file-specific operations, extract from textDocument.uri
-                if let Some(uri) = params.get("textDocument")?.get("uri")?.as_str() {
-                    if uri.starts_with("file://") {
-                        let path = uri.trim_start_matches("file://");
-                        return std::path::Path::new(path)
-                            .extension()?
-                            .to_str()
-                            .map(|s| s.to_string());
-                    }
-                }
-                None
-            }
-        }
     }
 }
 
@@ -894,23 +898,11 @@ impl mill_handler_api::LspAdapter for DirectLspAdapter {
             .map_err(mill_foundation::errors::MillError::lsp)
     }
 
-    async fn find_files_that_import(
-        &self,
-        file_path: &std::path::Path,
-    ) -> Result<Vec<std::path::PathBuf>, String> {
-        // Delegate to the inherent implementation
-        DirectLspAdapter::find_files_that_import(self, file_path).await
-    }
-
-    async fn find_files_that_import_directory(
-        &self,
-        dir_path: &std::path::Path,
-    ) -> Result<Vec<std::path::PathBuf>, String> {
-        // Delegate to the inherent implementation
-        DirectLspAdapter::find_files_that_import_directory(self, dir_path).await
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_import_finder(&self) -> &dyn LspImportFinder {
         self
     }
 }

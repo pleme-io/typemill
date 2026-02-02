@@ -18,8 +18,7 @@
 
 mod planner;
 
-use crate::services::reference_updater::ReferenceUpdater;
-use crate::services::reference_updater::LspImportFinder;
+use crate::services::reference_updater::{LspImportFinder, ReferenceUpdater};
 use mill_foundation::errors::MillError as ServerError;
 use mill_foundation::protocol::EditPlan;
 

@@ -8,9 +8,7 @@ use mill_foundation::planning::MovePlan;
 use std::path::Path;
 use tracing::{debug, error, info};
 
-use crate::handlers::common::LspFinderWrapper;
 use crate::handlers::tools::extensions::get_concrete_app_state;
-use mill_services::services::reference_updater::LspImportFinder;
 
 use super::converter::editplan_to_moveplan;
 
@@ -60,22 +58,12 @@ pub async fn plan_directory_move(
         Some(true) | None => Some(mill_plugin_api::ScanScope::AllUseStatements),
     };
 
-    // Prepare LSP finder if available
-    let lsp_adapter_lock = context.lsp_adapter.lock().await;
-    let lsp_finder = lsp_adapter_lock.as_ref().map(|adapter| {
-        // Create a wrapper for LspImportFinder trait
-        LspFinderWrapper(adapter.clone())
-    });
+    // Get LSP finder if available
+    let lsp_adapter = context.lsp_adapter.lock().await.clone();
+    let lsp_finder = lsp_adapter.as_ref().map(|a| a.as_import_finder());
 
     let edit_plan = move_service
-        .plan_directory_move(
-            old_path,
-            new_path,
-            scan_scope,
-            lsp_finder
-                .as_ref()
-                .map(|w| w as &dyn LspImportFinder),
-        )
+        .plan_directory_move(old_path, new_path, scan_scope, lsp_finder)
         .await
         .map_err(|e| {
             error!(
