@@ -29,7 +29,7 @@ resolver = "2"
 
 # Package metadata for cargo install
 [workspace.package]
-version = "0.8.14"
+version = "0.8.18"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/goobits/typemill"

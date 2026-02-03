@@ -52,10 +52,10 @@ pub async fn plan_directory_move(
 
     // Map update_imports to ScanScope
     // If update_imports is explicitly false, use None (conservative)
-    // If update_imports is true or None (default), use AllUseStatements (standard)
+    // If update_imports is true or None (default), use All to include alias/string refs
     let scan_scope = match update_imports {
         Some(false) => None,
-        Some(true) | None => Some(mill_plugin_api::ScanScope::AllUseStatements),
+        Some(true) | None => Some(mill_plugin_api::ScanScope::All),
     };
 
     // Get LSP import finder from context (uses workspace/willRenameFiles for correct import detection)

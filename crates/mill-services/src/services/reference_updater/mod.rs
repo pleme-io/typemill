@@ -51,9 +51,12 @@ impl ReferenceUpdater {
     }
     /// Creates a new `ReferenceUpdater`.
     pub fn new(project_root: impl AsRef<Path>) -> Self {
+        let project_root = project_root.as_ref().to_path_buf();
+        let import_cache = ImportCache::shared();
+        let _ = import_cache.load_from_disk(&project_root);
         Self {
-            project_root: project_root.as_ref().to_path_buf(),
-            import_cache: ImportCache::shared(),
+            project_root,
+            import_cache,
         }
     }
 

@@ -194,8 +194,15 @@ pub(crate) async fn find_generic_affected_files_cached(
                         }
                     }
 
-                    // Check if imports reference the old path
-                    if all_imports.contains(&old_path_clone)
+                    // Check if imports reference the old/new path
+                    if is_directory {
+                        if all_imports
+                            .iter()
+                            .any(|p| p.starts_with(&old_path_clone) || p.starts_with(&new_path_clone))
+                        {
+                            return Some(file_clone);
+                        }
+                    } else if all_imports.contains(&old_path_clone)
                         || all_imports.contains(&new_path_clone)
                     {
                         return Some(file_clone);
@@ -304,6 +311,7 @@ pub(crate) async fn find_generic_affected_files_cached(
             cache_reverse = reverse,
             "find_generic_affected_files_cached completed (cache populated)"
         );
+        let _ = cache.save_to_disk(&project_root);
     } else {
         tracing::info!(
             affected_count = affected_vec.len(),

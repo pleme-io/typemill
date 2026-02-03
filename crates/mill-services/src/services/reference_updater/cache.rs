@@ -3,9 +3,12 @@
 //! Caches file import information to avoid re-parsing files during reference updates.
 //! Uses a reverse index for O(1) lookups of "which files import this path?"
 
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Cached information about a file's imports
 #[derive(Debug, Clone)]
@@ -15,6 +18,20 @@ pub struct FileImportInfo {
     /// Last modified time when this cache entry was created
     pub last_modified: std::time::SystemTime,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CacheEntry {
+    imports: Vec<PathBuf>,
+    last_modified_ms: u128,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct CacheSnapshot {
+    version: u32,
+    entries: HashMap<PathBuf, CacheEntry>,
+}
+
+const CACHE_VERSION: u32 = 1;
 
 /// Thread-safe import cache with reverse index for fast lookups
 ///
@@ -164,4 +181,123 @@ impl ImportCache {
             reverse.clear();
         }
     }
+
+    /// Load cache from disk for a project root (best-effort)
+    pub fn load_from_disk(&self, project_root: &Path) -> bool {
+        let cache_path = match cache_path_for_project(project_root) {
+            Some(path) => path,
+            None => return false,
+        };
+
+        let data = match std::fs::read_to_string(&cache_path) {
+            Ok(content) => content,
+            Err(_) => return false,
+        };
+
+        let snapshot: CacheSnapshot = match serde_json::from_str(&data) {
+            Ok(parsed) => parsed,
+            Err(_) => return false,
+        };
+
+        if snapshot.version != CACHE_VERSION {
+            return false;
+        }
+
+        let mut forward = HashMap::new();
+        let mut reverse: HashMap<PathBuf, HashSet<PathBuf>> = HashMap::new();
+
+        for (file, entry) in snapshot.entries {
+            if let Ok(metadata) = std::fs::metadata(&file) {
+                if let Ok(modified) = metadata.modified() {
+                    if system_time_to_millis(modified) == Some(entry.last_modified_ms) {
+                        forward.insert(
+                            file.clone(),
+                            FileImportInfo {
+                                imports: entry.imports.clone(),
+                                last_modified: modified,
+                            },
+                        );
+                        for import in entry.imports {
+                            reverse.entry(import).or_default().insert(file.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        if let Ok(mut forward_lock) = self.forward.write() {
+            forward_lock.clear();
+            forward_lock.extend(forward);
+        }
+        if let Ok(mut reverse_lock) = self.reverse.write() {
+            reverse_lock.clear();
+            reverse_lock.extend(reverse);
+        }
+
+        true
+    }
+
+    /// Persist cache to disk for a project root (best-effort)
+    pub fn save_to_disk(&self, project_root: &Path) -> bool {
+        let cache_path = match cache_path_for_project(project_root) {
+            Some(path) => path,
+            None => return false,
+        };
+
+        let forward = match self.forward.read() {
+            Ok(guard) => guard.clone(),
+            Err(_) => return false,
+        };
+
+        let mut entries = HashMap::new();
+        for (file, info) in forward {
+            if let Some(ms) = system_time_to_millis(info.last_modified) {
+                entries.insert(
+                    file,
+                    CacheEntry {
+                        imports: info.imports,
+                        last_modified_ms: ms,
+                    },
+                );
+            }
+        }
+
+        let snapshot = CacheSnapshot {
+            version: CACHE_VERSION,
+            entries,
+        };
+
+        if let Some(parent) = cache_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+
+        let tmp_path = cache_path.with_extension("json.tmp");
+        if let Ok(serialized) = serde_json::to_string(&snapshot) {
+            if std::fs::write(&tmp_path, serialized).is_ok() {
+                let _ = std::fs::rename(&tmp_path, &cache_path);
+                return true;
+            }
+        }
+
+        false
+    }
+}
+
+fn system_time_to_millis(time: SystemTime) -> Option<u128> {
+    time.duration_since(UNIX_EPOCH).ok().map(|d| d.as_millis())
+}
+
+fn cache_path_for_project(project_root: &Path) -> Option<PathBuf> {
+    let base = if let Ok(dir) = std::env::var("TYPEMILL_CACHE_DIR") {
+        PathBuf::from(dir)
+    } else if let Ok(home) = std::env::var("HOME") {
+        PathBuf::from(home).join(".typemill").join("cache")
+    } else {
+        return None;
+    };
+
+    let mut hasher = Sha256::new();
+    hasher.update(project_root.to_string_lossy().as_bytes());
+    let hash = format!("{:x}", hasher.finalize());
+    Some(base.join("imports").join(format!("{}.json", hash)))
 }

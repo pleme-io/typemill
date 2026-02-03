@@ -1372,9 +1372,12 @@ async fn handle_tool_command(
         let no_daemon = std::env::var("TYPEMILL_NO_DAEMON")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
+        let mut allow_daemon = !no_daemon;
+
+        let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
 
         // Auto-start daemon if not running to cache project state
-        if !no_daemon && !is_daemon_running(&socket_path).await {
+        if allow_daemon && !is_daemon_running(&socket_path).await {
             if socket_path.exists() {
                 let _ = std::fs::remove_file(&socket_path);
             }
@@ -1387,7 +1390,27 @@ async fn handle_tool_command(
             }
         }
 
-        if !no_daemon && is_daemon_running(&socket_path).await {
+        if allow_daemon && is_daemon_running(&socket_path).await {
+            if let Some(daemon_root) = read_daemon_root(&socket_path) {
+                if daemon_root != cwd {
+                    eprintln!(
+                        "⚠️  Daemon root mismatch: running for '{}' but current dir is '{}'",
+                        daemon_root.display(),
+                        cwd.display()
+                    );
+                    eprintln!("   Restarting daemon for the current project...");
+                    if let Err(e) = stop_running_daemon(&socket_path).await {
+                        eprintln!("⚠️  Failed to stop daemon: {}", e);
+                        allow_daemon = false;
+                    } else if let Err(e) = start_background_daemon().await {
+                        eprintln!("⚠️  Failed to restart daemon: {}", e);
+                        allow_daemon = false;
+                    }
+                }
+            }
+        }
+
+        if allow_daemon && is_daemon_running(&socket_path).await {
             // Use daemon for faster execution (LSP servers already running)
             match UnixSocketClient::connect(&socket_path).await {
                 Ok(mut client) => match client.call(message.clone()).await {
@@ -1693,12 +1716,17 @@ async fn run_daemon_server(socket_path: &std::path::Path, pid_path: &std::path::
         let _ = writeln!(file, "{}", pid);
     }
 
+    if let Ok(root) = std::env::current_dir() {
+        write_daemon_root(socket_path, &root);
+    }
+
     // Create and run server
     let server = match UnixSocketServer::bind(socket_path).await {
         Ok(s) => s,
         Err(e) => {
             eprintln!("❌ Failed to bind socket: {}", e);
             let _ = std::fs::remove_file(pid_path);
+            let _ = std::fs::remove_file(daemon_root_path(socket_path));
             process::exit(1);
         }
     };
@@ -1722,6 +1750,7 @@ async fn run_daemon_server(socket_path: &std::path::Path, pid_path: &std::path::
         // Clean up files
         let _ = std::fs::remove_file(&socket_path_clone);
         let _ = std::fs::remove_file(&pid_path_clone);
+        let _ = std::fs::remove_file(daemon_root_path(&socket_path_clone));
 
         println!("✅ Daemon stopped");
         process::exit(0);
@@ -1731,6 +1760,7 @@ async fn run_daemon_server(socket_path: &std::path::Path, pid_path: &std::path::
     if let Err(e) = server.run(dispatcher).await {
         eprintln!("❌ Server error: {}", e);
         let _ = std::fs::remove_file(pid_path);
+        let _ = std::fs::remove_file(daemon_root_path(socket_path));
         process::exit(1);
     }
 }
@@ -1757,6 +1787,7 @@ fn cleanup_stale_daemon_pid(socket_path: &std::path::Path) {
 
     if !is_process_running(pid) {
         let _ = std::fs::remove_file(&pid_path);
+        let _ = std::fs::remove_file(daemon_root_path(socket_path));
     }
 }
 
@@ -1767,6 +1798,63 @@ fn daemon_pid_path(socket_path: &std::path::Path) -> PathBuf {
     }
 
     socket_path.with_extension("pid")
+}
+
+#[cfg(unix)]
+fn daemon_root_path(socket_path: &std::path::Path) -> PathBuf {
+    socket_path.with_extension("root")
+}
+
+#[cfg(unix)]
+fn write_daemon_root(socket_path: &std::path::Path, root: &std::path::Path) {
+    if let Some(parent) = daemon_root_path(socket_path).parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let _ = std::fs::write(daemon_root_path(socket_path), root.to_string_lossy().as_ref());
+}
+
+#[cfg(unix)]
+fn read_daemon_root(socket_path: &std::path::Path) -> Option<std::path::PathBuf> {
+    let root_path = daemon_root_path(socket_path);
+    let contents = std::fs::read_to_string(root_path).ok()?;
+    Some(std::path::PathBuf::from(contents.trim()))
+}
+
+#[cfg(unix)]
+async fn stop_running_daemon(socket_path: &std::path::Path) -> Result<(), String> {
+    use mill_transport::is_daemon_running;
+    use nix::sys::signal::{self, Signal};
+    use nix::unistd::Pid;
+
+    let pid_path = daemon_pid_path(socket_path);
+
+    if !is_daemon_running(socket_path).await {
+        cleanup_stale_daemon_pid(socket_path);
+        return Ok(());
+    }
+
+    let pid_str = std::fs::read_to_string(&pid_path)
+        .map_err(|e| format!("Failed to read PID file: {}", e))?;
+    let pid: i32 = pid_str
+        .trim()
+        .parse()
+        .map_err(|e| format!("Invalid PID value: {}", e))?;
+
+    signal::kill(Pid::from_raw(pid), Signal::SIGTERM)
+        .map_err(|e| format!("Failed to signal daemon: {}", e))?;
+
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+
+    if is_daemon_running(socket_path).await {
+        let _ = signal::kill(Pid::from_raw(pid), Signal::SIGKILL);
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    }
+
+    let _ = std::fs::remove_file(socket_path);
+    let _ = std::fs::remove_file(pid_path);
+    let _ = std::fs::remove_file(daemon_root_path(socket_path));
+
+    Ok(())
 }
 
 /// Handle convert-naming command - bulk rename files based on naming convention
