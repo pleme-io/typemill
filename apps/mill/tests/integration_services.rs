@@ -170,6 +170,7 @@ async fn create_test_app_state(project_root: PathBuf) -> Arc<AppState> {
         start_time: Instant::now(),
         workspace_manager,
         language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        lsp_mode: mill_config::config::LspMode::Discover,
     })
 }
 

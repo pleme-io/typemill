@@ -193,6 +193,7 @@ pub async fn create_test_dispatcher_with_root(
         start_time: std::time::Instant::now(),
         workspace_manager,
         language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        lsp_mode: mill_config::config::LspMode::Discover,
     });
 
     PluginDispatcher::new(app_state, plugin_manager)

@@ -40,6 +40,7 @@ pub async fn create_test_app_state() -> (Arc<AppState>, TempDir) {
         start_time: std::time::Instant::now(),
         workspace_manager,
         language_plugins: mill_handlers::LanguagePluginRegistry::from_registry(plugin_registry),
+        lsp_mode: mill_config::config::LspMode::Discover,
     });
 
     (app_state, temp_dir)
