@@ -519,8 +519,25 @@ impl ReferenceUpdater {
             None
         };
 
+        // Pre-compute directory rename mappings once to avoid O(N*M) path cloning
+        let dir_renames = files_in_directory.as_ref().map(|files| {
+            let renames: Vec<(PathBuf, PathBuf)> = files
+                .iter()
+                .map(|file_in_dir| {
+                    let relative_path = file_in_dir
+                        .strip_prefix(old_path.as_ref())
+                        .unwrap_or(file_in_dir);
+                    let new_file_path = new_path.join(relative_path);
+                    (file_in_dir.clone(), new_file_path)
+                })
+                .collect();
+            Arc::new(renames)
+        });
+
         let rewrite_start = std::time::Instant::now();
         let mut join_set = JoinSet::new();
+        let rewrite_concurrency = rewrite_concurrency_limit();
+        let rewrite_semaphore = Arc::new(tokio::sync::Semaphore::new(rewrite_concurrency));
 
         for file_path in affected_files {
             let plugin_map = plugin_map.clone();
@@ -529,9 +546,14 @@ impl ReferenceUpdater {
             let new_path = new_path.clone();
             let merged_rename_info = merged_rename_info.clone();
             let renamed_ext = renamed_ext.clone();
-            let files_in_directory = files_in_directory.clone();
+            let dir_renames = dir_renames.clone();
+            let permit = match rewrite_semaphore.clone().acquire_owned().await {
+                Ok(p) => p,
+                Err(_) => continue,
+            };
 
             join_set.spawn(async move {
+                let _permit = permit;
                 tracing::debug!(
                     file_path = %file_path.display(),
                     "Processing affected file"
@@ -682,20 +704,9 @@ impl ReferenceUpdater {
                     let is_importer_inside_moved_dir = file_path.starts_with(old_path.as_ref());
 
                     if !is_importer_inside_moved_dir {
-                        if let Some(files) = &files_in_directory {
+                        if let Some(renames) = dir_renames.as_ref() {
                             // OPTIMIZATION: Use batch API to process all file renames in one call
                             // This reduces O(M) plugin calls to O(1) per affected file
-                            let renames: Vec<(PathBuf, PathBuf)> = files
-                                .iter()
-                                .map(|file_in_dir| {
-                                    let relative_path = file_in_dir
-                                        .strip_prefix(old_path.as_ref())
-                                        .unwrap_or(file_in_dir);
-                                    let new_file_path = new_path.join(relative_path);
-                                    (file_in_dir.clone(), new_file_path)
-                                })
-                                .collect();
-
                             tracing::debug!(
                                 importer = %file_path.display(),
                                 renames_count = renames.len(),
@@ -706,7 +717,7 @@ impl ReferenceUpdater {
                             // Single batch call replaces the O(M) loop
                             if let Some((updated_content, count)) = plugin.rewrite_file_references_batch(
                                 &combined_content,
-                                &renames,
+                                renames,
                                 &file_path,
                                 &project_root,
                                 merged_rename_info.as_ref().as_ref(),
@@ -1379,8 +1390,6 @@ fn scan_project_files_sync(
 ) -> Vec<PathBuf> {
     use ignore::WalkBuilder;
 
-    let mut files = Vec::new();
-
     // Universal exclusions that should NEVER be scanned during refactoring
     // These are cache/generated directories that exist regardless of .gitignore
     const UNIVERSAL_EXCLUSIONS: &[&str] = &[
@@ -1392,7 +1401,8 @@ fn scan_project_files_sync(
         ".ruff_cache",  // ruff linter cache
     ];
 
-    let walker = WalkBuilder::new(project_root)
+    let mut builder = WalkBuilder::new(project_root);
+    let walker = builder
         .hidden(false) // Don't skip hidden files (we want .gitignore, etc.)
         .git_ignore(true) // Respect .gitignore files
         .git_global(true) // Respect global gitignore
@@ -1405,30 +1415,55 @@ fn scan_project_files_sync(
                 }
             }
             true
-        })
-        .build();
+        });
 
-    for entry in walker.flatten() {
-        let path = entry.path();
-        if path.is_file() {
-            // If RenameScope is provided, use it to determine file inclusion
-            // Otherwise, fall back to plugin-based filtering for backward compatibility
-            let should_include = if let Some(scope) = rename_scope {
-                scope.should_include_file(path)
-            } else if let Some(ext) = path.extension() {
-                let ext_str = ext.to_str().unwrap_or("");
-                plugin_extensions.contains(ext_str) || (cfg!(feature = "lang-svelte") && ext_str == "svelte")
-            } else {
-                false
-            };
+    // Parallel file walk for faster cold-start discovery
+    use ignore::WalkState;
+    use std::sync::{Arc, Mutex};
+    let files = Arc::new(Mutex::new(Vec::new()));
+    let plugin_extensions = Arc::new(plugin_extensions.clone());
+    let rename_scope = Arc::new(rename_scope.cloned());
 
-            if should_include {
-                files.push(path.to_path_buf());
+    let files_clone = files.clone();
+    let plugin_extensions_clone = plugin_extensions.clone();
+    let rename_scope_clone = rename_scope.clone();
+
+    walker.build_parallel().run(move || {
+        let files = files_clone.clone();
+        let plugin_extensions = plugin_extensions_clone.clone();
+        let rename_scope = rename_scope_clone.clone();
+
+        Box::new(move |result| {
+            if let Ok(entry) = result {
+                let path = entry.path();
+                if path.is_file() {
+                    // If RenameScope is provided, use it to determine file inclusion
+                    // Otherwise, fall back to plugin-based filtering for backward compatibility
+                    let should_include = if let Some(scope) = rename_scope.as_ref() {
+                        scope.should_include_file(path)
+                    } else if let Some(ext) = path.extension() {
+                        let ext_str = ext.to_str().unwrap_or("");
+                        plugin_extensions.contains(ext_str)
+                            || (cfg!(feature = "lang-svelte") && ext_str == "svelte")
+                    } else {
+                        false
+                    };
+
+                    if should_include {
+                        if let Ok(mut guard) = files.lock() {
+                            guard.push(path.to_path_buf());
+                        }
+                    }
+                }
             }
-        }
-    }
+            WalkState::Continue
+        })
+    });
 
-    files
+    match Arc::try_unwrap(files) {
+        Ok(mutex) => mutex.into_inner().unwrap_or_default(),
+        Err(files) => files.lock().map(|v| v.clone()).unwrap_or_default(),
+    }
 }
 
 fn build_filelist_scope_key(
@@ -1441,6 +1476,19 @@ fn build_filelist_scope_key(
         .and_then(|scope| serde_json::to_string(scope).ok())
         .unwrap_or_else(|| "null".to_string());
     format!("v1|exts:{}|scope:{}", exts.join(","), scope_json)
+}
+
+fn rewrite_concurrency_limit() -> usize {
+    let env = std::env::var("TYPEMILL_REWRITE_CONCURRENCY")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok());
+    if let Some(value) = env {
+        return value.max(1).min(128);
+    }
+    std::thread::available_parallelism()
+        .map(|n| n.get().saturating_mul(2))
+        .unwrap_or(8)
+        .clamp(4, 64)
 }
 
 fn ensure_filelist_watcher(

@@ -125,6 +125,7 @@ pub(crate) async fn find_generic_affected_files_cached(
         project_root,
         plugins.to_vec(),
     ));
+    let resolver_cache = Arc::new(dashmap::DashMap::<(String, PathBuf), Option<PathBuf>>::new());
 
     let plugin_map = Arc::new(plugin_map.clone());
     let rename_info = rename_info.cloned();
@@ -149,6 +150,7 @@ pub(crate) async fn find_generic_affected_files_cached(
         let new_path = new_path.clone();
         let project_root = project_root.clone();
         let resolver = resolver.clone();
+        let resolver_cache = resolver_cache.clone();
         let plugin_map = plugin_map.clone();
         let rename_info = rename_info.clone();
         let project_files_arc = project_files_arc.clone();
@@ -169,6 +171,7 @@ pub(crate) async fn find_generic_affected_files_cached(
                 let new_path_clone = new_path.clone();
                 let project_root_clone = project_root.clone();
                 let resolver_clone = resolver.clone();
+                let resolver_cache_clone = resolver_cache.clone();
                 let plugin_map_clone = plugin_map.clone();
                 let rename_info_clone = rename_info.clone();
                 let project_files_clone = project_files_arc.clone();
@@ -183,6 +186,7 @@ pub(crate) async fn find_generic_affected_files_cached(
                         &plugin_map_clone,
                         &project_files_clone,
                         &resolver_clone,
+                        &resolver_cache_clone,
                     );
 
                     // CACHE POPULATION: Store the imports for this file
@@ -441,7 +445,15 @@ pub(crate) fn get_all_imported_files(
     project_root: &Path,
 ) -> Vec<PathBuf> {
     let resolver = mill_ast::ImportPathResolver::with_plugins(project_root, plugins.to_vec());
-    get_all_imported_files_internal(content, current_file, plugin_map, project_files, &resolver)
+    let resolver_cache = dashmap::DashMap::<(String, PathBuf), Option<PathBuf>>::new();
+    get_all_imported_files_internal(
+        content,
+        current_file,
+        plugin_map,
+        project_files,
+        &resolver,
+        &resolver_cache,
+    )
 }
 
 /// Internal helper that takes a pre-created resolver
@@ -451,6 +463,7 @@ fn get_all_imported_files_internal(
     plugin_map: &HashMap<String, Arc<dyn LanguagePlugin>>,
     project_files: &[PathBuf],
     resolver: &mill_ast::ImportPathResolver,
+    resolver_cache: &dashmap::DashMap<(String, PathBuf), Option<PathBuf>>,
 ) -> Vec<PathBuf> {
     let mut imported_files = Vec::new();
 
@@ -460,7 +473,7 @@ fn get_all_imported_files_internal(
                 let import_specifiers = import_parser.parse_imports(content);
                 for specifier in import_specifiers {
                     if let Some(resolved) =
-                        resolve_import_to_file(&specifier, current_file, project_files, resolver)
+                        resolve_import_to_file(&specifier, current_file, project_files, resolver, resolver_cache)
                     {
                         imported_files.push(resolved);
                     }
@@ -475,7 +488,7 @@ fn get_all_imported_files_internal(
         for line in content.lines() {
         if let Some(specifier) = extract_import_path(line) {
             if let Some(resolved) =
-                resolve_import_to_file(&specifier, current_file, project_files, resolver)
+                resolve_import_to_file(&specifier, current_file, project_files, resolver, resolver_cache)
             {
                 imported_files.push(resolved);
             }
@@ -531,8 +544,15 @@ fn resolve_import_to_file(
     importing_file: &Path,
     project_files: &[PathBuf],
     resolver: &mill_ast::ImportPathResolver,
+    resolver_cache: &dashmap::DashMap<(String, PathBuf), Option<PathBuf>>,
 ) -> Option<PathBuf> {
-    resolver.resolve_import_to_file(specifier, importing_file, project_files)
+    let key = (specifier.to_string(), importing_file.parent().unwrap_or(importing_file).to_path_buf());
+    if let Some(entry) = resolver_cache.get(&key) {
+        return entry.value().clone();
+    }
+    let resolved = resolver.resolve_import_to_file(specifier, importing_file, project_files);
+    resolver_cache.insert(key, resolved.clone());
+    resolved
 }
 
 /// Extract import path from a line of code using regex patterns
