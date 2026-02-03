@@ -165,23 +165,25 @@ pub(crate) async fn find_generic_affected_files_cached(
 
         join_set.spawn(async move {
             let _permit = permit;
-            if let Ok(content) = tokio::fs::read_to_string(&file).await {
-                let file_clone = file.clone();
-                let old_path_clone = old_path.clone();
-                let new_path_clone = new_path.clone();
-                let project_root_clone = project_root.clone();
-                let resolver_clone = resolver.clone();
-                let resolver_cache_clone = resolver_cache.clone();
-                let plugin_map_clone = plugin_map.clone();
-                let rename_info_clone = rename_info.clone();
-                let project_files_clone = project_files_arc.clone();
-                let content_clone = content.clone();
-                let import_cache_clone = import_cache.clone();
-                let renamed_ext = renamed_ext.clone();
-                let result = tokio::task::spawn_blocking(move || {
+            let file_clone = file.clone();
+            let old_path_clone = old_path.clone();
+            let new_path_clone = new_path.clone();
+            let project_root_clone = project_root.clone();
+            let resolver_clone = resolver.clone();
+            let resolver_cache_clone = resolver_cache.clone();
+            let plugin_map_clone = plugin_map.clone();
+            let rename_info_clone = rename_info.clone();
+            let project_files_clone = project_files_arc.clone();
+            let import_cache_clone = import_cache.clone();
+            let renamed_ext = renamed_ext.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                let content = match std::fs::read_to_string(&file_clone) {
+                    Ok(c) => c,
+                    Err(_) => return None,
+                };
                     // METHOD 1: Import-based detection
                     let all_imports = get_all_imported_files_internal(
-                        &content_clone,
+                        &content,
                         &file_clone,
                         &plugin_map_clone,
                         &project_files_clone,
@@ -227,13 +229,13 @@ pub(crate) async fn find_generic_affected_files_cached(
                             }
                             if is_directory
                                 && is_web_extension(ext)
-                                && !content_might_contain_alias_imports(&content_clone)
+                                && !content_might_contain_alias_imports(&content)
                             {
                                 return None;
                             }
 
                             let rewrite_result = plugin.rewrite_file_references(
-                                &content_clone,
+                                &content,
                                 &old_path_clone,
                                 &new_path_clone,
                                 &file_clone,
@@ -242,7 +244,7 @@ pub(crate) async fn find_generic_affected_files_cached(
                             );
 
                             if let Some((updated_content, change_count)) = rewrite_result {
-                                if change_count > 0 && updated_content != content_clone {
+                                if change_count > 0 && updated_content != content {
                                     return Some(file_clone);
                                 }
                             }
@@ -254,12 +256,12 @@ pub(crate) async fn find_generic_affected_files_cached(
                                     return None;
                                 }
                                 if is_directory
-                                    && !content_might_contain_alias_imports(&content_clone)
+                                    && !content_might_contain_alias_imports(&content)
                                 {
                                     return None;
                                 }
                                 let rewrite_result = plugin.rewrite_file_references(
-                                    &content_clone,
+                                    &content,
                                     &old_path_clone,
                                     &new_path_clone,
                                     &file_clone,
@@ -268,7 +270,7 @@ pub(crate) async fn find_generic_affected_files_cached(
                                 );
 
                                 if let Some((updated_content, change_count)) = rewrite_result {
-                                    if change_count > 0 && updated_content != content_clone {
+                                    if change_count > 0 && updated_content != content {
                                         return Some(file_clone);
                                     }
                                 }
@@ -287,9 +289,6 @@ pub(crate) async fn find_generic_affected_files_cached(
                         None
                     }
                 }
-            } else {
-                None
-            }
         });
     }
 
@@ -373,53 +372,53 @@ async fn check_files_for_rewrite(
 
         join_set.spawn(async move {
             let _permit = permit;
-            if let Ok(content) = tokio::fs::read_to_string(&file).await {
-                let file_clone = file.clone();
-                let renamed_ext = renamed_ext.clone();
-                let result = tokio::task::spawn_blocking(move || {
-                    if let Some(ext) = file_clone.extension().and_then(|e| e.to_str()) {
-                        if !crate::services::reference_updater::is_extension_compatible_for_rewrite(
-                            renamed_ext.as_deref(),
-                            Some(ext),
-                        ) {
-                            return None;
-                        }
-                        if !allow_rewrite && is_web_extension(ext) {
-                            return None;
-                        }
-                        if is_directory
-                            && is_web_extension(ext)
-                            && !content_might_contain_alias_imports(&content)
-                        {
-                            return None;
-                        }
-                        if let Some(plugin) = plugin_map.get(ext) {
-                            let rewrite_result = plugin.rewrite_file_references(
-                                &content,
-                                &old_path,
-                                &new_path,
-                                &file_clone,
-                                &project_root,
-                                rename_info.as_ref(),
-                            );
+            let file_clone = file.clone();
+            let renamed_ext = renamed_ext.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                let content = match std::fs::read_to_string(&file_clone) {
+                    Ok(c) => c,
+                    Err(_) => return None,
+                };
+                if let Some(ext) = file_clone.extension().and_then(|e| e.to_str()) {
+                    if !crate::services::reference_updater::is_extension_compatible_for_rewrite(
+                        renamed_ext.as_deref(),
+                        Some(ext),
+                    ) {
+                        return None;
+                    }
+                    if !allow_rewrite && is_web_extension(ext) {
+                        return None;
+                    }
+                    if is_directory
+                        && is_web_extension(ext)
+                        && !content_might_contain_alias_imports(&content)
+                    {
+                        return None;
+                    }
+                    if let Some(plugin) = plugin_map.get(ext) {
+                        let rewrite_result = plugin.rewrite_file_references(
+                            &content,
+                            &old_path,
+                            &new_path,
+                            &file_clone,
+                            &project_root,
+                            rename_info.as_ref(),
+                        );
 
-                            if let Some((updated_content, change_count)) = rewrite_result {
-                                if change_count > 0 && updated_content != content {
-                                    return Some(file_clone);
-                                }
+                        if let Some((updated_content, change_count)) = rewrite_result {
+                            if change_count > 0 && updated_content != content {
+                                return Some(file_clone);
                             }
                         }
                     }
-                    None
-                })
-                .await;
-
-                match result {
-                    Ok(Some(f)) => Some(f),
-                    _ => None,
                 }
-            } else {
                 None
+            })
+            .await;
+
+            match result {
+                Ok(Some(f)) => Some(f),
+                _ => None,
             }
         });
     }
