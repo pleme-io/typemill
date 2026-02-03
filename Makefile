@@ -49,12 +49,27 @@ release-npm:
 	fi; \
 	pkg_path="$(NPM_DIR)/package.json"; \
 	current_version=$$(node -p "require('./$$pkg_path').version"); \
-	if npm view $(NPM_PKG)@$$current_version version >/dev/null 2>&1; then \
-		echo "⚠️  $(NPM_PKG) version $$current_version already published. Auto-bumping $(NPM_BUMP)..."; \
+	published_version=$$(npm view $(NPM_PKG) version 2>/dev/null || echo "0.0.0"); \
+	needs_bump=""; \
+	if [ "$$published_version" != "0.0.0" ]; then \
+		latest=$$(printf '%s\n' "$$current_version" "$$published_version" | sort -V | tail -n1); \
+		if [ "$$latest" = "$$published_version" ]; then \
+			needs_bump="yes"; \
+		fi; \
+	fi; \
+	while [ "$$needs_bump" = "yes" ]; do \
+		echo "⚠️  $(NPM_PKG) version $$current_version already published (latest $$published_version). Auto-bumping $(NPM_BUMP)..."; \
 		( cd $(NPM_DIR) && npm version $(NPM_BUMP) --no-git-tag-version ); \
 		current_version=$$(node -p "require('./$$pkg_path').version"); \
+		latest=$$(printf '%s\n' "$$current_version" "$$published_version" | sort -V | tail -n1); \
+		if [ "$$latest" = "$$published_version" ]; then \
+			needs_bump="yes"; \
+		else \
+			needs_bump=""; \
+		fi; \
 		echo "✅ Bumped to $$current_version"; \
-	fi; \
+	done; \
+	node -e "const fs=require('fs');const p='Cargo.toml';const v='$$current_version';let s=fs.readFileSync(p,'utf8');s=s.replace(/^version = \\\"\\d+\\.\\d+\\.\\d+\\\"/m, 'version = \"'+v+'\"');fs.writeFileSync(p,s);"; \
 	( cd $(NPM_DIR) && TYPEMILL_ALLOW_DIRTY=1 TYPEMILL_SKIP_PUBLISH=1 TYPEMILL_SKIP_GIT=1 npm run release ); \
 	status=$$?; \
 	if [ "$$stashed" = "yes" ]; then \
