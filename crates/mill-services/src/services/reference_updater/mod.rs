@@ -449,7 +449,7 @@ impl ReferenceUpdater {
 
         #[cfg(feature = "lang-svelte")]
         if !is_directory_rename {
-            let plugin = mill_lang_svelte::SveltePlugin::new();
+            let mut svelte_join_set = JoinSet::new();
             for file in &project_files {
                 if file.extension().and_then(|e| e.to_str()) != Some("svelte") {
                     continue;
@@ -457,20 +457,33 @@ impl ReferenceUpdater {
                 if affected_files.contains(file) {
                     continue;
                 }
-
-                if let Ok(content) = tokio::fs::read_to_string(file).await {
-                    if let Some((updated_content, count)) = plugin.rewrite_file_references(
-                        &content,
-                        old_path.as_ref(),
-                        new_path.as_ref(),
-                        file,
-                        &self.project_root,
-                        merged_rename_info.as_ref(),
-                    ) {
-                        if count > 0 && updated_content != content {
-                            affected_files.push(file.clone());
+                let file = file.clone();
+                let old_path = old_path.to_path_buf();
+                let new_path = new_path.to_path_buf();
+                let project_root = self.project_root.clone();
+                let merged_rename_info = merged_rename_info.clone();
+                svelte_join_set.spawn(async move {
+                    let plugin = mill_lang_svelte::SveltePlugin::new();
+                    if let Ok(content) = tokio::fs::read_to_string(&file).await {
+                        if let Some((updated_content, count)) = plugin.rewrite_file_references(
+                            &content,
+                            old_path.as_ref(),
+                            new_path.as_ref(),
+                            &file,
+                            &project_root,
+                            merged_rename_info.as_ref(),
+                        ) {
+                            if count > 0 && updated_content != content {
+                                return Some(file);
+                            }
                         }
                     }
+                    None
+                });
+            }
+            while let Some(res) = svelte_join_set.join_next().await {
+                if let Ok(Some(file)) = res {
+                    affected_files.push(file);
                 }
             }
         }

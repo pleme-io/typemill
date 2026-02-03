@@ -471,7 +471,8 @@ fn get_all_imported_files_internal(
     }
 
     // Fallback: use regex-based extraction
-    for line in content.lines() {
+    if is_likely_code_text(content) {
+        for line in content.lines() {
         if let Some(specifier) = extract_import_path(line) {
             if let Some(resolved) =
                 resolve_import_to_file(&specifier, current_file, project_files, resolver)
@@ -479,9 +480,26 @@ fn get_all_imported_files_internal(
                 imported_files.push(resolved);
             }
         }
+        }
     }
 
     imported_files
+}
+
+fn is_likely_code_text(content: &str) -> bool {
+    if content.len() > 1_000_000 {
+        return false;
+    }
+    let sample_len = content.len().min(8192);
+    let sample = &content.as_bytes()[..sample_len];
+    let mut non_printable = 0usize;
+    for &b in sample {
+        let is_text = b == b'\n' || b == b'\r' || b == b'\t' || (b >= 0x20 && b <= 0x7e);
+        if !is_text {
+            non_printable += 1;
+        }
+    }
+    non_printable * 20 < sample_len
 }
 
 fn is_web_extension(ext: &str) -> bool {
