@@ -85,6 +85,21 @@ impl LspSetupHelper {
     /// Note: Language support temporarily reduced to TypeScript + Rust
     pub fn setup_lsp_config(workspace: &TestWorkspace) {
         workspace.create_directory(".typemill");
+        if !workspace.file_exists("tsconfig.json") {
+            let tsconfig = json!({
+                "compilerOptions": {
+                    "target": "ES2022",
+                    "module": "ESNext",
+                    "moduleResolution": "node",
+                    "strict": true,
+                    "skipLibCheck": true,
+                    "noEmit": true
+                },
+                "include": ["**/*"],
+                "exclude": ["node_modules"]
+            });
+            workspace.create_file("tsconfig.json", &serde_json::to_string_pretty(&tsconfig).unwrap());
+        }
 
         // Resolve absolute paths for LSP servers to avoid PATH issues
         let ts_lsp_path = Self::resolve_command_path("typescript-language-server")
@@ -108,13 +123,13 @@ impl LspSetupHelper {
                     {
                         "extensions": ["ts", "tsx", "js", "jsx"],
                         "command": [ts_lsp_path, "--stdio"],
-                        "rootDir": null,
+                        "rootDir": workspace.path().to_string_lossy(),
                         "restartInterval": 5
                     },
                     {
                         "extensions": ["rs"],
                         "command": [rust_analyzer_path],
-                        "rootDir": null,
+                        "rootDir": workspace.path().to_string_lossy(),
                         "restartInterval": 5
                     }
                 ],

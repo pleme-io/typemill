@@ -20,6 +20,7 @@ anyhow = { workspace = true }
 mill-foundation = { path = "../mill-foundation" }
 mill-plugin-api = { path = "../mill-plugin-api" }
 mill-services = { path = "../mill-services", default-features = false }
+regex = "1"
 
 # Benchmark dependencies (merged from cb-bench)
 mill-server = { path = "../mill-server", default-features = false }

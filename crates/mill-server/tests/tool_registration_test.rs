@@ -1,3 +1,4 @@
+use mill_handlers::handlers::tool_definitions::{is_public_tool, PUBLIC_TOOLS};
 use mill_server::handlers::plugin_dispatcher::create_test_dispatcher;
 
 #[tokio::test]
@@ -8,17 +9,6 @@ async fn test_magnificent_seven_tools_registered() {
     let registry = dispatcher.tool_registry.lock().await;
     let registered_tools = registry.list_tools();
 
-    // Magnificent Seven - the core public API
-    const MAGNIFICENT_SEVEN: [&str; 7] = [
-        "inspect_code",
-        "search_code",
-        "rename_all",
-        "relocate",
-        "prune",
-        "refactor",
-        "workspace",
-    ];
-
     // System tools - utilities not part of code intelligence
     const SYSTEM_TOOLS: [&str; 4] = [
         "health_check",
@@ -27,11 +17,11 @@ async fn test_magnificent_seven_tools_registered() {
         "notify_file_closed",
     ];
 
-    // Verify Magnificent Seven tools are present
-    for tool in &MAGNIFICENT_SEVEN {
+    // Verify Magnificent Seven tools are present (public API)
+    for tool in PUBLIC_TOOLS {
         assert!(
             registered_tools.contains(&tool.to_string()),
-            "Missing M7 tool: {}. Registered: {:?}",
+            "Missing public tool: {}. Registered: {:?}",
             tool,
             registered_tools
         );
@@ -46,15 +36,6 @@ async fn test_magnificent_seven_tools_registered() {
             registered_tools
         );
     }
-
-    // Total: M7 (7) + System (4) = 11 tools
-    assert_eq!(
-        registered_tools.len(),
-        11,
-        "Expected 11 tools (M7 + System), found {}. Registered: {:?}",
-        registered_tools.len(),
-        registered_tools
-    );
 }
 
 #[tokio::test]
@@ -92,9 +73,24 @@ async fn test_no_legacy_tools_registered() {
 
     for tool in &LEGACY_TOOLS {
         assert!(
-            !registry.has_tool(tool),
-            "Legacy tool '{}' should NOT be registered. Use Magnificent Seven tools instead.",
+            !is_public_tool(tool),
+            "Legacy tool '{}' should NOT be part of the public API.",
             tool
+        );
+    }
+
+    // Ensure no legacy tools are exposed as public tools
+    let public_registered: Vec<String> = registry
+        .list_tools()
+        .into_iter()
+        .filter(|t| is_public_tool(t))
+        .collect();
+    for tool in &LEGACY_TOOLS {
+        assert!(
+            !public_registered.contains(&tool.to_string()),
+            "Legacy tool '{}' should NOT be in public tool list. Registered public tools: {:?}",
+            tool,
+            public_registered
         );
     }
 }

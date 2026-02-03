@@ -16,7 +16,8 @@ pub fn command_exists(cmd: &str) -> bool {
 /// # Examples
 /// ```
 /// use mill_foundation::core::utils::system;
-/// # tokio_test::block_on(async {
+/// # let rt = tokio::runtime::Runtime::new().unwrap();
+/// # rt.block_on(async {
 /// let (success, output) = system::test_command_with_version("rustc", &[]).await;
 /// assert!(success);
 /// # })

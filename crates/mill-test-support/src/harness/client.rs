@@ -547,8 +547,8 @@ impl TestClient {
         results
     }
 
-    /// Wait for LSP to finish indexing a file by polling diagnostics.
-    /// This is much faster than arbitrary sleeps and more reliable.
+    /// Wait for LSP to finish indexing a file by polling a symbol lookup.
+    /// This is more reliable than diagnostics for LSPs that don't support pull-model diagnostics.
     ///
     /// # Arguments
     /// * `file_path` - Path to the file to wait for
@@ -564,12 +564,57 @@ impl TestClient {
     ) -> Result<(), String> {
         use std::time::Instant;
 
+        let symbol_name = extract_symbol_name(file_path);
+
         let start = Instant::now();
         let poll_interval = Duration::from_millis(POLL_INTERVAL_MS);
         let max_duration = Duration::from_millis(max_wait_ms);
 
         loop {
-            // Poll for diagnostics - when they appear, LSP has indexed the file
+            // Prefer symbol-based readiness since some LSPs don't support pull-model diagnostics.
+            if let Some(ref symbol) = symbol_name {
+                if let Ok(response) = self
+                    .call_tool(
+                        "inspect_code",
+                        serde_json::json!({
+                            "filePath": file_path.to_string_lossy(),
+                            "symbolName": symbol,
+                            "include": ["definition"]
+                        }),
+                    )
+                    .await
+                {
+                    if response
+                        .get("result")
+                        .and_then(|r| r.get("content"))
+                        .and_then(|c| c.get("definition"))
+                        .is_some()
+                    {
+                        return Ok(());
+                    }
+                }
+
+                if let Ok(response) = self
+                    .call_tool(
+                        "search_code",
+                        serde_json::json!({
+                            "query": symbol
+                        }),
+                    )
+                    .await
+                {
+                    let has_results = response
+                        .get("result")
+                        .and_then(|r| r.as_array().or_else(|| r.get("content").and_then(|c| c.as_array())))
+                        .map(|arr| !arr.is_empty())
+                        .unwrap_or(false);
+                    if has_results {
+                        return Ok(());
+                    }
+                }
+            }
+
+            // Fallback: diagnostics (some LSPs still support this)
             if let Ok(response) = self
                 .call_tool(
                     "inspect_code",
@@ -588,7 +633,7 @@ impl TestClient {
                     .and_then(|c| c.get("diagnostics"))
                     .is_some()
                 {
-                    return Ok(()); // LSP is ready!
+                    return Ok(());
                 }
             }
 
@@ -603,6 +648,18 @@ impl TestClient {
             tokio::time::sleep(poll_interval).await;
         }
     }
+}
+
+fn extract_symbol_name(file_path: &std::path::Path) -> Option<String> {
+    use regex::Regex;
+
+    let content = std::fs::read_to_string(file_path).ok()?;
+    let re = Regex::new(
+        r"(?m)^(?:\s*export\s+)?(?:class|interface|function|type|enum|const|let|var|struct|trait|fn)\s+([A-Za-z_][A-Za-z0-9_]*)",
+    )
+    .ok()?;
+    re.captures(&content)
+        .and_then(|caps| caps.get(1).map(|m| m.as_str().to_string()))
 }
 
 /// Performance statistics for the server process.

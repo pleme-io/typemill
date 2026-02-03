@@ -22,6 +22,7 @@ refactor-all = ["refactor-rename", "refactor-extract", "refactor-inline", "refac
 
 # Test features
 lsp-tests = []
+heavy-tests = []
 
 [dependencies]
 mill-foundation = { path = "../mill-foundation" }

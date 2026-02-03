@@ -214,6 +214,7 @@ export function process{}(data: Data{}): string {{
     let symbols = result
         .as_array()
         .or_else(|| result.get("content").and_then(|v| v.as_array()))
+        .or_else(|| result.get("results").and_then(|v| v.as_array()))
         .expect("Response should have results array");
     println!(
         "Workspace symbol search found {} symbols in: {:?}",
@@ -244,10 +245,10 @@ export function process{}(data: Data{}): string {{
     let result = response
         .get("result")
         .expect("Response should have result field");
-    let content = result
-        .get("content")
-        .expect("Response should have content field");
-    let files = content["files"].as_array().unwrap();
+    let files = result["files"]
+        .as_array()
+        .or_else(|| result.get("content").and_then(|c| c["files"].as_array()))
+        .expect("Response should have files array");
     println!("Listed {} files in: {:?}", files.len(), list_duration);
 
     assert!(files.len() >= file_count as usize);
@@ -879,6 +880,7 @@ export class UserService{} {{
     let symbols = result
         .as_array()
         .or_else(|| result.get("content").and_then(|v| v.as_array()))
+        .or_else(|| result.get("results").and_then(|v| v.as_array()))
         .expect("Response should have results array");
     println!(
         "Workspace symbol search found {} symbols in: {:?}",

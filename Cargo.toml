@@ -50,6 +50,7 @@ tokio = { version = "1.0", features = [
     "time",
     "fs",
     "signal",
+    "process",
 ] }
 async-trait = "0.1"
 

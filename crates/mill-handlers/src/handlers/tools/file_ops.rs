@@ -30,7 +30,14 @@ impl FileToolsHandler {
 #[async_trait]
 impl ToolHandler for FileToolsHandler {
     fn tool_names(&self) -> &[&str] {
-        &["read_file", "write_file", "list_files"]
+        #[cfg(feature = "heavy-tests")]
+        {
+            &["read_file", "write_file", "list_files", "create_file"]
+        }
+        #[cfg(not(feature = "heavy-tests"))]
+        {
+            &["read_file", "write_file", "list_files"]
+        }
     }
 
     async fn handle_tool_call(

@@ -8,7 +8,7 @@ use mill_plugin_system::LspService;
 use mill_services::services::reference_updater::LspImportFinder;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, warn};
@@ -62,23 +62,39 @@ impl DirectLspAdapter {
         &self,
         extension: &str,
     ) -> Result<Arc<mill_lsp::lsp_system::LspClient>, String> {
+        // Find server config for this extension and derive a stable cache key.
+        let server_config = self
+            .config
+            .servers
+            .iter()
+            .find(|server| server.extensions.contains(&extension.to_string()))
+            .ok_or_else(|| format!("No LSP server configured for extension: {}", extension))?
+            .clone();
+
+        let cache_key = server_config
+            .extensions
+            .first()
+            .cloned()
+            .unwrap_or_else(|| extension.to_string());
+
         // Check if a client already exists and is alive
         let mut clients = self.lsp_clients.lock().await;
-        if let Some(client) = clients.get(extension) {
+        if let Some(client) = clients.get(&cache_key) {
             if client.is_alive().await {
-                debug!(extension, "Reusing existing, live LSP client");
+                debug!(extension, cache_key = %cache_key, "Reusing existing, live LSP client");
                 return Ok(client.clone());
             } else {
                 // PHASE 2: Dead client found - extract it for cleanup
                 warn!(
                     extension,
+                    cache_key = %cache_key,
                     "Found dead LSP client in cache, removing it before creating a new one."
                 );
-                let dead_client = clients.remove(extension);
+                let dead_client = clients.remove(&cache_key);
 
                 // Cleanup dead client immediately to prevent zombie processes
                 if let Some(dead_client) = dead_client {
-                    let ext = extension.to_string();
+                    let ext = cache_key.clone();
                     tokio::spawn(async move {
                         // Force shutdown (kill + wait) to prevent zombies
                         if let Err(e) = dead_client.force_shutdown().await {
@@ -101,15 +117,6 @@ impl DirectLspAdapter {
         // Drop the lock before the potentially long operation of creating a new client
         drop(clients);
 
-        // Find server config for this extension
-        let server_config = self
-            .config
-            .servers
-            .iter()
-            .find(|server| server.extensions.contains(&extension.to_string()))
-            .ok_or_else(|| format!("No LSP server configured for extension: {}", extension))?
-            .clone();
-
         // Create new LSP client
         let client = mill_lsp::lsp_system::LspClient::new(server_config)
             .await
@@ -120,7 +127,7 @@ impl DirectLspAdapter {
         // Store the client
         {
             let mut clients = self.lsp_clients.lock().await;
-            clients.insert(extension.to_string(), client.clone());
+            clients.insert(cache_key, client.clone());
         }
 
         Ok(client)
@@ -206,7 +213,8 @@ impl DirectLspAdapter {
                 None
             };
 
-        // Query each supported extension's LSP server
+        // Query each supported extension's LSP server (dedupe by server command)
+        let mut seen_clients: HashSet<String> = HashSet::new();
         for extension in &self.extensions {
             // Apply filter if present - only query servers relevant to the requesting plugin
             if let Some(ref filter) = filter_extensions {
@@ -218,6 +226,15 @@ impl DirectLspAdapter {
             // Get or create client for this extension
             match self.get_or_create_client(extension).await {
                 Ok(client) => {
+                    let client_key = client.config().command.join(" ");
+                    if !seen_clients.insert(client_key.clone()) {
+                        debug!(
+                            extension = %extension,
+                            client_key = %client_key,
+                            "Skipping duplicate workspace/symbol query for shared LSP server"
+                        );
+                        continue;
+                    }
                     // Check if the server supports workspace symbols
                     if !client.supports_workspace_symbols().await {
                         debug!(
@@ -287,76 +304,77 @@ impl DirectLspAdapter {
                         if let Some(root_dir) = client.config().root_dir.as_ref() {
                             let mut warmup_file = None;
 
-                            // First, try to find tsconfig.json (best choice as it defines the project)
-                            let tsconfig = root_dir.join("tsconfig.json");
-                            if tsconfig.exists() && tsconfig.is_file() {
-                                warmup_file = Some(tsconfig);
-                            } else {
-                                // Fall back to finding any TypeScript file
-                                let extensions_to_try = ["ts", "tsx", "js", "jsx"];
-                                for ext in &extensions_to_try {
-                                    // Try to find any file with this extension in the workspace
-                                    if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
+                            // Prefer opening a source file to establish a TS project context.
+                            let extensions_to_try = ["ts", "tsx", "js", "jsx"];
+                            for ext in &extensions_to_try {
+                                // Try to find any file with this extension in the workspace
+                                if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
+                                    while let Ok(Some(entry)) = entries.next_entry().await {
+                                        let path = entry.path();
+                                        // Note: is_file() on DirEntry is cheap (doesn't stat again on most OSs)
+                                        // but path.is_file() might stat. entry.file_type() is async in tokio.
+                                        let is_file = match entry.file_type().await {
+                                            Ok(ft) => ft.is_file(),
+                                            Err(_) => false,
+                                        };
+
+                                        if is_file
+                                            && path.extension().and_then(|e| e.to_str())
+                                                == Some(ext)
+                                        {
+                                            warmup_file = Some(path);
+                                            break;
+                                        }
+                                    }
+                                }
+                                if warmup_file.is_some() {
+                                    break;
+                                }
+                            }
+
+                            // If still not found, try src directory
+                            if warmup_file.is_none() {
+                                let src_dir = root_dir.join("src");
+                                let src_exists =
+                                    tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
+                                let is_dir = if src_exists {
+                                    tokio::fs::metadata(&src_dir)
+                                        .await
+                                        .map(|m| m.is_dir())
+                                        .unwrap_or(false)
+                                } else {
+                                    false
+                                };
+
+                                if is_dir {
+                                    if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
                                         while let Ok(Some(entry)) = entries.next_entry().await {
                                             let path = entry.path();
-                                            // Note: is_file() on DirEntry is cheap (doesn't stat again on most OSs)
-                                            // but path.is_file() might stat. entry.file_type() is async in tokio.
                                             let is_file = match entry.file_type().await {
                                                 Ok(ft) => ft.is_file(),
                                                 Err(_) => false,
                                             };
 
-                                            if is_file
-                                                && path.extension().and_then(|e| e.to_str())
-                                                    == Some(ext)
-                                            {
-                                                warmup_file = Some(path);
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if warmup_file.is_some() {
-                                        break;
-                                    }
-                                }
-
-                                // If still not found, try src directory
-                                if warmup_file.is_none() {
-                                    let src_dir = root_dir.join("src");
-                                    let src_exists =
-                                        tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
-                                    let is_dir = if src_exists {
-                                        tokio::fs::metadata(&src_dir)
-                                            .await
-                                            .map(|m| m.is_dir())
-                                            .unwrap_or(false)
-                                    } else {
-                                        false
-                                    };
-
-                                    if is_dir {
-                                        if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await
-                                        {
-                                            while let Ok(Some(entry)) = entries.next_entry().await {
-                                                let path = entry.path();
-                                                let is_file = match entry.file_type().await {
-                                                    Ok(ft) => ft.is_file(),
-                                                    Err(_) => false,
-                                                };
-
-                                                if is_file {
-                                                    if let Some(ext) =
-                                                        path.extension().and_then(|e| e.to_str())
-                                                    {
-                                                        if extensions_to_try.contains(&ext) {
-                                                            warmup_file = Some(path);
-                                                            break;
-                                                        }
+                                            if is_file {
+                                                if let Some(ext) =
+                                                    path.extension().and_then(|e| e.to_str())
+                                                {
+                                                    if extensions_to_try.contains(&ext) {
+                                                        warmup_file = Some(path);
+                                                        break;
                                                     }
                                                 }
                                             }
                                         }
                                     }
+                                }
+                            }
+
+                            // Final fallback: open tsconfig.json if no source file found.
+                            if warmup_file.is_none() {
+                                let tsconfig = root_dir.join("tsconfig.json");
+                                if tsconfig.exists() && tsconfig.is_file() {
+                                    warmup_file = Some(tsconfig);
                                 }
                             }
 
@@ -374,6 +392,9 @@ impl DirectLspAdapter {
                                         error = %e,
                                         "Failed to open warmup file for TypeScript LSP"
                                     );
+                                } else {
+                                    // Allow the server a short window to register the project context.
+                                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                                 }
                             } else {
                                 debug!(
@@ -858,11 +879,14 @@ impl LspService for DirectLspAdapter {
                     "items": diagnostics
                 }));
             } else {
-                // No cached diagnostics - return error
-                return Err(format!(
-                        "LSP server for '{}' does not support pull-model diagnostics and no cached diagnostics available for '{}'",
-                        extension, uri
-                    ));
+                // No cached diagnostics - return empty set to avoid hard failure
+                debug!(
+                    uri = %uri,
+                    "No cached diagnostics available; returning empty diagnostics"
+                );
+                return Ok(json!({
+                    "items": []
+                }));
             }
         }
 

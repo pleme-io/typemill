@@ -365,6 +365,15 @@ impl PluginDispatcher {
                     SystemHandler => "SystemHandler: health_check + lifecycle",
                     PlanToolsHandler => "PlanToolsHandler: apply_plan (internal)"
                 });
+
+                #[cfg(feature = "heavy-tests")]
+                {
+                    use super::tools::{FileToolsHandler, InternalWorkspaceHandler};
+                    register_handlers_with_logging!(registry, {
+                        FileToolsHandler => "FileToolsHandler: create/read/write/list file",
+                        InternalWorkspaceHandler => "InternalWorkspaceHandler: apply_workspace_edit"
+                    });
+                }
             }
 
             Ok::<(), ServerError>(())

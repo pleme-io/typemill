@@ -87,7 +87,7 @@ lang-yaml = ["mill-server/lang-yaml", "mill-plugin-bundle/lang-yaml"]
 mcp-proxy = ["mill-server/mcp-proxy", "mill-client/mcp-proxy", "mill-foundation/mcp-proxy", "mill-config/mcp-proxy"]
 
 # Test features
-heavy-tests = []
+heavy-tests = ["mill-handlers/heavy-tests"]
 lsp-tests = []  # Enable LSP smoke tests (requires LSP servers installed)
 lang-python = ["mill-server/lang-python", "mill-plugin-bundle/lang-python", "mill-ast/lang-python", "mill-plugin-system/lang-python", "mill-transport/lang-python"]
 lang-gitignore = ["mill-server/lang-gitignore", "mill-plugin-bundle/lang-gitignore"]
