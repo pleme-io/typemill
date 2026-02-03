@@ -189,6 +189,15 @@ impl ReferenceUpdater {
                 );
             }
             Some(cached)
+        } else if let Some(cached) = self.import_cache.get_lsp_cached(old_path, is_directory_rename)
+        {
+            if perf_enabled {
+                tracing::info!(
+                    files_count = cached.len(),
+                    "perf: lsp_ttl_cache_hit"
+                );
+            }
+            Some(cached)
         } else if skip_lsp_for_dir && is_directory_rename && self.import_cache.is_populated() {
             if perf_enabled {
                 tracing::info!("perf: skipped_lsp_for_dir");
@@ -231,6 +240,8 @@ impl ReferenceUpdater {
                             filtered_files.clone(),
                         );
                     }
+                    self.import_cache
+                        .set_lsp_cached(old_path, is_directory_rename, filtered_files.clone());
                     Some(filtered_files)
                 }
                 Err(e) => {

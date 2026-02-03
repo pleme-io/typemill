@@ -48,6 +48,8 @@ pub struct ImportCache {
     forward: RwLock<HashMap<PathBuf, FileImportInfo>>,
     /// Reverse index: file -> files that import it
     reverse: RwLock<HashMap<PathBuf, HashSet<PathBuf>>>,
+    /// Short-lived LSP importers cache (path, is_dir) -> (timestamp_ms, importers)
+    lsp_cache: RwLock<HashMap<(PathBuf, bool), (u128, Vec<PathBuf>)>>,
 }
 
 impl ImportCache {
@@ -185,6 +187,40 @@ impl ImportCache {
         }
         if let Ok(mut reverse) = self.reverse.write() {
             reverse.clear();
+        }
+        if let Ok(mut lsp_cache) = self.lsp_cache.write() {
+            lsp_cache.clear();
+        }
+    }
+
+    /// Get cached LSP importers if within TTL.
+    pub fn get_lsp_cached(&self, target: &Path, is_dir: bool) -> Option<Vec<PathBuf>> {
+        let ttl_ms = std::env::var("TYPEMILL_LSP_CACHE_TTL_MS")
+            .ok()
+            .and_then(|v| v.parse::<u128>().ok())
+            .unwrap_or(5000);
+        if ttl_ms == 0 {
+            return None;
+        }
+        let now_ms = system_time_to_millis(SystemTime::now())?;
+        let lsp_cache = self.lsp_cache.read().ok()?;
+        lsp_cache
+            .get(&(target.to_path_buf(), is_dir))
+            .and_then(|(ts, files)| {
+                if now_ms.saturating_sub(*ts) <= ttl_ms {
+                    Some(files.clone())
+                } else {
+                    None
+                }
+            })
+    }
+
+    /// Store LSP importers in the short-lived cache.
+    pub fn set_lsp_cached(&self, target: &Path, is_dir: bool, files: Vec<PathBuf>) {
+        if let Ok(mut lsp_cache) = self.lsp_cache.write() {
+            if let Some(ts) = system_time_to_millis(SystemTime::now()) {
+                lsp_cache.insert((target.to_path_buf(), is_dir), (ts, files));
+            }
         }
     }
 
