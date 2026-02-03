@@ -95,6 +95,11 @@ impl ReferenceUpdater {
         rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
         lsp_finder: Option<&dyn LspImportFinder>,
     ) -> ServerResult<EditPlan> {
+        let perf_enabled = std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let perf_start = std::time::Instant::now();
+
         // Build the plugin extension map once for O(1) lookups
         let plugin_map = build_plugin_ext_map(plugins);
 
@@ -111,8 +116,15 @@ impl ReferenceUpdater {
         let merged_rename_info = merge_rename_info(rename_info, rename_scope);
 
         // From edit_builder.rs
+        let project_files_start = std::time::Instant::now();
         let mut project_files =
             find_project_files_with_map(&self.project_root, &plugin_map, rename_scope).await?;
+        if perf_enabled {
+            tracing::info!(
+                elapsed_ms = project_files_start.elapsed().as_millis(),
+                "perf: find_project_files"
+            );
+        }
 
         // For consolidation moves (detected via rename_info), exclude Cargo.toml files
         // These are handled semantically by consolidate_rust_package, not via generic path updates
@@ -150,6 +162,7 @@ impl ReferenceUpdater {
 
         // Try LSP-based detection first (fast path using LSP index)
         // This is O(1) compared to O(N) scanning approach
+        let lsp_start = std::time::Instant::now();
         let lsp_detected_files = if let Some(finder) = lsp_finder {
             // Query LSP for importing files (directory or file)
             let lsp_result = if is_directory_rename {
@@ -216,7 +229,15 @@ impl ReferenceUpdater {
                 None
             }
         };
+        if perf_enabled {
+            tracing::info!(
+                elapsed_ms = lsp_start.elapsed().as_millis(),
+                used_lsp = lsp_finder.is_some(),
+                "perf: lsp_detection"
+            );
+        }
 
+        let affected_start = std::time::Instant::now();
         let mut affected_files = if is_comprehensive {
             // Comprehensive mode: scan ALL files in scope
             // Plugins will handle detection based on update_exact_matches, update_markdown_prose, etc.
@@ -381,6 +402,13 @@ impl ReferenceUpdater {
             )
             .await?
         };
+        if perf_enabled {
+            tracing::info!(
+                elapsed_ms = affected_start.elapsed().as_millis(),
+                affected_count = affected_files.len(),
+                "perf: affected_files_detection"
+            );
+        }
 
         // For directory renames, exclude files inside the renamed directory UNLESS it's a Rust crate rename
         // For Rust crate renames, we need to process files inside the crate to update self-referencing imports
@@ -493,6 +521,7 @@ impl ReferenceUpdater {
             None
         };
 
+        let rewrite_start = std::time::Instant::now();
         let mut join_set = JoinSet::new();
 
         for file_path in affected_files {
@@ -786,6 +815,16 @@ impl ReferenceUpdater {
                     tracing::error!("Task join error in update_references: {}", e);
                 }
             }
+        }
+        if perf_enabled {
+            tracing::info!(
+                elapsed_ms = rewrite_start.elapsed().as_millis(),
+                "perf: rewrite_scan_and_edits"
+            );
+            tracing::info!(
+                total_ms = perf_start.elapsed().as_millis(),
+                "perf: update_references_total"
+            );
         }
 
         tracing::info!(
@@ -1303,6 +1342,12 @@ pub async fn find_project_files_with_map(
         .unwrap_or(30_000);
     let ttl = Duration::from_millis(ttl_ms);
     if let Some(cached) = load_filelist_cache(&project_root, &scope_key, ttl) {
+        if std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+        {
+            tracing::info!(files = cached.len(), "filelist cache hit");
+        }
         return Ok(cached);
     }
 

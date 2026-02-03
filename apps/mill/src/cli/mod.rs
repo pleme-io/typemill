@@ -1757,11 +1757,20 @@ async fn run_daemon_server(socket_path: &std::path::Path, pid_path: &std::path::
     });
 
     // Run the server (blocks until shutdown)
-    if let Err(e) = server.run(dispatcher).await {
-        eprintln!("❌ Server error: {}", e);
-        let _ = std::fs::remove_file(pid_path);
-        let _ = std::fs::remove_file(daemon_root_path(socket_path));
-        process::exit(1);
+    match server.run(dispatcher.clone()).await {
+        Ok(()) => {
+            if let Err(e) = dispatcher.shutdown().await {
+                eprintln!("Warning: Failed to shutdown dispatcher: {}", e);
+            }
+            let _ = std::fs::remove_file(pid_path);
+            let _ = std::fs::remove_file(daemon_root_path(socket_path));
+        }
+        Err(e) => {
+            eprintln!("❌ Server error: {}", e);
+            let _ = std::fs::remove_file(pid_path);
+            let _ = std::fs::remove_file(daemon_root_path(socket_path));
+            process::exit(1);
+        }
     }
 }
 

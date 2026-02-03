@@ -335,7 +335,20 @@ pub fn load_filelist_cache(
         return None;
     }
 
-    Some(snapshot.files)
+    let validate = std::env::var("TYPEMILL_FILELIST_CACHE_VALIDATE")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if !validate {
+        return Some(snapshot.files);
+    }
+
+    let mut filtered = Vec::with_capacity(snapshot.files.len());
+    for path in snapshot.files {
+        if path.exists() {
+            filtered.push(path);
+        }
+    }
+    Some(filtered)
 }
 
 pub fn save_filelist_cache(project_root: &Path, scope_key: &str, files: &[PathBuf]) -> bool {
