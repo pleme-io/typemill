@@ -20,6 +20,7 @@ pub mod file_ops;
 pub mod internal_intelligence;
 pub mod internal_workspace;
 pub mod lifecycle;
+pub mod plan;
 pub mod workspace;
 pub mod workspace_create;
 pub mod workspace_extract;
@@ -36,6 +37,7 @@ pub use file_ops::FileToolsHandler;
 pub use internal_intelligence::InternalIntelligenceHandler;
 pub use internal_workspace::InternalWorkspaceHandler;
 pub use lifecycle::LifecycleHandler;
+pub use plan::PlanToolsHandler;
 pub use workspace_create::WorkspaceCreateService;
 pub use workspace_extract::WorkspaceExtractService;
 

@@ -343,7 +343,7 @@ impl PluginDispatcher {
                 // Import Magnificent Seven handlers + SystemHandler for health_check
                 use super::{
                     InspectHandler, SearchHandler, RenameAllHandler, RelocateHandler,
-                    PruneHandler, RefactorHandler, WorkspaceHandler, SystemHandler,
+                    PruneHandler, RefactorHandler, WorkspaceHandler, SystemHandler, PlanToolsHandler,
                 };
 
                 let mut registry = self.tool_registry.lock().await;
@@ -362,7 +362,8 @@ impl PluginDispatcher {
                     PruneHandler => "PruneHandler: prune",
                     RefactorHandler => "RefactorHandler: refactor",
                     WorkspaceHandler => "WorkspaceHandler: workspace",
-                    SystemHandler => "SystemHandler: health_check + lifecycle"
+                    SystemHandler => "SystemHandler: health_check + lifecycle",
+                    PlanToolsHandler => "PlanToolsHandler: apply_plan (internal)"
                 });
             }
 

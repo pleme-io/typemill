@@ -275,6 +275,25 @@ mill docs --search "dry run"
 
 ---
 
+## Save + Apply Plans
+
+Save a dry-run plan to a file:
+```bash
+mill tool relocate --plan-out plan.json '{"target":{"kind":"file","filePath":"src/old.ts"},"destination":"src/new.ts","options":{"dryRun":true}}'
+```
+
+Apply the saved plan without re-planning:
+```bash
+mill apply-plan plan.json
+```
+
+Pipe a plan from stdin:
+```bash
+cat plan.json | mill apply-plan -
+```
+
+---
+
 ## Tool Parameter Quick Reference
 
 > **Quick lookup for tool parameters** - See [tools/](../tools/) for complete documentation

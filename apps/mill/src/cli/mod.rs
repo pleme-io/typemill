@@ -175,6 +175,23 @@ pub enum Commands {
         /// Enable all opt-in flags (comments + markdown prose)
         #[arg(long, conflicts_with_all = ["args", "input_file"])]
         update_all: bool,
+
+        /// Write the full JSON result to a file (useful for saving dry-run plans)
+        #[arg(long)]
+        plan_out: Option<String>,
+    },
+    /// Apply a saved refactor plan (JSON) without re-planning
+    ///
+    /// Examples:
+    ///   mill apply-plan plan.json
+    ///   mill apply-plan -   # read plan from stdin
+    ApplyPlan {
+        /// Plan file path (use "-" for stdin)
+        input: String,
+
+        /// Output format (pretty or compact)
+        #[arg(long, default_value = "pretty", value_parser = ["pretty", "compact"])]
+        format: String,
     },
     /// List all public MCP tools (excludes internal tools)
     Tools {
@@ -347,6 +364,7 @@ pub async fn run() {
             update_comments,
             update_markdown_prose,
             update_all,
+            plan_out,
         } => {
             handle_tool_command(
                 &tool_name,
@@ -363,8 +381,12 @@ pub async fn run() {
                 update_markdown_prose,
                 update_all,
                 &format,
+                plan_out.as_deref(),
             )
             .await;
+        }
+        Commands::ApplyPlan { input, format } => {
+            handle_apply_plan_command(&input, &format).await;
         }
         Commands::Tools { format } => {
             handle_tools_command(&format).await;
@@ -1012,7 +1034,7 @@ fn get_pid_file_path() -> PathBuf {
 
     #[cfg(unix)]
     {
-        PathBuf::from("/tmp/mill.pid")
+        mill_transport::default_socket_path().with_extension("pid")
     }
     #[cfg(windows)]
     {
@@ -1208,6 +1230,7 @@ async fn handle_tool_command(
     update_markdown_prose: Option<bool>,
     update_all: bool,
     format: &str,
+    plan_out: Option<&str>,
 ) {
     use std::collections::HashMap;
     use std::io::{self, Read};
@@ -1352,7 +1375,11 @@ async fn handle_tool_command(
 
         // Auto-start daemon if not running to cache project state
         if !no_daemon && !is_daemon_running(&socket_path).await {
+            if socket_path.exists() {
+                let _ = std::fs::remove_file(&socket_path);
+            }
             eprintln!("🚀 Auto-starting mill daemon for persistent project state...");
+            eprintln!("   First run may take a bit while indexing the project...");
             cleanup_stale_daemon_pid(&socket_path);
             if let Err(e) = start_background_daemon().await {
                 eprintln!("⚠️  Failed to auto-start daemon: {}", e);
@@ -1427,6 +1454,13 @@ async fn handle_tool_command(
     match response {
         McpMessage::Response(resp) => {
             if let Some(result) = resp.result {
+                if let Some(path) = plan_out {
+                    if let Ok(json) = serde_json::to_string_pretty(&result) {
+                        if let Err(e) = std::fs::write(path, json) {
+                            eprintln!("⚠️  Failed to write plan to {}: {}", path, e);
+                        }
+                    }
+                }
                 output_result(&result, format);
             } else if let Some(error) = resp.error {
                 let api_error = MillError::from(error);
@@ -1441,6 +1475,54 @@ async fn handle_tool_command(
     }
 }
 
+async fn handle_apply_plan_command(input: &str, format: &str) {
+    use std::io::{self, Read};
+
+    let json = if input == "-" {
+        let mut stdin_content = String::new();
+        if let Err(e) = io::stdin().read_to_string(&mut stdin_content) {
+            let error = MillError::InvalidRequest {
+                message: format!("Failed to read plan from stdin: {}", e),
+                parameter: Some("input".to_string()),
+            };
+            output_error(&error, format);
+            process::exit(1);
+        }
+        stdin_content
+    } else {
+        match std::fs::read_to_string(input) {
+            Ok(content) => content,
+            Err(e) => {
+                let error = MillError::InvalidRequest {
+                    message: format!("Failed to read plan file '{}': {}", input, e),
+                    parameter: Some("input".to_string()),
+                };
+                output_error(&error, format);
+                process::exit(1);
+            }
+        }
+    };
+
+    handle_tool_command(
+        "apply_plan",
+        Some(&json),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        false,
+        format,
+        None,
+    )
+    .await;
+}
+
 /// Handle daemon commands (Unix only)
 #[cfg(unix)]
 async fn handle_daemon_command(command: DaemonCommands) {
@@ -1449,7 +1531,7 @@ async fn handle_daemon_command(command: DaemonCommands) {
     use nix::unistd::Pid;
 
     let socket_path = default_socket_path();
-    let pid_path = socket_path.with_extension("pid");
+    let pid_path = daemon_pid_path(&socket_path);
 
     match command {
         DaemonCommands::Start { foreground } => {
@@ -1655,7 +1737,7 @@ async fn run_daemon_server(socket_path: &std::path::Path, pid_path: &std::path::
 
 #[cfg(unix)]
 fn cleanup_stale_daemon_pid(socket_path: &std::path::Path) {
-    let pid_path = socket_path.with_extension("pid");
+    let pid_path = daemon_pid_path(socket_path);
     if !pid_path.exists() {
         return;
     }
@@ -1676,6 +1758,15 @@ fn cleanup_stale_daemon_pid(socket_path: &std::path::Path) {
     if !is_process_running(pid) {
         let _ = std::fs::remove_file(&pid_path);
     }
+}
+
+#[cfg(unix)]
+fn daemon_pid_path(socket_path: &std::path::Path) -> PathBuf {
+    if let Ok(pid_file) = std::env::var("MILL_PID_FILE") {
+        return PathBuf::from(pid_file);
+    }
+
+    socket_path.with_extension("pid")
 }
 
 /// Handle convert-naming command - bulk rename files based on naming convention

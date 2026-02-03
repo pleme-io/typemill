@@ -38,7 +38,8 @@ pub use system_handler::SystemHandler;
 pub use tool_definitions::{get_all_tool_definitions, is_public_tool, PUBLIC_TOOLS};
 pub use tool_registry::ToolRegistry;
 pub use tools::{
-    AdvancedToolsHandler, FileToolsHandler, LifecycleHandler, ToolHandler, ToolHandlerContext,
+    AdvancedToolsHandler, FileToolsHandler, LifecycleHandler, PlanToolsHandler, ToolHandler,
+    ToolHandlerContext,
 };
 pub use workflow_handler::WorkflowHandler;
 
