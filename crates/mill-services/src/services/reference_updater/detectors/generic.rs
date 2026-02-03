@@ -198,6 +198,12 @@ pub(crate) async fn find_generic_affected_files_cached(
                             ) {
                                 return None;
                             }
+                            if is_directory
+                                && is_web_extension(ext)
+                                && !content_might_contain_alias_imports(&content_clone)
+                            {
+                                return None;
+                            }
 
                             let rewrite_result = plugin.rewrite_file_references(
                                 &content_clone,
@@ -217,6 +223,11 @@ pub(crate) async fn find_generic_affected_files_cached(
                             #[cfg(feature = "lang-svelte")]
                             if ext == "svelte" {
                                 let plugin = mill_lang_svelte::SveltePlugin::new();
+                                if is_directory
+                                    && !content_might_contain_alias_imports(&content_clone)
+                                {
+                                    return None;
+                                }
                                 let rewrite_result = plugin.rewrite_file_references(
                                     &content_clone,
                                     &old_path_clone,
@@ -302,6 +313,7 @@ async fn check_files_for_rewrite(
     let old_path = old_path.to_path_buf();
     let new_path = new_path.to_path_buf();
     let project_root = project_root.to_path_buf();
+    let is_directory = old_path.is_dir();
     let renamed_ext = old_path
         .extension()
         .and_then(|e| e.to_str())
@@ -328,6 +340,12 @@ async fn check_files_for_rewrite(
                             renamed_ext.as_deref(),
                             Some(ext),
                         ) {
+                            return None;
+                        }
+                        if is_directory
+                            && is_web_extension(ext)
+                            && !content_might_contain_alias_imports(&content)
+                        {
                             return None;
                         }
                         if let Some(plugin) = plugin_map.get(ext) {
@@ -423,6 +441,22 @@ fn get_all_imported_files_internal(
     }
 
     imported_files
+}
+
+fn is_web_extension(ext: &str) -> bool {
+    matches!(ext, "svelte" | "ts" | "tsx" | "js" | "jsx")
+}
+
+fn content_might_contain_alias_imports(content: &str) -> bool {
+    if !(content.contains("import") || content.contains("require")) {
+        return false;
+    }
+    content.contains("$lib/")
+        || content.contains("@/")
+        || content.contains("~/")
+        || content.contains("$")
+        || content.contains("@")
+        || content.contains("~")
 }
 
 /// Resolve an import specifier to a file path
