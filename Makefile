@@ -70,7 +70,7 @@ release-npm:
 		echo "✅ Bumped to $$current_version"; \
 	done; \
 	node -e "const fs=require('fs');const p='Cargo.toml';const v='$$current_version';let s=fs.readFileSync(p,'utf8');s=s.replace(/^version = \\\"\\d+\\.\\d+\\.\\d+\\\"/m, 'version = \"'+v+'\"');fs.writeFileSync(p,s);"; \
-	( cd $(NPM_DIR) && TYPEMILL_ALLOW_DIRTY=1 TYPEMILL_SKIP_PUBLISH=1 TYPEMILL_SKIP_GIT=1 npm run release ); \
+	( cd $(NPM_DIR) && TYPEMILL_TARGETS=$${TYPEMILL_TARGETS:-aarch64-unknown-linux-gnu} TYPEMILL_ALLOW_DIRTY=1 TYPEMILL_SKIP_PUBLISH=1 TYPEMILL_SKIP_GIT=1 npm run release ); \
 	status=$$?; \
 	if [ "$$stashed" = "yes" ]; then \
 		git stash pop >/dev/null 2>&1 || true; \
