@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 mill-plugin-api = { path = "../mill-plugin-api" }
 mill-foundation = { path = "../mill-foundation" }
+mill-auth = { path = "../mill-auth" }
 mill-transport = { path = "../mill-transport", default-features = false }
 mill-lsp = { path = "../mill-lsp" }
 mill-services = { path = "../mill-services", default-features = false }

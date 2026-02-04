@@ -18,6 +18,23 @@ enum Commands {
     Start,
     /// Start WebSocket server (default)
     Serve,
+    /// Generate an authentication token
+    GenerateToken(GenerateTokenArgs),
+}
+
+#[derive(clap::Args)]
+struct GenerateTokenArgs {
+    /// Project ID to include in the token
+    #[arg(long)]
+    project_id: Option<String>,
+
+    /// User ID to include in the token
+    #[arg(long)]
+    user_id: Option<String>,
+
+    /// Token expiry in seconds (defaults to config value)
+    #[arg(long)]
+    expiry: Option<u64>,
 }
 
 #[tokio::main]
@@ -59,6 +76,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Execute based on command
     match cli.command {
+        Some(Commands::GenerateToken(args)) => {
+            // Check if authentication is configured
+            let auth_config = config.server.auth.as_ref().ok_or_else(|| {
+                Box::<dyn std::error::Error>::from(
+                    "Authentication is not configured on this server",
+                )
+            })?;
+
+            // Use custom expiry or default from config
+            let expiry_seconds = args.expiry.unwrap_or(auth_config.jwt_expiry_seconds);
+
+            // Generate token
+            let token = mill_auth::generate_token(
+                &auth_config.jwt_secret,
+                expiry_seconds,
+                &auth_config.jwt_issuer,
+                &auth_config.jwt_audience,
+                args.project_id,
+                args.user_id,
+            )?;
+
+            println!("{}", token);
+        }
         Some(Commands::Start) => {
             // Start stdio MCP server
             tracing::info!("Starting stdio MCP server");
