@@ -283,13 +283,37 @@ impl RenameService {
         );
 
         // Calculate files_to_move by walking the directory
-        let mut files_to_move = 0;
-        let walker = ignore::WalkBuilder::new(&old_path).hidden(false).build();
-        for entry in walker.flatten() {
-            if entry.path().is_file() {
-                files_to_move += 1;
+        // Offload to blocking task to avoid stalling the async runtime
+        let old_path_clone = old_path.clone();
+        let files_to_move = tokio::task::spawn_blocking(move || {
+            let mut count = 0;
+            let walker = ignore::WalkBuilder::new(&old_path_clone)
+                .hidden(false)
+                .build();
+            for entry in walker.flatten() {
+                // Optimization: check file_type() first to avoid unnecessary stat syscalls
+                let is_file = entry
+                    .file_type()
+                    .map(|ft| ft.is_file())
+                    .unwrap_or(false);
+
+                // Fallback to path().is_file() for symlinks if needed
+                if is_file
+                    || (entry
+                        .file_type()
+                        .map(|ft| ft.is_symlink())
+                        .unwrap_or(false)
+                        && entry.path().is_file())
+                {
+                    count += 1;
+                }
             }
-        }
+            count
+        })
+        .await
+        .map_err(|e| {
+            mill_foundation::errors::MillError::internal(format!("Task failed: {}", e))
+        })?;
 
         // Check if this is a Cargo package
         let is_cargo_package = tokio::fs::try_exists(old_path.join("Cargo.toml"))

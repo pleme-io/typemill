@@ -166,7 +166,7 @@ impl SystemHandler {
         let mut in_progress = 0;
         let mut completed = 0;
 
-        for (_ext, tasks) in &progress {
+        for tasks in progress.values() {
             for (_, info) in tasks {
                 total_tasks += 1;
                 match info.status.as_str() {

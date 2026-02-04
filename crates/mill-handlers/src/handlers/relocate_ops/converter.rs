@@ -211,7 +211,7 @@ fn build_workspace_edit(
     }
 
     // Add text document edits
-    if edits.len() > 0 && files_with_edits.is_empty() {
+    if !edits.is_empty() && files_with_edits.is_empty() {
         debug!(
             edits_count = edits.len(),
             "No file-based edits were collected for WorkspaceEdit"

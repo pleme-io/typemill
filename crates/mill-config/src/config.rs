@@ -102,21 +102,16 @@ pub struct LspConfig {
 }
 
 /// LSP usage mode
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LspMode {
     /// Disable all LSP usage
     Off,
     /// Use LSP for discovery only (fallback to AST for edits)
+    #[default]
     Discover,
     /// Allow LSP for discovery and edits when supported
     Full,
-}
-
-impl Default for LspMode {
-    fn default() -> Self {
-        Self::Discover
-    }
 }
 
 /// Individual LSP server configuration
