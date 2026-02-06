@@ -11,13 +11,25 @@ use std::time::{Duration, Instant};
 // Test Client Timeout Constants
 // ============================================================================
 // These values are tuned for test reliability across different systems.
-// Increase if tests are flaky on slow CI systems.
+// Override with TYPEMILL_TEST_TOOL_TIMEOUT_SECS environment variable if needed.
 
 /// Time to wait for server to become ready after spawn (health check passes)
 const SERVER_READY_TIMEOUT_SECS: u64 = 5;
 
-/// Default timeout for tool call requests (most operations)
-const DEFAULT_TOOL_CALL_TIMEOUT_SECS: u64 = 15;
+/// Default timeout for tool call requests (most operations).
+/// Must be long enough to cover LSP initialization on first tool call (~60-120s).
+/// Override via TYPEMILL_TEST_TOOL_TIMEOUT_SECS env var.
+const DEFAULT_TOOL_CALL_TIMEOUT_SECS: u64 = 180;
+
+/// Returns the effective tool call timeout, checking env override first.
+fn tool_call_timeout() -> Duration {
+    if let Ok(val) = std::env::var("TYPEMILL_TEST_TOOL_TIMEOUT_SECS") {
+        if let Ok(secs) = val.parse::<u64>() {
+            return Duration::from_secs(secs);
+        }
+    }
+    Duration::from_secs(DEFAULT_TOOL_CALL_TIMEOUT_SECS)
+}
 
 /// Timeout for graceful shutdown before force kill
 const SHUTDOWN_TIMEOUT_SECS: u64 = 2;
@@ -205,7 +217,7 @@ impl TestClient {
 
     /// Send a JSON-RPC request and wait for response.
     pub fn send_request(&mut self, request: Value) -> Result<Value, Box<dyn std::error::Error>> {
-        self.send_request_with_timeout(request, Duration::from_secs(DEFAULT_TOOL_CALL_TIMEOUT_SECS))
+        self.send_request_with_timeout(request, tool_call_timeout())
     }
 
     /// Send a JSON-RPC request with a custom timeout.

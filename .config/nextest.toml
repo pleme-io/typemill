@@ -11,12 +11,12 @@ fail-fast = false
 [[profile.default.overrides]]
 filter = 'package(e2e)'
 threads-required = 4  # Each E2E test counts as 4 threads worth of work
-slow-timeout = { period = "120s", terminate-after = 2 }
+slow-timeout = { period = "180s", terminate-after = 2 }
 
 [[profile.default.overrides]]
 filter = 'package(mill) & test(e2e)'
 threads-required = 4
-slow-timeout = { period = "120s", terminate-after = 2 }
+slow-timeout = { period = "180s", terminate-after = 2 }
 
 [profile.ci]
 # CI profile for GitHub Actions

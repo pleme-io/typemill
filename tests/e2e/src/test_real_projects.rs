@@ -96,8 +96,8 @@ fn copy_from_cache(cache_path: &PathBuf, workspace_path: &std::path::Path, proje
 /// Extended timeout for LSP warmup on large projects (3 minutes)
 pub const LSP_WARMUP_TIMEOUT: Duration = Duration::from_secs(180);
 
-/// Standard timeout for operations after warmup (2 minutes to allow reconnection)
-pub const LARGE_PROJECT_TIMEOUT: Duration = Duration::from_secs(120);
+/// Standard timeout for operations after warmup (3 minutes to allow for slow LSP + cargo check)
+pub const LARGE_PROJECT_TIMEOUT: Duration = Duration::from_secs(180);
 
 /// Test context that manages a cloned project and mill client
 pub struct RealProjectContext {

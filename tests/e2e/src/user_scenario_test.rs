@@ -60,9 +60,10 @@ async fn test_user_scenario() {
     // Wait for LSP
     let lib_rs = workspace.path().join("src/lib.rs");
     println!("Waiting for LSP to index {:?}", lib_rs);
-    // Increased timeout for CI/slow envs and initial index
+    // 180s timeout: matches LSP_WARMUP_TIMEOUT; initialization on real projects
+    // can take 60-120s on slow CI/containers, especially under parallel test load
     client
-        .wait_for_lsp_ready(&lib_rs, 60000)
+        .wait_for_lsp_ready(&lib_rs, 180_000)
         .await
         .expect("LSP failed to index");
 
