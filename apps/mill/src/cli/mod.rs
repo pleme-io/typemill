@@ -222,6 +222,18 @@ pub enum Commands {
     #[cfg(feature = "mcp-proxy")]
     #[command(subcommand)]
     Mcp(mill_client::McpCommands),
+    /// Generate an authentication token for the admin API
+    GenerateToken {
+        /// Optional project ID to embed in token
+        #[arg(long)]
+        project_id: Option<String>,
+        /// Optional user ID for multi-tenancy
+        #[arg(long)]
+        user_id: Option<String>,
+        /// Optional custom expiry in seconds (defaults to config value)
+        #[arg(long)]
+        expiry_seconds: Option<u64>,
+    },
     /// Convert naming conventions in bulk (e.g., kebab-case to camelCase)
     ///
     /// Scans files matching the pattern and renames them according to the
@@ -406,6 +418,13 @@ pub async fn run() {
         Commands::Mcp(mcp_command) => {
             handle_mcp_command(mcp_command).await;
         }
+        Commands::GenerateToken {
+            project_id,
+            user_id,
+            expiry_seconds,
+        } => {
+            handle_generate_token(project_id, user_id, expiry_seconds).await;
+        }
         Commands::ConvertNaming {
             from,
             to,
@@ -437,6 +456,62 @@ async fn handle_mcp_command(command: mill_client::McpCommands) {
     if let Err(e) = result {
         error!(error = %e, "MCP command failed");
         process::exit(1);
+    }
+}
+
+/// Handle the generate-token command
+async fn handle_generate_token(
+    project_id: Option<String>,
+    user_id: Option<String>,
+    expiry_seconds: Option<u64>,
+) {
+    let config = AppConfig::load().unwrap_or_default();
+
+    // Check if auth is configured
+    let auth_config = match config.server.auth {
+        Some(c) => c,
+        None => {
+            eprintln!("❌ Authentication is not configured in .typemill/config.json");
+            process::exit(1);
+        }
+    };
+
+    // Use custom expiry or default from config
+    let expiry = expiry_seconds.unwrap_or(auth_config.jwt_expiry_seconds);
+
+    // Generate token
+    match mill_auth::generate_token(
+        &auth_config.jwt_secret,
+        expiry,
+        &auth_config.jwt_issuer,
+        &auth_config.jwt_audience,
+        project_id,
+        user_id.clone(),
+    ) {
+        Ok(token) => {
+            println!("✅ Authentication token generated successfully");
+            println!();
+            println!("Token: {}", token);
+            println!();
+            println!(
+                "   User ID: {}",
+                user_id.unwrap_or_else(|| "none".to_string())
+            );
+            println!("   Expires in: {} seconds", expiry);
+
+            // Instructions for use
+            println!();
+            println!("To use with curl:");
+            println!(
+                "   curl -H \"Authorization: Bearer {}\" http://127.0.0.1:4040/workspaces",
+                token
+            );
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to generate token");
+            eprintln!("❌ Failed to generate token: {}", e);
+            process::exit(1);
+        }
     }
 }
 
