@@ -49,7 +49,7 @@ impl GitService {
     /// Check if a file is tracked by git
     pub fn is_file_tracked(path: &Path) -> bool {
         let result = Command::new("git")
-            .args(["ls-files", "--error-unmatch"])
+            .args(["ls-files", "--error-unmatch", "--"])
             .arg(path.to_str().unwrap_or(""))
             .output();
 
@@ -201,7 +201,7 @@ impl GitService {
         );
 
         let output = Command::new("git")
-            .args(["mv"])
+            .args(["mv", "--"])
             .arg(old.to_str().ok_or_else(|| anyhow!("Invalid old path"))?)
             .arg(new.to_str().ok_or_else(|| anyhow!("Invalid new path"))?)
             .output()?;
@@ -231,7 +231,7 @@ impl GitService {
         debug!(path = %path.display(), "Executing git rm");
 
         let output = Command::new("git")
-            .args(["rm"])
+            .args(["rm", "--"])
             .arg(path.to_str().ok_or_else(|| anyhow!("Invalid path"))?)
             .output()?;
 
@@ -284,5 +284,17 @@ mod tests {
         // This is a new file we just created, so it might not be tracked yet
         // Just verify the function runs without panicking
         let _ = GitService::is_file_tracked(&full_path);
+    }
+
+    #[test]
+    fn test_argument_injection_prevention() {
+        // We check if a file named "-z" is tracked in the current workspace.
+        // It does NOT exist, so it should return false.
+        // If argument injection occurs, `git ls-files -z` will be executed.
+        // In the mill repo (where tests run), this would list all files null-terminated and return success.
+        // This test relies on running within a git repo (which is true for the dev environment).
+
+        let result = GitService::is_file_tracked(Path::new("-z"));
+        assert!(!result, "is_file_tracked('-z') should be false, but got true (vulnerability confirmed)");
     }
 }
