@@ -74,6 +74,18 @@ pub enum Commands {
     Unlink,
     /// Check client configuration and diagnose potential problems
     Doctor,
+    /// Generate an authentication token for the server (requires config)
+    GenerateToken {
+        /// Optional project ID to embed in token
+        #[arg(long)]
+        project_id: Option<String>,
+        /// Optional user ID for multi-tenancy
+        #[arg(long)]
+        user_id: Option<String>,
+        /// Optional custom expiry in seconds
+        #[arg(long)]
+        expiry: Option<u64>,
+    },
     /// Install LSP server for a specific language
     InstallLsp {
         /// Language name (e.g., "rust", "typescript", "python")
@@ -352,6 +364,13 @@ pub async fn run() {
         }
         Commands::InstallLsp { language } => {
             handle_install_lsp(&language).await;
+        }
+        Commands::GenerateToken {
+            project_id,
+            user_id,
+            expiry,
+        } => {
+            handle_generate_token(project_id, user_id, expiry).await;
         }
         #[cfg(unix)]
         Commands::Daemon(daemon_command) => {
@@ -858,6 +877,62 @@ async fn handle_doctor() {
     }
 
     println!("{}", fmt.success("Doctor's checkup complete"));
+}
+
+/// Handle the generate-token command
+async fn handle_generate_token(
+    project_id: Option<String>,
+    user_id: Option<String>,
+    expiry: Option<u64>,
+) {
+    // Load configuration
+    let config = match AppConfig::load() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("❌ Failed to load configuration: {}", e);
+            eprintln!("   Run `mill setup` to create a configuration file.");
+            process::exit(1);
+        }
+    };
+
+    // Check if authentication is configured
+    let auth_config = match config.server.auth {
+        Some(ac) => ac,
+        None => {
+            eprintln!("❌ Authentication is not configured in the server config.");
+            eprintln!("   Please configure 'server.auth' in .typemill/config.json");
+            process::exit(1);
+        }
+    };
+
+    // Use custom expiry or default from config
+    let expiry_seconds = expiry.unwrap_or(auth_config.jwt_expiry_seconds);
+
+    // Generate token
+    match mill_auth::generate_token(
+        &auth_config.jwt_secret,
+        expiry_seconds,
+        &auth_config.jwt_issuer,
+        &auth_config.jwt_audience,
+        project_id.clone(),
+        user_id.clone(),
+    ) {
+        Ok(token) => {
+            println!("{}", token);
+            eprintln!("✅ Token generated successfully");
+            if let Some(uid) = user_id {
+                eprintln!("   User ID: {}", uid);
+            }
+            if let Some(pid) = project_id {
+                eprintln!("   Project ID: {}", pid);
+            }
+            eprintln!("   Expires in: {} seconds", expiry_seconds);
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to generate token: {}", e);
+            process::exit(1);
+        }
+    }
 }
 
 /// Handle the install-lsp command
