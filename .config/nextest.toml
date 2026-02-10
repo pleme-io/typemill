@@ -8,15 +8,31 @@ fail-fast = false
 # E2E tests spawn multiple LSP servers which compete for resources.
 # Limit parallelism for E2E tests to avoid resource exhaustion.
 # Non-E2E tests can still run at full parallelism.
+
+# Matrix tests run 13 refactoring operations against large real-world repos (next.js, turborepo, etc.)
+# These need extra time: ~45s/operation x 13 ops + warmup = 10-15 min for largest repos
+# TODO: Target <60s per test once markdown plugin regexes use lazy static compilation
+[[profile.default.overrides]]
+filter = 'package(e2e) & test(test_matrix_)'
+threads-required = 4
+slow-timeout = { period = "300s", terminate-after = 5 }
+
+# LSP performance tests also test against large repos
+[[profile.default.overrides]]
+filter = 'package(e2e) & test(test_lsp_ast_performance)'
+threads-required = 4
+slow-timeout = { period = "300s", terminate-after = 3 }
+
+# Regular E2E tests
 [[profile.default.overrides]]
 filter = 'package(e2e)'
-threads-required = 4  # Each E2E test counts as 4 threads worth of work
-slow-timeout = { period = "300s", terminate-after = 2 }
+threads-required = 4
+slow-timeout = { period = "300s", terminate-after = 3 }
 
 [[profile.default.overrides]]
 filter = 'package(mill) & test(e2e)'
 threads-required = 4
-slow-timeout = { period = "300s", terminate-after = 2 }
+slow-timeout = { period = "300s", terminate-after = 3 }
 
 [profile.ci]
 # CI profile for GitHub Actions
@@ -29,12 +45,23 @@ final-status-level = "fail"
 # Test threads: Use available parallelism
 test-threads = "num-cpus"
 
+# Matrix tests: extended timeout for large real-world repos
+[[profile.ci.overrides]]
+filter = 'package(e2e) & test(test_matrix_)'
+threads-required = 4
+slow-timeout = { period = "300s", terminate-after = 5 }
+
+[[profile.ci.overrides]]
+filter = 'package(e2e) & test(test_lsp_ast_performance)'
+threads-required = 4
+slow-timeout = { period = "300s", terminate-after = 3 }
+
 [[profile.ci.overrides]]
 filter = 'package(e2e)'
-threads-required = 4  # Each E2E test counts as 4 threads worth of work
-slow-timeout = { period = "300s", terminate-after = 2 }
+threads-required = 4
+slow-timeout = { period = "300s", terminate-after = 3 }
 
 [[profile.ci.overrides]]
 filter = 'package(mill) & test(e2e)'
 threads-required = 4
-slow-timeout = { period = "300s", terminate-after = 2 }
+slow-timeout = { period = "300s", terminate-after = 3 }

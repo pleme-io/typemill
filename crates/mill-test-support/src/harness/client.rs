@@ -61,30 +61,31 @@ impl TestClient {
         let workspace_root = find_workspace_root(&manifest_dir).expect(
             "Failed to find workspace root. Ensure tests are run within a Cargo workspace.",
         );
-        let server_path = workspace_root.join("target/debug/mill");
+        let release_path = workspace_root.join("target/release/mill");
+        let debug_path = workspace_root.join("target/debug/mill");
+        let server_path = if release_path.exists() {
+            release_path.clone()
+        } else {
+            debug_path.clone()
+        };
 
         // Pre-check: Fail fast if binary doesn't exist with helpful message
         if !server_path.exists() {
             panic!(
                 "\n\n\
-                 ❌ \x1b[1;31mMill debug binary not found\x1b[0m\n\
+                 ❌ \x1b[1;31mMill binary not found\x1b[0m\n\
                  \n\
-                 Expected location: \x1b[1m{}\x1b[0m\n\
+                 Expected location: \x1b[1m{}\x1b[0m (release) or \x1b[1m{}\x1b[0m (debug)\n\
                  \n\
-                 E2E tests require the debug build. Please run:\n\
+                 Please build the project first:\n\
                  \n\
-                 \x1b[1;36m    cargo build --workspace\x1b[0m\n\
-                 \n\
-                 Or just the mill binary:\n\
-                 \n\
-                 \x1b[1;36m    cargo build -p mill\x1b[0m\n\
-                 \n\
-                 \x1b[33m💡 Note:\x1b[0m Building with \x1b[1m--release\x1b[0m only creates target/release/mill.\n\
-                 Tests need target/debug/mill (the debug build).\n\
+                 \x1b[1;36m    cargo build --workspace\x1b[0m  (debug)\n\
+                 \x1b[1;36m    cargo build --workspace --release\x1b[0m  (release, 2-5x faster)\n\
                  \n\
                  \x1b[33m💡 Low memory?\x1b[0m Use: cargo build -j 1\n\
                  \n",
-                server_path.display()
+                release_path.display(),
+                debug_path.display()
             );
         }
 

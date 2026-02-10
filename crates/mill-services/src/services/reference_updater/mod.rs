@@ -476,6 +476,9 @@ impl ReferenceUpdater {
                 svelte_join_set.spawn(async move {
                     let plugin = mill_lang_svelte::SveltePlugin::new();
                     if let Ok(content) = tokio::fs::read_to_string(&file).await {
+                        if !content_might_reference_path(&content, &old_path, None) {
+                            return None;
+                        }
                         if let Some((updated_content, count)) = plugin.rewrite_file_references(
                             &content,
                             old_path.as_ref(),
@@ -578,6 +581,15 @@ impl ReferenceUpdater {
                     Ok(c) => c,
                     Err(_) => return None,
                 };
+
+                let batch_renames = dir_renames.as_ref().map(|r| r.as_slice());
+                if !content_might_reference_path(&content, &old_path, batch_renames) {
+                    tracing::debug!(
+                        file_path = %file_path.display(),
+                        "Skipping file: content does not reference old path"
+                    );
+                    return Some(Vec::new());
+                }
 
                 let mut file_edits = Vec::new();
 
@@ -1476,6 +1488,53 @@ fn build_filelist_scope_key(
         .and_then(|scope| serde_json::to_string(scope).ok())
         .unwrap_or_else(|| "null".to_string());
     format!("v1|exts:{}|scope:{}", exts.join(","), scope_json)
+}
+
+/// Fast pre-filter: checks whether file content could possibly contain a reference
+/// to the old path being renamed. Uses simple string containment checks (SIMD-optimized)
+/// to avoid running expensive regex-based plugin rewriting on files that definitely
+/// don't reference the renamed path. Critical for performance on large repos
+/// (e.g. next.js with 27K+ files).
+fn content_might_reference_path(
+    content: &str,
+    old_path: &Path,
+    dir_renames: Option<&[(PathBuf, PathBuf)]>,
+) -> bool {
+    let old_name = old_path
+        .file_stem()
+        .or_else(|| old_path.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("");
+
+    if old_name.is_empty() || old_name.len() < 2 {
+        return true;
+    }
+
+    if content.contains(old_name) {
+        return true;
+    }
+
+    if let Some(renames) = dir_renames {
+        for (old_file, _) in renames {
+            if let Some(stem) = old_file.file_stem().and_then(|s| s.to_str()) {
+                if stem.len() >= 2 && content.contains(stem) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    if let Some(parent_name) = old_path
+        .parent()
+        .and_then(|p| p.file_name())
+        .and_then(|n| n.to_str())
+    {
+        if parent_name.len() >= 2 && content.contains(parent_name) {
+            return true;
+        }
+    }
+
+    false
 }
 
 fn rewrite_concurrency_limit() -> usize {

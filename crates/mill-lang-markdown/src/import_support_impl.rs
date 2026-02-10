@@ -331,7 +331,19 @@ impl ImportRenameSupport for MarkdownImportSupport {
         old_name: &str,
         new_name: &str,
     ) -> (String, usize) {
+        // Early exit: if content doesn't contain the old name at all, skip all regex work
+        if !content.contains(old_name) {
+            let old_basename = old_name.rsplit('/').next().unwrap_or(old_name);
+            if old_basename.is_empty() || !content.contains(old_basename) {
+                return (content.to_string(), 0);
+            }
+        }
+
         let mut count = 0;
+
+        // Pre-compute format strings used in closures (avoid per-match allocations)
+        let old_with_dot_slash = format!("./{}", old_name);
+        let old_with_trailing_slash = format!("{}/", old_name);
 
         // Rewrite inline links
         let mut result = self
@@ -344,13 +356,8 @@ impl ImportRenameSupport for MarkdownImportSupport {
                 if Self::is_file_reference(path) {
                     let clean_path = Self::path_without_anchor(path);
 
-                    // Match against:
-                    // 1. Full path (e.g., "docs/architecture/ARCHITECTURE.md")
-                    // 2. With ./ prefix (e.g., "./docs/architecture/ARCHITECTURE.md")
-                    // 3. Just filename (e.g., "ARCHITECTURE.md")
-                    // 4. Path ends with the old name
                     if clean_path == old_name
-                        || clean_path == format!("./{}", old_name)
+                        || clean_path == old_with_dot_slash
                         || old_name.ends_with(clean_path)
                         || old_name.ends_with(&format!("/{}", clean_path))
                     {
@@ -374,13 +381,8 @@ impl ImportRenameSupport for MarkdownImportSupport {
                 if Self::is_file_reference(path) {
                     let clean_path = Self::path_without_anchor(path);
 
-                    // Match against:
-                    // 1. Full path (e.g., "docs/architecture/ARCHITECTURE.md")
-                    // 2. With ./ prefix (e.g., "./docs/architecture/ARCHITECTURE.md")
-                    // 3. Just filename (e.g., "ARCHITECTURE.md")
-                    // 4. Path ends with the old name
                     if clean_path == old_name
-                        || clean_path == format!("./{}", old_name)
+                        || clean_path == old_with_dot_slash
                         || old_name.ends_with(clean_path)
                         || old_name.ends_with(&format!("/{}", clean_path))
                     {
@@ -403,13 +405,8 @@ impl ImportRenameSupport for MarkdownImportSupport {
                 if Self::is_file_reference(path) {
                     let clean_path = Self::path_without_anchor(path);
 
-                    // Match against:
-                    // 1. Full path (e.g., "docs/architecture/ARCHITECTURE.md")
-                    // 2. With ./ prefix (e.g., "./docs/architecture/ARCHITECTURE.md")
-                    // 3. Just filename (e.g., "ARCHITECTURE.md")
-                    // 4. Path ends with the old name
                     if clean_path == old_name
-                        || clean_path == format!("./{}", old_name)
+                        || clean_path == old_with_dot_slash
                         || old_name.ends_with(clean_path)
                         || old_name.ends_with(&format!("/{}", clean_path))
                     {
@@ -422,8 +419,8 @@ impl ImportRenameSupport for MarkdownImportSupport {
             })
             .to_string();
 
-        // Rewrite inline code paths (opt-in feature for updating prose)
-        // This catches patterns like `integration-tests/src/` in tables and text
+        // Rewrite inline code paths
+        let is_nested_rename = new_name.starts_with(&old_with_trailing_slash);
         result = self
             .inline_code_regex
             .replace_all(&result, |caps: &Captures| {
@@ -431,15 +428,12 @@ impl ImportRenameSupport for MarkdownImportSupport {
                 let code_content = caps.get(1).unwrap().as_str();
 
                 if Self::looks_like_path(code_content) {
-                    // Skip if already updated (idempotency check for nested renames)
-                    let is_nested_rename = new_name.starts_with(&format!("{}/", old_name));
                     if is_nested_rename && code_content.contains(new_name) {
                         return full_match.to_string();
                     }
 
-                    // Match at start of path (not anywhere)
                     if code_content == old_name
-                        || code_content.starts_with(&format!("{}/", old_name))
+                        || code_content.starts_with(&old_with_trailing_slash)
                     {
                         count += 1;
                         let updated_content = code_content.replacen(old_name, new_name, 1);
@@ -452,21 +446,17 @@ impl ImportRenameSupport for MarkdownImportSupport {
             .to_string();
 
         // Rewrite prose paths (plain text paths in documentation)
-        // This catches patterns like "integration-tests/" in directory trees
         result = self
             .prose_path_regex
             .replace_all(&result, |caps: &Captures| {
                 let full_match = caps.get(0).unwrap().as_str();
                 let path_content = caps.get(1).unwrap().as_str();
 
-                // Skip if already updated (idempotency check for nested renames)
-                let is_nested_rename = new_name.starts_with(&format!("{}/", old_name));
                 if is_nested_rename && path_content.contains(new_name) {
                     return full_match.to_string();
                 }
 
-                // Only replace if it matches or starts with the old path
-                if path_content == old_name || path_content.starts_with(&format!("{}/", old_name)) {
+                if path_content == old_name || path_content.starts_with(&old_with_trailing_slash) {
                     count += 1;
                     return path_content.replacen(old_name, new_name, 1);
                 }

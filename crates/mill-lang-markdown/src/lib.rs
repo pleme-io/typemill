@@ -140,7 +140,7 @@ impl LanguagePlugin for MarkdownPlugin {
         project_root: &std::path::Path,
         rename_info: Option<&serde_json::Value>,
     ) -> Option<(String, usize)> {
-        tracing::info!(
+        tracing::debug!(
             "MarkdownPlugin::rewrite_file_references CALLED - old_path={}, new_path={}, current_file={}",
             old_path.display(),
             new_path.display(),
@@ -224,7 +224,10 @@ impl LanguagePlugin for MarkdownPlugin {
 
 /// Extract markdown headers as symbols
 fn extract_headers(content: &str) -> Vec<Symbol> {
-    let header_regex = Regex::new(r"^(#{1,6})\s+(.+)$").unwrap();
+    use std::sync::LazyLock;
+    static HEADER_REGEX: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(?m)^(#{1,6})\s+(.+)$").unwrap());
+    let header_regex = &*HEADER_REGEX;
     let mut symbols = Vec::new();
 
     for (line_num, line) in content.lines().enumerate() {
