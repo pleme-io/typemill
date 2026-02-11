@@ -74,6 +74,24 @@ pub enum Commands {
     Unlink,
     /// Check client configuration and diagnose potential problems
     Doctor,
+    /// Generate an authentication token (JWT)
+    ///
+    /// Requires access to the server configuration (mill.toml).
+    /// This command generates a signed token that can be used to authenticate
+    /// against the Mill server.
+    GenerateToken {
+        /// Project ID to embed in the token
+        #[arg(long)]
+        project_id: Option<String>,
+
+        /// User ID for multi-tenancy
+        #[arg(long)]
+        user_id: Option<String>,
+
+        /// Expiry in seconds (defaults to config value)
+        #[arg(long)]
+        expiry_seconds: Option<u64>,
+    },
     /// Install LSP server for a specific language
     InstallLsp {
         /// Language name (e.g., "rust", "typescript", "python")
@@ -349,6 +367,13 @@ pub async fn run() {
         }
         Commands::Doctor => {
             handle_doctor().await;
+        }
+        Commands::GenerateToken {
+            project_id,
+            user_id,
+            expiry_seconds,
+        } => {
+            handle_generate_token(project_id, user_id, expiry_seconds).await;
         }
         Commands::InstallLsp { language } => {
             handle_install_lsp(&language).await;
@@ -858,6 +883,69 @@ async fn handle_doctor() {
     }
 
     println!("{}", fmt.success("Doctor's checkup complete"));
+}
+
+/// Handle the generate-token command
+async fn handle_generate_token(
+    project_id: Option<String>,
+    user_id: Option<String>,
+    expiry_seconds: Option<u64>,
+) {
+    // Load configuration
+    let config = match AppConfig::load() {
+        Ok(c) => c,
+        Err(e) => {
+            error!(error = %e, "Failed to load configuration");
+            eprintln!("❌ Failed to load configuration: {}", e);
+            process::exit(1);
+        }
+    };
+
+    // Check if authentication is configured
+    let auth_config = match config.server.auth {
+        Some(c) => c,
+        None => {
+            eprintln!("❌ Authentication is not configured in mill.toml");
+            eprintln!("   Please configure [server.auth] to use this command.");
+            process::exit(1);
+        }
+    };
+
+    let expiry = expiry_seconds.unwrap_or(auth_config.jwt_expiry_seconds);
+
+    // Generate token
+    match mill_auth::generate_token(
+        &auth_config.jwt_secret,
+        expiry,
+        &auth_config.jwt_issuer,
+        &auth_config.jwt_audience,
+        project_id.clone(),
+        user_id.clone(),
+    ) {
+        Ok(token) => {
+            if mill_foundation::core::utils::system::is_ci() {
+                // In CI/scripts, just output the token
+                print!("{}", token);
+            } else {
+                // Interactive output
+                println!("✅ Generated authentication token");
+                if let Some(pid) = &project_id {
+                    println!("   Project ID: {}", pid);
+                }
+                if let Some(uid) = &user_id {
+                    println!("   User ID: {}", uid);
+                }
+                println!("   Expires in: {} seconds", expiry);
+                println!();
+                println!("{}", token);
+            }
+        }
+        Err(e) => {
+            error!(error = %e, "Failed to generate token");
+            eprintln!("❌ Failed to generate token: {}", e);
+            process::exit(1);
+        }
+    }
 }
 
 /// Handle the install-lsp command
