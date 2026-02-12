@@ -13,6 +13,7 @@ categories = ["development-tools", "command-line-utilities"]
 mill-server = { path = "../../crates/mill-server", default-features = false }
 mill-foundation = { path = "../../crates/mill-foundation" }
 mill-transport = { path = "../../crates/mill-transport", default-features = false }
+mill-auth = { path = "../../crates/mill-auth" }
 mill-plugin-api = { path = "../../crates/mill-plugin-api" }
 
 # Plugin bundle - contains all language plugins for inventory discovery

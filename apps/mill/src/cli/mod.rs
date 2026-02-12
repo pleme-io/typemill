@@ -1,5 +1,6 @@
 //! CLI command handling for the mill server
 
+mod auth;
 mod conventions;
 mod docs;
 mod flag_parser;
@@ -68,6 +69,20 @@ pub enum Commands {
     },
     /// Stop the running server
     Stop,
+    /// Generate a JWT authentication token
+    GenerateToken {
+        /// Optional project ID to embed in token
+        #[arg(long)]
+        project_id: Option<String>,
+
+        /// Optional user ID for multi-tenancy
+        #[arg(long)]
+        user_id: Option<String>,
+
+        /// Optional custom expiry in seconds (defaults to config value)
+        #[arg(long)]
+        expiry: Option<u64>,
+    },
     /// Link to AI assistants
     Link,
     /// Remove AI from config
@@ -340,6 +355,13 @@ pub async fn run() {
         }
         Commands::Stop => {
             handle_stop().await;
+        }
+        Commands::GenerateToken {
+            project_id,
+            user_id,
+            expiry,
+        } => {
+            auth::handle_generate_token(project_id, user_id, expiry).await;
         }
         Commands::Link => {
             handle_link().await;
