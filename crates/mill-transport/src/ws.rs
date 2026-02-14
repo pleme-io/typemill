@@ -53,6 +53,8 @@ pub struct Session {
     pub id: String,
     /// Project identifier
     pub project_id: Option<String>,
+    /// Project identifier from the authentication token
+    pub token_project_id: Option<String>,
     /// Project root directory
     pub project_root: Option<String>,
     /// Whether the session is initialized
@@ -66,6 +68,7 @@ impl Session {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             project_id: None,
+            token_project_id: None,
             project_root: None,
             initialized: false,
             user_id: None,
@@ -175,6 +178,7 @@ async fn handle_connection(
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
     let mut user_id_from_token: Option<String> = None;
+    let mut project_id_from_token: Option<String> = None;
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
@@ -217,6 +221,7 @@ async fn handle_connection(
                             }
 
                             user_id_from_token = token_data.claims.user_id;
+                            project_id_from_token = token_data.claims.project_id;
                             return Ok(response);
                         }
                         Err(e) => {
@@ -260,6 +265,7 @@ async fn handle_connection(
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
     session.user_id = user_id_from_token;
+    session.token_project_id = project_id_from_token;
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -457,7 +463,26 @@ async fn handle_initialize(
     };
 
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+
+    // Validate project ID against token if present
+    let project_id = match (&session.token_project_id, &payload.project) {
+        (Some(token_pid), Some(payload_pid)) => {
+            if token_pid != payload_pid {
+                return Err(MillError::permission_denied(format!(
+                    "Project ID mismatch: token requires '{}', requested '{}'",
+                    token_pid, payload_pid
+                )));
+            }
+            Some(token_pid.clone())
+        }
+        (Some(token_pid), None) => {
+            // Implicitly use project from token
+            Some(token_pid.clone())
+        }
+        (None, pid) => pid.clone(),
+    };
+
+    session.project_id = project_id;
     session.project_root = payload.project_root;
     session.initialized = true;
 
@@ -556,6 +581,67 @@ mod tests {
 
         assert!(session.initialized);
         assert_eq!(session.project_id, Some("test_project".to_string()));
+
+        if let McpMessage::Response(resp) = response {
+            assert!(resp.result.is_some());
+            assert!(resp.error.is_none());
+        } else {
+            panic!("Expected Response message");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_initialize_with_token_project_mismatch() {
+        let config = create_test_config(true);
+        let mut session = Session::new();
+
+        // Simulate authenticated session with token project ID
+        session.token_project_id = Some("project_A".to_string());
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "project_B"
+            })),
+        };
+
+        let result = handle_initialize(&mut session, request, &config).await;
+
+        // Should return an error (permission denied)
+        if let Err(MillError::PermissionDenied { operation, .. }) = result {
+             assert!(operation.contains("Project ID mismatch"));
+        } else {
+             // It might return McpMessage::Response with error too if handle_message catches it?
+             // handle_initialize returns MillResult<McpMessage>.
+             // So it should return Err(MillError::PermissionDenied).
+             panic!("Expected PermissionDenied error, got {:?}", result);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_initialize_with_token_project_implicit() {
+        let config = create_test_config(true);
+        let mut session = Session::new();
+
+        // Simulate authenticated session with token project ID
+        session.token_project_id = Some("project_A".to_string());
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({})), // No project specified
+        };
+
+        let response = handle_initialize(&mut session, request, &config)
+            .await
+            .unwrap();
+
+        assert!(session.initialized);
+        // Project ID should be implicitly set from token
+        assert_eq!(session.project_id, Some("project_A".to_string()));
 
         if let McpMessage::Response(resp) = response {
             assert!(resp.result.is_some());
