@@ -368,25 +368,45 @@ impl SearchHandler {
         let results = futures::future::join_all(futures).await;
 
         let mut warnings = Vec::new();
-        let mut symbol_vectors = Vec::new();
+        let mut paginated_symbols = Vec::with_capacity(std::cmp::min(limit, 1000));
         let mut total = 0;
 
-        // Collect warnings and calculate total without flattening yet
+        let mut current_offset = offset;
+        let mut remaining_limit = limit;
+
+        // Process results efficiently, skipping full vectors when possible
         for (symbols, warning) in results {
             total += symbols.len();
-            symbol_vectors.push(symbols);
             if let Some(w) = warning {
                 warnings.push(w);
             }
-        }
 
-        // Stream and paginate without allocating a huge intermediate vector
-        let paginated_symbols: Vec<Value> = symbol_vectors
-            .into_iter()
-            .flatten()
-            .skip(offset)
-            .take(limit)
-            .collect();
+            // Optimization: Skip processing symbols if we are past the limit
+            if remaining_limit == 0 {
+                continue;
+            }
+
+            // Optimization: Skip entire vectors if they fall within the offset
+            let len = symbols.len();
+            if len <= current_offset {
+                current_offset -= len;
+                continue;
+            }
+
+            // We are past the offset (or partially past), take what we need
+            // Calculate how many items from this vector we should take
+            let take_count = std::cmp::min(len - current_offset, remaining_limit);
+
+            paginated_symbols.extend(
+                symbols
+                    .into_iter()
+                    .skip(current_offset)
+                    .take(take_count),
+            );
+
+            remaining_limit -= take_count;
+            current_offset = 0; // We have consumed the offset
+        }
 
         let processing_time = start_time.elapsed().as_millis() as u64;
 
@@ -731,6 +751,116 @@ mod tests {
             &func_sym_kind,
             SymbolKind::Function
         ));
+    }
+
+    #[tokio::test]
+    async fn test_pagination_logic() {
+        use mill_plugin_system::{
+            Capabilities, LanguagePlugin, PluginMetadata, PluginRequest, PluginResponse,
+            PluginResult,
+        };
+
+        struct MockPlugin {
+            name: String,
+            count: usize,
+            start_idx: usize,
+        }
+
+        #[async_trait]
+        impl LanguagePlugin for MockPlugin {
+            fn metadata(&self) -> PluginMetadata {
+                PluginMetadata::new(&self.name, "1.0.0", "test")
+            }
+            fn supported_extensions(&self) -> Vec<String> {
+                vec![format!("mock-{}", self.name)]
+            }
+            fn capabilities(&self) -> Capabilities {
+                let mut c = Capabilities::default();
+                c.navigation.workspace_symbols = true;
+                c
+            }
+            async fn handle_request(&self, _req: PluginRequest) -> PluginResult<PluginResponse> {
+                let mut symbols = Vec::new();
+                for i in 0..self.count {
+                    symbols.push(json!({
+                        "name": format!("sym_{}", self.start_idx + i),
+                        "kind": "function",
+                        "location": { "uri": "file:///tmp/test", "range": {} }
+                    }));
+                }
+                Ok(PluginResponse::success(
+                    Value::Array(symbols),
+                    &self.name,
+                ))
+            }
+            fn configure(&self, _config: Value) -> PluginResult<()> {
+                Ok(())
+            }
+            fn tool_definitions(&self) -> Vec<Value> {
+                vec![]
+            }
+        }
+
+        let plugin_manager = Arc::new(mill_plugin_system::PluginManager::new());
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Plugin 1: 10 items (0-9)
+        let p1 = Arc::new(MockPlugin { name: "p1".into(), count: 10, start_idx: 0 });
+        plugin_manager.register_plugin("p1", p1).await.unwrap();
+        tokio::fs::write(root.join("test.mock-p1"), "").await.unwrap();
+
+        // Plugin 2: 20 items (10-29)
+        let p2 = Arc::new(MockPlugin { name: "p2".into(), count: 20, start_idx: 10 });
+        plugin_manager.register_plugin("p2", p2).await.unwrap();
+        tokio::fs::write(root.join("test.mock-p2"), "").await.unwrap();
+
+        // Plugin 3: 10 items (30-39)
+        let p3 = Arc::new(MockPlugin { name: "p3".into(), count: 10, start_idx: 30 });
+        plugin_manager.register_plugin("p3", p3).await.unwrap();
+        tokio::fs::write(root.join("test.mock-p3"), "").await.unwrap();
+
+        let handler = SearchHandler::new();
+
+        // Case 1: Get all
+        let (results, total, _, _) = handler.search_workspace_symbols(
+            &plugin_manager, "q", root.to_path_buf(), None, 100, 0
+        ).await.unwrap();
+        assert_eq!(total, 40);
+        assert_eq!(results.len(), 40);
+
+        // Case 2: Skip first plugin completely (offset 15) -> should skip 10 from p1, 5 from p2
+        // p1: 10 items. Offset 15. Skip 10. Offset becomes 5.
+        // p2: 20 items. Offset 5. Skip 5. Take 15.
+        // p3: 10 items. Offset 0. Take 10.
+        // Total should be 25 items.
+        // Note: join_all preserves order if we register in order, but HashMap iteration in `all_plugins` might not.
+        // `get_all_plugins_with_names` returns Vec, but iteration order inside PluginManager might be unstable if it uses HashMap.
+        // However, usually it's fine for testing "count" and "uniqueness".
+
+        // Let's verify total count logic first
+        let (results, total, _, _) = handler.search_workspace_symbols(
+            &plugin_manager, "q", root.to_path_buf(), None, 100, 15
+        ).await.unwrap();
+        assert_eq!(total, 40);
+        assert_eq!(results.len(), 25);
+
+        // Case 3: Limit crossing boundaries
+        // Offset 5. Limit 10.
+        // Should take 5 from p1 (idx 5-9) and 5 from p2 (idx 10-14).
+        // OR depending on order.
+        let (results, total, _, _) = handler.search_workspace_symbols(
+            &plugin_manager, "q", root.to_path_buf(), None, 10, 5
+        ).await.unwrap();
+        assert_eq!(total, 40);
+        assert_eq!(results.len(), 10);
+
+        // Case 4: Deep skip (skip everything)
+        let (results, total, _, _) = handler.search_workspace_symbols(
+            &plugin_manager, "q", root.to_path_buf(), None, 10, 50
+        ).await.unwrap();
+        assert_eq!(total, 40);
+        assert_eq!(results.len(), 0);
     }
 }
 
