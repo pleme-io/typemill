@@ -7,10 +7,7 @@ use axum::{
     routing::{get, post},
     Router,
 };
-use mill_auth::{
-    generate_token,
-    jwt::{decode, Claims, DecodingKey, Validation},
-};
+use mill_auth::jwt::{decode, Claims, DecodingKey, Validation};
 use mill_config::config::AppConfig;
 use mill_foundation::MillResult;
 use mill_workspaces::{Workspace, WorkspaceManager};
@@ -124,7 +121,6 @@ pub async fn start_admin_server(
         .route("/healthz", get(health_check)) // Kubernetes style
         .route("/admin/log-level", post(set_log_level))
         .route("/admin/log-level", get(get_log_level))
-        .route("/auth/generate-token", post(generate_auth_token))
         .route("/workspaces", get(list_workspaces))
         .route("/workspaces/register", post(register_workspace))
         .route("/workspaces/{id}/execute", post(execute_command))
@@ -140,7 +136,6 @@ pub async fn start_admin_server(
     info!("  GET  /healthz - Kubernetes health check");
     info!("  POST /admin/log-level - Set log level");
     info!("  GET  /admin/log-level - Get current log level");
-    info!("  POST /auth/generate-token - Generate JWT authentication token");
     info!("  GET  /workspaces - List registered workspaces");
     info!("  POST /workspaces/register - Register a new workspace");
     info!("  POST /workspaces/:id/execute - Execute command in workspace");
@@ -396,56 +391,4 @@ async fn execute_command(
     );
 
     Ok(Json(result))
-}
-
-/// Generate JWT authentication token
-async fn generate_auth_token(
-    State(state): State<Arc<AdminState>>,
-    Json(request): Json<GenerateTokenRequest>,
-) -> Result<Json<GenerateTokenResponse>, (StatusCode, String)> {
-    // Check if authentication is configured
-    let auth_config = state.config.server.auth.as_ref().ok_or_else(|| {
-        (
-            StatusCode::SERVICE_UNAVAILABLE,
-            "Authentication is not configured on this server".to_string(),
-        )
-    })?;
-
-    // Use custom expiry or default from config
-    let expiry_seconds = request
-        .expiry_seconds
-        .unwrap_or(auth_config.jwt_expiry_seconds);
-
-    // Generate token
-    let token = generate_token(
-        &auth_config.jwt_secret,
-        expiry_seconds,
-        &auth_config.jwt_issuer,
-        &auth_config.jwt_audience,
-        request.project_id,
-        request.user_id.clone(),
-    )
-    .map_err(|e| {
-        error!(error = %e, "Failed to generate token");
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Token generation failed: {}", e),
-        )
-    })?;
-
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    info!(
-        expiry_seconds = expiry_seconds,
-        user_id = ?request.user_id,
-        "Generated authentication token"
-    );
-
-    Ok(Json(GenerateTokenResponse {
-        token,
-        expires_at: now + expiry_seconds,
-    }))
 }
