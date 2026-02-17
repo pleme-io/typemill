@@ -213,8 +213,10 @@ impl DirectLspAdapter {
                 None
             };
 
-        // Query each supported extension's LSP server (dedupe by server command)
+        // 1. Identify target clients (serial phase)
+        let mut target_clients = Vec::new();
         let mut seen_clients: HashSet<String> = HashSet::new();
+
         for extension in &self.extensions {
             // Apply filter if present - only query servers relevant to the requesting plugin
             if let Some(ref filter) = filter_extensions {
@@ -235,228 +237,230 @@ impl DirectLspAdapter {
                         );
                         continue;
                     }
+
                     // Check if the server supports workspace symbols
-                    if !client.supports_workspace_symbols().await {
+                    if client.supports_workspace_symbols().await {
+                        target_clients.push((extension.clone(), client));
+                    } else {
                         debug!(
                             extension = %extension,
                             "LSP server does not support workspace/symbol, skipping"
                         );
-                        continue;
                     }
+                }
+                Err(e) => {
+                    warn!(
+                        extension = %extension,
+                        error = %e,
+                        "Failed to create LSP client for workspace symbol search"
+                    );
+                }
+            }
+        }
 
-                    // For rust-analyzer, check if workspace indexing notifications are sent:
-                    // 1. Try event-driven wait for progress notifications (500ms timeout)
-                    // 2. If no progress notification arrives, assume indexing is instant or not needed
-                    // This handles both cases: servers that send $/progress and those that complete instantly
-                    if extension == "rs" {
+        // 2. Execute queries in parallel (parallel phase)
+        let futures = target_clients.into_iter().map(|(extension, client)| {
+            let params = params.clone();
+            async move {
+                // For rust-analyzer, check if workspace indexing notifications are sent:
+                if extension == "rs" {
+                    debug!(
+                        extension = %extension,
+                        "Checking for rust-analyzer workspace indexing progress"
+                    );
+
+                    let token = mill_lsp::progress::ProgressToken::String(
+                        "rustAnalyzer/Indexing".to_string(),
+                    );
+
+                    // Check if indexing is already completed
+                    if client.is_progress_completed(&token) {
                         debug!(
                             extension = %extension,
-                            "Checking for rust-analyzer workspace indexing progress"
+                            "rust-analyzer indexing already complete"
                         );
-
-                        let token = mill_lsp::progress::ProgressToken::String(
-                            "rustAnalyzer/Indexing".to_string(),
-                        );
-
-                        // Check if indexing is already completed
-                        if client.is_progress_completed(&token) {
-                            debug!(
-                                extension = %extension,
-                                "rust-analyzer indexing already complete"
-                            );
-                        } else {
-                            // Wait briefly (500ms) to see if indexing progress notification arrives
-                            // rust-analyzer doesn't send progress for small projects that index instantly
-                            match client
-                                .wait_for_indexing(std::time::Duration::from_millis(500))
-                                .await
-                            {
-                                Ok(()) => {
-                                    debug!(
-                                        extension = %extension,
-                                        "rust-analyzer indexing complete via progress notification"
-                                    );
-                                }
-                                Err(_) => {
-                                    // No progress notification - indexing either instant or not happening
-                                    debug!(
-                                        extension = %extension,
-                                        "No progress notification in 500ms - indexing complete or not needed"
-                                    );
-                                }
+                    } else {
+                        // Wait briefly (500ms) to see if indexing progress notification arrives
+                        match client
+                            .wait_for_indexing(std::time::Duration::from_millis(500))
+                            .await
+                        {
+                            Ok(()) => {
+                                debug!(
+                                    extension = %extension,
+                                    "rust-analyzer indexing complete via progress notification"
+                                );
+                            }
+                            Err(_) => {
+                                // No progress notification - indexing either instant or not happening
+                                debug!(
+                                    extension = %extension,
+                                    "No progress notification in 500ms - indexing complete or not needed"
+                                );
                             }
                         }
                     }
+                }
 
-                    // For TypeScript, warm up the server by opening a file first
-                    // TypeScript LSP needs project context before workspace/symbol works
-                    if extension == "ts"
-                        || extension == "tsx"
-                        || extension == "js"
-                        || extension == "jsx"
-                    {
-                        debug!(
-                            extension = %extension,
-                            "TypeScript LSP requires warmup - opening a file to establish project context"
-                        );
+                // For TypeScript, warm up the server by opening a file first
+                if extension == "ts"
+                    || extension == "tsx"
+                    || extension == "js"
+                    || extension == "jsx"
+                {
+                    debug!(
+                        extension = %extension,
+                        "TypeScript LSP requires warmup - opening a file to establish project context"
+                    );
 
-                        // Try to find and open a representative file to establish project context
-                        if let Some(root_dir) = client.config().root_dir.as_ref() {
-                            let mut warmup_file = None;
+                    // Try to find and open a representative file to establish project context
+                    if let Some(root_dir) = client.config().root_dir.as_ref() {
+                        let mut warmup_file = None;
 
-                            // Prefer opening a source file to establish a TS project context.
-                            let extensions_to_try = ["ts", "tsx", "js", "jsx"];
-                            for ext in &extensions_to_try {
-                                // Try to find any file with this extension in the workspace
-                                if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
+                        // Prefer opening a source file to establish a TS project context.
+                        let extensions_to_try = ["ts", "tsx", "js", "jsx"];
+                        for ext in &extensions_to_try {
+                            if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
+                                while let Ok(Some(entry)) = entries.next_entry().await {
+                                    let path = entry.path();
+                                    let is_file = match entry.file_type().await {
+                                        Ok(ft) => ft.is_file(),
+                                        Err(_) => false,
+                                    };
+
+                                    if is_file
+                                        && path.extension().and_then(|e| e.to_str()) == Some(ext)
+                                    {
+                                        warmup_file = Some(path);
+                                        break;
+                                    }
+                                }
+                            }
+                            if warmup_file.is_some() {
+                                break;
+                            }
+                        }
+
+                        // If still not found, try src directory
+                        if warmup_file.is_none() {
+                            let src_dir = root_dir.join("src");
+                            let src_exists =
+                                tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
+                            let is_dir = if src_exists {
+                                tokio::fs::metadata(&src_dir)
+                                    .await
+                                    .map(|m| m.is_dir())
+                                    .unwrap_or(false)
+                            } else {
+                                false
+                            };
+
+                            if is_dir {
+                                if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
                                     while let Ok(Some(entry)) = entries.next_entry().await {
                                         let path = entry.path();
-                                        // Note: is_file() on DirEntry is cheap (doesn't stat again on most OSs)
-                                        // but path.is_file() might stat. entry.file_type() is async in tokio.
                                         let is_file = match entry.file_type().await {
                                             Ok(ft) => ft.is_file(),
                                             Err(_) => false,
                                         };
 
-                                        if is_file
-                                            && path.extension().and_then(|e| e.to_str())
-                                                == Some(ext)
-                                        {
-                                            warmup_file = Some(path);
-                                            break;
-                                        }
-                                    }
-                                }
-                                if warmup_file.is_some() {
-                                    break;
-                                }
-                            }
-
-                            // If still not found, try src directory
-                            if warmup_file.is_none() {
-                                let src_dir = root_dir.join("src");
-                                let src_exists =
-                                    tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
-                                let is_dir = if src_exists {
-                                    tokio::fs::metadata(&src_dir)
-                                        .await
-                                        .map(|m| m.is_dir())
-                                        .unwrap_or(false)
-                                } else {
-                                    false
-                                };
-
-                                if is_dir {
-                                    if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
-                                        while let Ok(Some(entry)) = entries.next_entry().await {
-                                            let path = entry.path();
-                                            let is_file = match entry.file_type().await {
-                                                Ok(ft) => ft.is_file(),
-                                                Err(_) => false,
-                                            };
-
-                                            if is_file {
-                                                if let Some(ext) =
-                                                    path.extension().and_then(|e| e.to_str())
-                                                {
-                                                    if extensions_to_try.contains(&ext) {
-                                                        warmup_file = Some(path);
-                                                        break;
-                                                    }
+                                        if is_file {
+                                            if let Some(ext) =
+                                                path.extension().and_then(|e| e.to_str())
+                                            {
+                                                if extensions_to_try.contains(&ext) {
+                                                    warmup_file = Some(path);
+                                                    break;
                                                 }
                                             }
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            // Final fallback: open tsconfig.json if no source file found.
-                            if warmup_file.is_none() {
-                                let tsconfig = root_dir.join("tsconfig.json");
-                                if tsconfig.exists() && tsconfig.is_file() {
-                                    warmup_file = Some(tsconfig);
-                                }
+                        // Final fallback: open tsconfig.json if no source file found.
+                        if warmup_file.is_none() {
+                            let tsconfig = root_dir.join("tsconfig.json");
+                            if tsconfig.exists() && tsconfig.is_file() {
+                                warmup_file = Some(tsconfig);
                             }
+                        }
 
-                            // Open the warmup file if found
-                            if let Some(path) = warmup_file {
-                                debug!(
+                        // Open the warmup file if found
+                        if let Some(path) = warmup_file {
+                            debug!(
+                                extension = %extension,
+                                warmup_file = %path.display(),
+                                "Opening file to warm up TypeScript LSP"
+                            );
+                            if let Err(e) = client.notify_file_opened(&path).await {
+                                warn!(
                                     extension = %extension,
                                     warmup_file = %path.display(),
-                                    "Opening file to warm up TypeScript LSP"
+                                    error = %e,
+                                    "Failed to open warmup file for TypeScript LSP"
                                 );
-                                if let Err(e) = client.notify_file_opened(&path).await {
-                                    warn!(
-                                        extension = %extension,
-                                        warmup_file = %path.display(),
-                                        error = %e,
-                                        "Failed to open warmup file for TypeScript LSP"
-                                    );
-                                } else {
-                                    // Allow the server a short window to register the project context.
-                                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                                }
                             } else {
-                                debug!(
-                                    extension = %extension,
-                                    "No suitable warmup file found for TypeScript LSP"
-                                );
+                                // Allow the server a short window to register the project context.
+                                tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                             }
+                        } else {
+                            debug!(
+                                extension = %extension,
+                                "No suitable warmup file found for TypeScript LSP"
+                            );
                         }
                     }
+                }
 
-                    // Send workspace/symbol request to this server
-                    match client
-                        .send_request("workspace/symbol", params.clone())
-                        .await
-                    {
-                        Ok(response) => {
-                            // Extract symbols from response - consume the response to avoid cloning
-                            if let Value::Array(symbols) = response {
-                                debug!(
-                                    extension = %extension,
-                                    symbol_count = symbols.len(),
-                                    "Got workspace symbols from LSP server"
-                                );
+                // Send workspace/symbol request to this server
+                let result = client.send_request("workspace/symbol", params).await;
+                (extension, result)
+            }
+        });
 
-                                // Filter by kind if requested (optimization)
-                                if let Some(target_kind) = kind_filter {
-                                    for symbol in symbols {
-                                        if let Some(kind_num) =
-                                            symbol.get("kind").and_then(|k| k.as_u64())
-                                        {
-                                            if let Some(sym_kind) =
-                                                mill_plugin_api::SymbolKind::from_lsp_kind(kind_num)
-                                            {
-                                                if sym_kind == target_kind {
-                                                    all_symbols.push(symbol);
-                                                }
-                                            }
+        let results = futures::future::join_all(futures).await;
+
+        // 3. Merge results (serial phase)
+        for (extension, result) in results {
+            match result {
+                Ok(response) => {
+                    // Extract symbols from response - consume the response to avoid cloning
+                    if let Value::Array(symbols) = response {
+                        debug!(
+                            extension = %extension,
+                            symbol_count = symbols.len(),
+                            "Got workspace symbols from LSP server"
+                        );
+
+                        // Filter by kind if requested (optimization)
+                        if let Some(target_kind) = kind_filter {
+                            for symbol in symbols {
+                                if let Some(kind_num) = symbol.get("kind").and_then(|k| k.as_u64())
+                                {
+                                    if let Some(sym_kind) =
+                                        mill_plugin_api::SymbolKind::from_lsp_kind(kind_num)
+                                    {
+                                        if sym_kind == target_kind {
+                                            all_symbols.push(symbol);
                                         }
                                     }
-                                } else {
-                                    all_symbols.extend(symbols);
-                                }
-
-                                queried_servers.push(extension.clone());
-
-                                // Prevent unbounded symbol collection
-                                if all_symbols.len() >= MAX_WORKSPACE_SYMBOLS {
-                                    debug!(
-                                        symbol_count = all_symbols.len(),
-                                        "Reached maximum workspace symbol limit, stopping collection"
-                                    );
-                                    break;
                                 }
                             }
+                        } else {
+                            all_symbols.extend(symbols);
                         }
-                        Err(e) => {
-                            // Log error but continue with other servers
-                            warn!(
-                                extension = %extension,
-                                error = %e,
-                                "Failed to get workspace symbols from LSP server"
+
+                        queried_servers.push(extension.clone());
+
+                        // Prevent unbounded symbol collection
+                        if all_symbols.len() >= MAX_WORKSPACE_SYMBOLS {
+                            debug!(
+                                symbol_count = all_symbols.len(),
+                                "Reached maximum workspace symbol limit, stopping collection"
                             );
+                            break;
                         }
                     }
                 }
@@ -465,7 +469,7 @@ impl DirectLspAdapter {
                     warn!(
                         extension = %extension,
                         error = %e,
-                        "Failed to create LSP client for workspace symbol search"
+                        "Failed to get workspace symbols from LSP server"
                     );
                 }
             }
