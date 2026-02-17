@@ -17,6 +17,10 @@ impl FileService {
     /// Apply an edit plan to the filesystem atomically
     pub async fn apply_edit_plan(&self, plan: &EditPlan) -> ServerResult<EditPlanResult> {
         info!(source_file = %plan.source_file, "Applying edit plan");
+        let perf_enabled = std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let apply_start = std::time::Instant::now();
         debug!(
             edits_count = plan.edits.len(),
             dependency_updates_count = plan.dependency_updates.len(),
@@ -40,14 +44,25 @@ impl FileService {
 
         // For simplicity, we'll apply edits sequentially with individual locks
         // In a production system, you might want more sophisticated coordination
-        self.apply_edits_with_coordination(plan).await
+        self.apply_edits_with_coordination(plan, perf_enabled, apply_start)
+            .await
     }
 
     /// Apply edits with file coordination and atomic rollback on failure
-    async fn apply_edits_with_coordination(&self, plan: &EditPlan) -> ServerResult<EditPlanResult> {
+    async fn apply_edits_with_coordination(
+        &self,
+        plan: &EditPlan,
+        perf_enabled: bool,
+        apply_start: std::time::Instant,
+    ) -> ServerResult<EditPlanResult> {
         // Ensure all pending file operations are complete before creating snapshots
         // This is critical for cross-process cache coherency
+        let queue_wait_start = std::time::Instant::now();
         self.operation_queue.wait_until_idle().await;
+        let queue_wait_ms = queue_wait_start.elapsed().as_millis();
+        if perf_enabled {
+            info!(queue_wait_ms, "perf: apply_edit_plan_queue_wait");
+        }
         debug!("Operation queue idle before creating snapshots");
 
         // Step 0: Track all Move operations to handle renamed files correctly
@@ -553,6 +568,13 @@ impl FileService {
             modified_files_count = modified_files.len(),
             "Edit plan completed successfully with atomic guarantees"
         );
+
+        if perf_enabled {
+            info!(
+                total_ms = apply_start.elapsed().as_millis(),
+                "perf: apply_edit_plan_total"
+            );
+        }
 
         Ok(EditPlanResult {
             success: true,

@@ -1,12 +1,12 @@
 //! Import rewrite support for Svelte files.
 
 use crate::script_blocks::find_script_blocks;
-use mill_lang_typescript::path_alias_resolver::TypeScriptPathAliasResolver;
 use mill_lang_common::io::relative_path;
+use mill_lang_typescript::path_alias_resolver::TypeScriptPathAliasResolver;
+use mill_plugin_api::ImportParser;
 use mill_plugin_api::PathAliasResolver;
 use regex::Regex;
 use std::path::{Component, Path, PathBuf};
-use mill_plugin_api::ImportParser;
 
 pub struct SvelteImportSupport {
     es_import_re: Regex,
@@ -192,10 +192,17 @@ fn rewrite_script_block_imports(
                 }
                 rel
             });
-        let replacement = if resolver.is_potential_alias(&specifier) && replacement.starts_with('.') {
-            alias_from_prefix(&specifier, &new_resolved_path, current_file, project_root, resolver)
-                .or_else(|| derive_alias_from_specifier(&specifier, &resolved, &new_resolved_path))
-                .unwrap_or(replacement)
+        let replacement = if resolver.is_potential_alias(&specifier) && replacement.starts_with('.')
+        {
+            alias_from_prefix(
+                &specifier,
+                &new_resolved_path,
+                current_file,
+                project_root,
+                resolver,
+            )
+            .or_else(|| derive_alias_from_specifier(&specifier, &resolved, &new_resolved_path))
+            .unwrap_or(replacement)
         } else {
             replacement
         };
@@ -239,7 +246,10 @@ fn derive_alias_from_specifier(
     resolved_new: &Path,
 ) -> Option<String> {
     let alias_prefix = specifier.split('/').next().unwrap_or("");
-    if !(alias_prefix.starts_with('$') || alias_prefix.starts_with('@') || alias_prefix.starts_with('~')) {
+    if !(alias_prefix.starts_with('$')
+        || alias_prefix.starts_with('@')
+        || alias_prefix.starts_with('~'))
+    {
         return None;
     }
 
@@ -272,7 +282,11 @@ fn derive_alias_from_specifier(
     if relative_str.is_empty() {
         Some(alias_prefix.to_string())
     } else {
-        Some(format!("{}/{}", alias_prefix.trim_end_matches('/'), relative_str))
+        Some(format!(
+            "{}/{}",
+            alias_prefix.trim_end_matches('/'),
+            relative_str
+        ))
     }
 }
 
@@ -288,8 +302,9 @@ fn alias_from_prefix(
         return None;
     }
 
-    let alias_root = if let Some(root) =
-        resolver.resolve_alias(alias_prefix, current_file, project_root).map(PathBuf::from)
+    let alias_root = if let Some(root) = resolver
+        .resolve_alias(alias_prefix, current_file, project_root)
+        .map(PathBuf::from)
     {
         normalize_path(&root)
     } else if alias_prefix == "$lib" {
@@ -315,7 +330,11 @@ fn alias_from_prefix(
     if relative_str.is_empty() {
         Some(alias_prefix.to_string())
     } else {
-        Some(format!("{}/{}", alias_prefix.trim_end_matches('/'), relative_str))
+        Some(format!(
+            "{}/{}",
+            alias_prefix.trim_end_matches('/'),
+            relative_str
+        ))
     }
 }
 

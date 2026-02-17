@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use tokio::runtime::Runtime;
 use std::fs;
 use tempfile::tempdir;
+use tokio::runtime::Runtime;
 
 fn bench_file_write(c: &mut Criterion) {
     let mut group = c.benchmark_group("file_write");

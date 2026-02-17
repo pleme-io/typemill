@@ -14,8 +14,8 @@ fn create_test_files(root: &Path, depth: usize, width: usize) {
         fs::create_dir(&dir_path).unwrap();
 
         for j in 0..width {
-             fs::write(dir_path.join(format!("file_{}.rs", j)), "content").unwrap();
-             fs::write(dir_path.join(format!("file_{}.txt", j)), "content").unwrap();
+            fs::write(dir_path.join(format!("file_{}.rs", j)), "content").unwrap();
+            fs::write(dir_path.join(format!("file_{}.txt", j)), "content").unwrap();
         }
 
         create_test_files(&dir_path, depth - 1, width);
@@ -40,7 +40,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     c.bench_function("find_source_files", |b| {
-        b.to_async(&rt).iter(|| run_find_source_files(temp_dir.path()))
+        b.to_async(&rt)
+            .iter(|| run_find_source_files(temp_dir.path()))
     });
 }
 

@@ -337,7 +337,8 @@ pub fn rewrite_imports_for_move_with_context(
                             // Resolved path may not have extension (e.g., $lib/utils/helpers resolves to src/lib/utils/helpers)
                             // but old_path has extension (e.g., src/lib/utils/helpers.ts)
                             resolved_path == old_path_normalized
-                                || resolved_path.with_extension("") == old_path_normalized.with_extension("")
+                                || resolved_path.with_extension("")
+                                    == old_path_normalized.with_extension("")
                         };
 
                         if !is_affected {
@@ -453,8 +454,14 @@ pub fn rewrite_imports_for_move_with_context(
         // We need to check for imports both with and without extensions
         let import_variants = vec![
             (old_import.clone(), new_import.clone()), // No extension: ./utils/timer
-            (format!("{}.js", old_import), format!("{}.js", new_import_relative)), // .js extension: ./utils/timer.js
-            (format!("{}.ts", old_import), format!("{}.ts", new_import_relative)), // .ts extension (rare but possible)
+            (
+                format!("{}.js", old_import),
+                format!("{}.js", new_import_relative),
+            ), // .js extension: ./utils/timer.js
+            (
+                format!("{}.ts", old_import),
+                format!("{}.ts", new_import_relative),
+            ), // .ts extension (rare but possible)
         ];
 
         for (old_variant, new_variant) in import_variants {

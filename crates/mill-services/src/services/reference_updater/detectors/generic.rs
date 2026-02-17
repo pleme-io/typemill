@@ -84,9 +84,11 @@ pub(crate) async fn find_generic_affected_files_cached(
                     f.extension()
                         .and_then(|e| e.to_str())
                         .map(|ext| {
-                            let is_doc = matches!(ext, "md" | "markdown" | "toml" | "yaml" | "yml" | "json");
+                            let is_doc =
+                                matches!(ext, "md" | "markdown" | "toml" | "yaml" | "yml" | "json");
                             let is_web = matches!(ext, "svelte" | "ts" | "tsx" | "js" | "jsx");
-                            let allow_rewrite = matches!(scan_scope, Some(mill_plugin_api::ScanScope::All));
+                            let allow_rewrite =
+                                matches!(scan_scope, Some(mill_plugin_api::ScanScope::All));
                             is_doc || ((is_directory && is_web) && allow_rewrite)
                         })
                         .unwrap_or(false)
@@ -144,6 +146,11 @@ pub(crate) async fn find_generic_affected_files_cached(
         if file == &new_path {
             continue;
         }
+        if let Some(ext) = file.extension().and_then(|e| e.to_str()) {
+            if is_obviously_irrelevant_extension(ext) {
+                continue;
+            }
+        }
 
         let file = file.clone();
         let old_path = old_path.clone();
@@ -181,59 +188,83 @@ pub(crate) async fn find_generic_affected_files_cached(
                     Ok(c) => c,
                     Err(_) => return None,
                 };
-                    // METHOD 1: Import-based detection
-                    let all_imports = get_all_imported_files_internal(
-                        &content,
-                        &file_clone,
-                        &plugin_map_clone,
-                        &project_files_clone,
-                        &resolver_clone,
-                        &resolver_cache_clone,
-                    );
+                // METHOD 1: Import-based detection
+                let all_imports = get_all_imported_files_internal(
+                    &content,
+                    &file_clone,
+                    &plugin_map_clone,
+                    &project_files_clone,
+                    &resolver_clone,
+                    &resolver_cache_clone,
+                );
 
-                    // CACHE POPULATION: Store the imports for this file
-                    if let Some(ref cache) = import_cache_clone {
-                        if let Ok(metadata) = std::fs::metadata(&file_clone) {
-                            if let Ok(modified) = metadata.modified() {
-                                cache.set_imports(file_clone.clone(), all_imports.clone(), modified);
-                            }
+                // CACHE POPULATION: Store the imports for this file
+                if let Some(ref cache) = import_cache_clone {
+                    if let Ok(metadata) = std::fs::metadata(&file_clone) {
+                        if let Ok(modified) = metadata.modified() {
+                            cache.set_imports(file_clone.clone(), all_imports.clone(), modified);
                         }
                     }
+                }
 
-                    // Check if imports reference the old/new path
-                    if is_directory {
-                        if all_imports
-                            .iter()
-                            .any(|p| p.starts_with(&old_path_clone) || p.starts_with(&new_path_clone))
-                        {
-                            return Some(file_clone);
-                        }
-                    } else if all_imports.contains(&old_path_clone)
-                        || all_imports.contains(&new_path_clone)
+                // Check if imports reference the old/new path
+                if is_directory {
+                    if all_imports
+                        .iter()
+                        .any(|p| p.starts_with(&old_path_clone) || p.starts_with(&new_path_clone))
                     {
                         return Some(file_clone);
                     }
+                } else if all_imports.contains(&old_path_clone)
+                    || all_imports.contains(&new_path_clone)
+                {
+                    return Some(file_clone);
+                }
 
-                    // METHOD 2: Rewrite-based detection
-                    if let Some(ext) = file_clone.extension().and_then(|e| e.to_str()) {
-                        if let Some(plugin) = plugin_map_clone.get(ext) {
-                            let target_ext = file_clone.extension().and_then(|e| e.to_str());
-                            if !crate::services::reference_updater::is_extension_compatible_for_rewrite(
-                                renamed_ext.as_deref(),
-                                target_ext,
-                            ) {
-                                return None;
-                            }
-                            if !allow_rewrite && is_web_extension(ext) {
-                                return None;
-                            }
-                            if is_directory
-                                && is_web_extension(ext)
-                                && !content_might_contain_alias_imports(&content)
-                            {
-                                return None;
-                            }
+                // METHOD 2: Rewrite-based detection
+                if let Some(ext) = file_clone.extension().and_then(|e| e.to_str()) {
+                    if let Some(plugin) = plugin_map_clone.get(ext) {
+                        let target_ext = file_clone.extension().and_then(|e| e.to_str());
+                        if !crate::services::reference_updater::is_extension_compatible_for_rewrite(
+                            renamed_ext.as_deref(),
+                            target_ext,
+                        ) {
+                            return None;
+                        }
+                        if !allow_rewrite && is_web_extension(ext) {
+                            return None;
+                        }
+                        if is_directory
+                            && is_web_extension(ext)
+                            && !content_might_contain_alias_imports(&content)
+                        {
+                            return None;
+                        }
 
+                        let rewrite_result = plugin.rewrite_file_references(
+                            &content,
+                            &old_path_clone,
+                            &new_path_clone,
+                            &file_clone,
+                            &project_root_clone,
+                            rename_info_clone.as_ref(),
+                        );
+
+                        if let Some((updated_content, change_count)) = rewrite_result {
+                            if change_count > 0 && updated_content != content {
+                                return Some(file_clone);
+                            }
+                        }
+                    } else {
+                        #[cfg(feature = "lang-svelte")]
+                        if ext == "svelte" {
+                            let plugin = mill_lang_svelte::SveltePlugin::new();
+                            if !allow_rewrite {
+                                return None;
+                            }
+                            if is_directory && !content_might_contain_alias_imports(&content) {
+                                return None;
+                            }
                             let rewrite_result = plugin.rewrite_file_references(
                                 &content,
                                 &old_path_clone,
@@ -248,47 +279,21 @@ pub(crate) async fn find_generic_affected_files_cached(
                                     return Some(file_clone);
                                 }
                             }
-                        } else {
-                            #[cfg(feature = "lang-svelte")]
-                            if ext == "svelte" {
-                                let plugin = mill_lang_svelte::SveltePlugin::new();
-                                if !allow_rewrite {
-                                    return None;
-                                }
-                                if is_directory
-                                    && !content_might_contain_alias_imports(&content)
-                                {
-                                    return None;
-                                }
-                                let rewrite_result = plugin.rewrite_file_references(
-                                    &content,
-                                    &old_path_clone,
-                                    &new_path_clone,
-                                    &file_clone,
-                                    &project_root_clone,
-                                    rename_info_clone.as_ref(),
-                                );
-
-                                if let Some((updated_content, change_count)) = rewrite_result {
-                                    if change_count > 0 && updated_content != content {
-                                        return Some(file_clone);
-                                    }
-                                }
-                            }
                         }
                     }
-                    None
-                })
-                .await;
-
-                match result {
-                    Ok(Some(f)) => Some(f),
-                    Ok(None) => None,
-                    Err(e) => {
-                        tracing::error!("Blocking task panicked: {}", e);
-                        None
-                    }
                 }
+                None
+            })
+            .await;
+
+            match result {
+                Ok(Some(f)) => Some(f),
+                Ok(None) => None,
+                Err(e) => {
+                    tracing::error!("Blocking task panicked: {}", e);
+                    None
+                }
+            }
         });
     }
 
@@ -471,9 +476,13 @@ fn get_all_imported_files_internal(
             if let Some(import_parser) = plugin.import_parser() {
                 let import_specifiers = import_parser.parse_imports(content);
                 for specifier in import_specifiers {
-                    if let Some(resolved) =
-                        resolve_import_to_file(&specifier, current_file, project_files, resolver, resolver_cache)
-                    {
+                    if let Some(resolved) = resolve_import_to_file(
+                        &specifier,
+                        current_file,
+                        project_files,
+                        resolver,
+                        resolver_cache,
+                    ) {
                         imported_files.push(resolved);
                     }
                 }
@@ -485,13 +494,17 @@ fn get_all_imported_files_internal(
     // Fallback: use regex-based extraction
     if is_likely_code_text(content) {
         for line in content.lines() {
-        if let Some(specifier) = extract_import_path(line) {
-            if let Some(resolved) =
-                resolve_import_to_file(&specifier, current_file, project_files, resolver, resolver_cache)
-            {
-                imported_files.push(resolved);
+            if let Some(specifier) = extract_import_path(line) {
+                if let Some(resolved) = resolve_import_to_file(
+                    &specifier,
+                    current_file,
+                    project_files,
+                    resolver,
+                    resolver_cache,
+                ) {
+                    imported_files.push(resolved);
+                }
             }
-        }
         }
     }
 
@@ -512,6 +525,35 @@ fn is_likely_code_text(content: &str) -> bool {
         }
     }
     non_printable * 20 < sample_len
+}
+
+fn is_obviously_irrelevant_extension(ext: &str) -> bool {
+    matches!(
+        ext,
+        "png"
+            | "jpg"
+            | "jpeg"
+            | "gif"
+            | "ico"
+            | "webp"
+            | "avif"
+            | "bmp"
+            | "mp3"
+            | "mp4"
+            | "webm"
+            | "mov"
+            | "wav"
+            | "zip"
+            | "tar"
+            | "gz"
+            | "rar"
+            | "7z"
+            | "exe"
+            | "dll"
+            | "so"
+            | "dylib"
+            | "wasm"
+    )
 }
 
 fn is_web_extension(ext: &str) -> bool {
@@ -545,7 +587,13 @@ fn resolve_import_to_file(
     resolver: &mill_ast::ImportPathResolver,
     resolver_cache: &dashmap::DashMap<(String, PathBuf), Option<PathBuf>>,
 ) -> Option<PathBuf> {
-    let key = (specifier.to_string(), importing_file.parent().unwrap_or(importing_file).to_path_buf());
+    let key = (
+        specifier.to_string(),
+        importing_file
+            .parent()
+            .unwrap_or(importing_file)
+            .to_path_buf(),
+    );
     if let Some(entry) = resolver_cache.get(&key) {
         return entry.value().clone();
     }

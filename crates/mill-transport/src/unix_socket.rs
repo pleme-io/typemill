@@ -8,8 +8,8 @@ use mill_foundation::core::model::mcp::{McpError, McpMessage, McpResponse};
 use mill_foundation::errors::ErrorResponse;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
@@ -129,7 +129,9 @@ impl UnixSocketServer {
                         let dispatcher = dispatcher.clone();
                         let last_activity = last_activity.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = handle_connection(stream, dispatcher, last_activity).await {
+                            if let Err(e) =
+                                handle_connection(stream, dispatcher, last_activity).await
+                            {
                                 error!(error = %e, "Connection handler error");
                             }
                         });

@@ -153,6 +153,7 @@ impl ToolHandler for PruneHandler {
         };
 
         // Call the appropriate planning method directly
+        let planning_start = std::time::Instant::now();
         let plan = match params.target.kind.as_str() {
             "symbol" => {
                 self.prune_planner
@@ -177,6 +178,15 @@ impl ToolHandler for PruneHandler {
             }
         };
 
+        if Self::perf_enabled() {
+            tracing::info!(
+                target_kind = %params.target.kind,
+                target_path = %params.target.file_path,
+                planning_ms = planning_start.elapsed().as_millis(),
+                "perf: prune_planning"
+            );
+        }
+
         // Wrap in RefactorPlan
         let refactor_plan = RefactorPlan::DeletePlan(plan.clone());
 
@@ -191,6 +201,12 @@ impl ToolHandler for PruneHandler {
 }
 
 impl PruneHandler {
+    fn perf_enabled() -> bool {
+        std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+    }
+
     /// Build preview response from DeletePlan
     fn build_preview_response(
         &self,
@@ -256,7 +272,19 @@ impl PruneHandler {
         plan: RefactorPlan,
         params: &PruneParams,
     ) -> ServerResult<Value> {
+        let execute_start = std::time::Instant::now();
         let result = crate::handlers::common::execute_refactor_plan(context, plan).await?;
+        let execute_ms = execute_start.elapsed().as_millis();
+
+        if Self::perf_enabled() {
+            tracing::info!(
+                target_kind = %params.target.kind,
+                target_path = %params.target.file_path,
+                execute_ms,
+                applied_files = result.applied_files.len(),
+                "perf: prune_execute"
+            );
+        }
 
         let summary = if result.success {
             format!(

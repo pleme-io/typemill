@@ -31,6 +31,12 @@ fn default_true() -> bool {
     true
 }
 
+fn perf_enabled() -> bool {
+    std::env::var("TYPEMILL_PERF")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 impl Default for ExecutionOptions {
     fn default() -> Self {
         Self {
@@ -82,12 +88,16 @@ impl PlanExecutor {
             validate_checksums = options.validate_checksums,
             "Executing refactoring plan"
         );
+        let perf_enabled = perf_enabled();
+        let execute_start = std::time::Instant::now();
 
         // Step 1: Validate checksums if enabled
+        let checksum_start = std::time::Instant::now();
         if options.validate_checksums {
             debug!("Validating file checksums");
             self.checksum_validator.validate_checksums(&plan).await?;
         }
+        let checksum_ms = checksum_start.elapsed().as_millis();
 
         // Step 2: Extract WorkspaceEdit from the discriminated union
         let workspace_edit = plan.workspace_edit();
@@ -128,10 +138,20 @@ impl PlanExecutor {
         }
 
         // Step 5: Apply edits atomically with automatic backup for rollback
+        let apply_start = std::time::Instant::now();
         let apply_result = self.file_service.apply_edit_plan(&edit_plan).await;
+        let apply_ms = apply_start.elapsed().as_millis();
 
         match apply_result {
             Ok(result) => {
+                if perf_enabled {
+                    info!(
+                        checksum_ms,
+                        apply_ms,
+                        total_ms = execute_start.elapsed().as_millis(),
+                        "perf: execute_plan_phases"
+                    );
+                }
                 // Step 6: Run post-apply validation if specified
                 if let Some(validation_config) = options.validation {
                     self.handle_validation(validation_config, result, &edit_plan, &plan)
@@ -143,6 +163,14 @@ impl PlanExecutor {
             }
             Err(e) => {
                 // Apply failed - FileService already rolled back changes automatically
+                if perf_enabled {
+                    info!(
+                        checksum_ms,
+                        apply_ms,
+                        total_ms = execute_start.elapsed().as_millis(),
+                        "perf: execute_plan_phases_failed"
+                    );
+                }
                 error!(error = %e, "Edit plan application failed");
                 Err(e)
             }

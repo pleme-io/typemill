@@ -16,8 +16,7 @@ use std::path::Path;
 use tracing::{debug, info};
 
 use crate::handlers::common::{
-    calculate_checksums_for_edits, estimate_impact, lsp_uri_from_file_path,
-    lsp_uri_from_uri_str,
+    calculate_checksums_for_edits, estimate_impact, lsp_uri_from_file_path, lsp_uri_from_uri_str,
 };
 
 /// Convert EditPlan to MovePlan for MCP protocol
@@ -174,15 +173,14 @@ fn build_workspace_edit(
         ServerError::invalid_request(format!("Invalid destination file path: {}", e))
     })?;
 
-    let mut document_changes =
-        vec![DocumentChangeOperation::Op(ResourceOp::Rename(
-            RenameFile {
-                old_uri,
-                new_uri,
-                options: None,
-                annotation_id: None,
-            },
-        ))];
+    let mut document_changes = vec![DocumentChangeOperation::Op(ResourceOp::Rename(
+        RenameFile {
+            old_uri,
+            new_uri,
+            options: None,
+            annotation_id: None,
+        },
+    ))];
 
     // Group text edits by file
     #[allow(clippy::mutable_key_type)]

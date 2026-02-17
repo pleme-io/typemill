@@ -137,9 +137,7 @@ impl DirectLspAdapter {
     ///
     /// Returns a map of extension -> list of (token, state) pairs for all active progress tasks.
     /// Useful for monitoring LSP server warmup/indexing progress.
-    pub async fn get_all_lsp_progress(
-        &self,
-    ) -> HashMap<String, Vec<(String, LspProgressInfo)>> {
+    pub async fn get_all_lsp_progress(&self) -> HashMap<String, Vec<(String, LspProgressInfo)>> {
         let clients = self.lsp_clients.lock().await;
         let mut result = HashMap::new();
 
@@ -712,7 +710,10 @@ impl LspImportFinder for DirectLspAdapter {
         // We use a path that preserves the extension but changes the name,
         // which triggers the LSP to compute all import updates needed.
         let hypothetical_new_path = if let Some(parent) = file_path.parent() {
-            let stem = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+            let stem = file_path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("file");
             let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
             if ext.is_empty() {
                 parent.join(format!("{}_renamed", stem))

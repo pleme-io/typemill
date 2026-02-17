@@ -113,6 +113,9 @@ impl FileService {
     ) -> ServerResult<DryRunnable<Value>> {
         let abs_path = self.to_absolute_path_checked(path)?;
         let exists = fs::try_exists(&abs_path).await.unwrap_or(false);
+        let perf_enabled = std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
 
         if dry_run {
             // Preview mode - just return what would happen
@@ -136,19 +139,42 @@ impl FileService {
             }
 
             let affected_files_count = if !force {
-                let plugins = &self.plugin_registry.all();
-                let project_files = find_project_files(&self.project_root, plugins, None).await?;
-                let affected = self
-                    .reference_updater
-                    .find_affected_files(&abs_path, &project_files, plugins)
-                    .await?;
-                if !affected.is_empty() {
-                    return Err(ServerError::invalid_request(format!(
-                        "File is imported by {} other files",
-                        affected.len()
-                    )));
+                if self.reference_updater.cached_importers_count(&abs_path) == Some(0) {
+                    0
+                } else {
+                    let detect_start = std::time::Instant::now();
+                    let plugins = &self.plugin_registry.all();
+                    let discover_start = std::time::Instant::now();
+                    let project_files =
+                        find_project_files(&self.project_root, plugins, None).await?;
+                    let discover_ms = discover_start.elapsed().as_millis();
+                    let refs_start = std::time::Instant::now();
+                    let affected = self
+                        .reference_updater
+                        .find_affected_files(&abs_path, &project_files, plugins)
+                        .await?;
+                    let refs_ms = refs_start.elapsed().as_millis();
+
+                    if perf_enabled {
+                        info!(
+                            path = %abs_path.display(),
+                            discover_ms,
+                            detect_refs_ms = refs_ms,
+                            detect_total_ms = detect_start.elapsed().as_millis(),
+                            affected_files = affected.len(),
+                            dry_run,
+                            "perf: delete_file_reference_detection"
+                        );
+                    }
+
+                    if !affected.is_empty() {
+                        return Err(ServerError::invalid_request(format!(
+                            "File is imported by {} other files",
+                            affected.len()
+                        )));
+                    }
+                    affected.len()
                 }
-                affected.len()
             } else {
                 0
             };
@@ -183,13 +209,31 @@ impl FileService {
                 }
             }
 
-            if !force {
+            if !force && self.reference_updater.cached_importers_count(&abs_path) != Some(0) {
+                let detect_start = std::time::Instant::now();
                 let plugins = &self.plugin_registry.all();
+                let discover_start = std::time::Instant::now();
                 let project_files = find_project_files(&self.project_root, plugins, None).await?;
+                let discover_ms = discover_start.elapsed().as_millis();
+                let refs_start = std::time::Instant::now();
                 let affected = self
                     .reference_updater
                     .find_affected_files(&abs_path, &project_files, plugins)
                     .await?;
+                let refs_ms = refs_start.elapsed().as_millis();
+
+                if perf_enabled {
+                    info!(
+                        path = %abs_path.display(),
+                        discover_ms,
+                        detect_refs_ms = refs_ms,
+                        detect_total_ms = detect_start.elapsed().as_millis(),
+                        affected_files = affected.len(),
+                        dry_run,
+                        "perf: delete_file_reference_detection"
+                    );
+                }
+
                 if !affected.is_empty() {
                     warn!(
                         affected_files_count = affected.len(),

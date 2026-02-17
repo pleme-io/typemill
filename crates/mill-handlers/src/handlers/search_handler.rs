@@ -86,7 +86,6 @@ impl SearchHandler {
         }
     }
 
-
     /// Find representative files for multiple extensions in a single pass
     async fn find_representative_files(
         workspace_path: &std::path::Path,
@@ -256,7 +255,11 @@ impl SearchHandler {
         }
 
         // 1. Gather required extensions
-        let mut plugin_extensions: Vec<(String, String, Arc<dyn mill_plugin_system::LanguagePlugin>)> = Vec::new();
+        let mut plugin_extensions: Vec<(
+            String,
+            String,
+            Arc<dyn mill_plugin_system::LanguagePlugin>,
+        )> = Vec::new();
         let mut unique_extensions: HashSet<String> = HashSet::new();
 
         for (plugin_name, plugin) in &all_plugins {
@@ -660,34 +663,16 @@ mod tests {
 
     #[test]
     fn test_symbol_kind_to_string() {
-        assert_eq!(
-            symbol_kind_to_string(&SymbolKind::Function),
-            "function"
-        );
-        assert_eq!(
-            symbol_kind_to_string(&SymbolKind::Class),
-            "class"
-        );
-        assert_eq!(
-            symbol_kind_to_string(&SymbolKind::Module),
-            "module"
-        );
+        assert_eq!(symbol_kind_to_string(&SymbolKind::Function), "function");
+        assert_eq!(symbol_kind_to_string(&SymbolKind::Class), "class");
+        assert_eq!(symbol_kind_to_string(&SymbolKind::Module), "module");
     }
 
     #[test]
     fn test_lsp_symbol_kind_to_string() {
-        assert_eq!(
-            lsp_symbol_kind_to_string(12),
-            Some("function")
-        );
-        assert_eq!(
-            lsp_symbol_kind_to_string(5),
-            Some("class")
-        );
-        assert_eq!(
-            lsp_symbol_kind_to_string(13),
-            Some("variable")
-        );
+        assert_eq!(lsp_symbol_kind_to_string(12), Some("function"));
+        assert_eq!(lsp_symbol_kind_to_string(5), Some("class"));
+        assert_eq!(lsp_symbol_kind_to_string(13), Some("variable"));
         assert_eq!(lsp_symbol_kind_to_string(999), None);
     }
 
@@ -706,31 +691,19 @@ mod tests {
 
         // Test case insensitivity
         let func_upper = json!({"name": "foo", "kind": "FUNCTION"});
-        assert!(check_symbol_kind(
-            &func_upper,
-            SymbolKind::Function
-        ));
+        assert!(check_symbol_kind(&func_upper, SymbolKind::Function));
 
         // Test flexible matching
         let func_short = json!({"name": "foo", "kind": "fn"});
-        assert!(check_symbol_kind(
-            &func_short,
-            SymbolKind::Function
-        ));
+        assert!(check_symbol_kind(&func_short, SymbolKind::Function));
 
         // Test LSP numeric kind
         let func_lsp = json!({"name": "foo", "kind": 12});
-        assert!(check_symbol_kind(
-            &func_lsp,
-            SymbolKind::Function
-        ));
+        assert!(check_symbol_kind(&func_lsp, SymbolKind::Function));
 
         // Test symbolKind field
         let func_sym_kind = json!({"name": "foo", "symbolKind": "function"});
-        assert!(check_symbol_kind(
-            &func_sym_kind,
-            SymbolKind::Function
-        ));
+        assert!(check_symbol_kind(&func_sym_kind, SymbolKind::Function));
     }
 }
 
@@ -745,13 +718,21 @@ mod performance_tests {
         let root = temp_dir.path();
 
         fs::create_dir_all(root.join("src")).await.unwrap();
-        fs::write(root.join("src/main.rs"), "fn main() {}").await.unwrap();
+        fs::write(root.join("src/main.rs"), "fn main() {}")
+            .await
+            .unwrap();
 
         fs::create_dir_all(root.join("lib")).await.unwrap();
-        fs::write(root.join("lib/utils.py"), "def foo(): pass").await.unwrap();
+        fs::write(root.join("lib/utils.py"), "def foo(): pass")
+            .await
+            .unwrap();
 
-        fs::create_dir_all(root.join("packages/pkg1")).await.unwrap();
-        fs::write(root.join("packages/pkg1/index.ts"), "const x = 1;").await.unwrap();
+        fs::create_dir_all(root.join("packages/pkg1"))
+            .await
+            .unwrap();
+        fs::write(root.join("packages/pkg1/index.ts"), "const x = 1;")
+            .await
+            .unwrap();
 
         temp_dir
     }
@@ -761,13 +742,15 @@ mod performance_tests {
         let workspace = create_test_workspace().await;
         let workspace_path = workspace.path().to_path_buf();
 
-        let extensions: std::collections::HashSet<String> = ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+        let extensions: std::collections::HashSet<String> =
+            ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
 
         // Measure scan time
         let start = Instant::now();
         let iterations = 50;
         for _ in 0..iterations {
-            let found = SearchHandler::find_representative_files(&workspace_path, &extensions).await;
+            let found =
+                SearchHandler::find_representative_files(&workspace_path, &extensions).await;
             assert_eq!(found.len(), 3);
         }
         let duration = start.elapsed();
@@ -780,7 +763,8 @@ mod performance_tests {
     async fn test_benchmark_caching_impact() {
         let workspace = create_test_workspace().await;
         let workspace_path = workspace.path().to_path_buf();
-        let extensions: std::collections::HashSet<String> = ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+        let extensions: std::collections::HashSet<String> =
+            ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
 
         let handler = SearchHandler::new();
 
@@ -792,7 +776,9 @@ mod performance_tests {
         // Populate cache manually to simulate first run
         {
             let mut cache = handler.representative_files_cache.write().await;
-            let workspace_cache = cache.entry(workspace_path.clone()).or_insert_with(std::collections::HashMap::new);
+            let workspace_cache = cache
+                .entry(workspace_path.clone())
+                .or_insert_with(std::collections::HashMap::new);
             for (ext, path) in &found {
                 workspace_cache.insert(ext.clone(), path.clone());
             }
@@ -802,26 +788,35 @@ mod performance_tests {
         let start_cache = Instant::now();
         let iterations = 1000;
         for _ in 0..iterations {
-             let cache = handler.representative_files_cache.read().await;
-             if let Some(workspace_cache) = cache.get(&workspace_path) {
+            let cache = handler.representative_files_cache.read().await;
+            if let Some(workspace_cache) = cache.get(&workspace_path) {
                 for ext in &extensions {
                     if let Some(path) = workspace_cache.get(ext) {
                         // Access the path to ensure it's not optimized away
                         std::hint::black_box(path);
                     }
                 }
-             }
+            }
         }
         let duration_cache = start_cache.elapsed();
 
         println!("BENCHMARK: Scan (1 call): {:?}", duration_scan);
-        println!("BENCHMARK: Cache ({} calls): {:?}", iterations, duration_cache);
-        println!("BENCHMARK: Average Cache: {:?}", duration_cache / iterations);
+        println!(
+            "BENCHMARK: Cache ({} calls): {:?}",
+            iterations, duration_cache
+        );
+        println!(
+            "BENCHMARK: Average Cache: {:?}",
+            duration_cache / iterations
+        );
     }
 
     #[tokio::test]
     async fn test_benchmark_search_filtering_overhead() {
-        use mill_plugin_system::{LanguagePlugin, PluginMetadata, Capabilities, PluginRequest, PluginResponse, PluginResult};
+        use mill_plugin_system::{
+            Capabilities, LanguagePlugin, PluginMetadata, PluginRequest, PluginResponse,
+            PluginResult,
+        };
 
         struct MockLargePlugin {
             symbols: Vec<Value>,
@@ -845,23 +840,28 @@ mod performance_tests {
                 let mut symbols = self.symbols.clone();
 
                 if let Some(kind_val) = req.get_param("kind") {
-                    if let Ok(target_kind) = serde_json::from_value::<SymbolKind>(kind_val.clone()) {
-                         symbols.retain(|s| {
-                             if let Some(k_str) = s.get("kind").and_then(|k| k.as_str()) {
-                                 // Simple check for test purposes
-                                 if target_kind == SymbolKind::Function {
-                                     return k_str == "function";
-                                 }
-                             }
-                             false
-                         });
+                    if let Ok(target_kind) = serde_json::from_value::<SymbolKind>(kind_val.clone())
+                    {
+                        symbols.retain(|s| {
+                            if let Some(k_str) = s.get("kind").and_then(|k| k.as_str()) {
+                                // Simple check for test purposes
+                                if target_kind == SymbolKind::Function {
+                                    return k_str == "function";
+                                }
+                            }
+                            false
+                        });
                     }
                 }
 
                 Ok(PluginResponse::success(Value::Array(symbols), "mock-large"))
             }
-            fn configure(&self, _config: Value) -> PluginResult<()> { Ok(()) }
-            fn tool_definitions(&self) -> Vec<Value> { vec![] }
+            fn configure(&self, _config: Value) -> PluginResult<()> {
+                Ok(())
+            }
+            fn tool_definitions(&self) -> Vec<Value> {
+                vec![]
+            }
         }
 
         // Generate 50,000 symbols (25k matching "function", 25k "class")
@@ -877,28 +877,39 @@ mod performance_tests {
 
         let plugin = Arc::new(MockLargePlugin { symbols });
         let plugin_manager = Arc::new(mill_plugin_system::PluginManager::new());
-        plugin_manager.register_plugin("mock-large", plugin).await.unwrap();
+        plugin_manager
+            .register_plugin("mock-large", plugin)
+            .await
+            .unwrap();
 
         // Create a mock file so representative files scan works
         let workspace = create_test_workspace().await;
         let workspace_path = workspace.path().to_path_buf();
-        fs::write(workspace_path.join("test.mock"), "").await.unwrap();
+        fs::write(workspace_path.join("test.mock"), "")
+            .await
+            .unwrap();
 
         let handler = SearchHandler::new();
 
         let start = Instant::now();
-        let (results, _, _, _) = handler.search_workspace_symbols(
-            &plugin_manager,
-            "query",
-            workspace_path,
-            Some(SymbolKind::Function),
-            usize::MAX,
-            0
-        ).await.unwrap();
+        let (results, _, _, _) = handler
+            .search_workspace_symbols(
+                &plugin_manager,
+                "query",
+                workspace_path,
+                Some(SymbolKind::Function),
+                usize::MAX,
+                0,
+            )
+            .await
+            .unwrap();
         let duration = start.elapsed();
 
         // Should only return the 25,000 functions
         assert_eq!(results.len(), 25000);
-        println!("BENCHMARK: Search (50k total, 25k matching): {:?}", duration);
+        println!(
+            "BENCHMARK: Search (50k total, 25k matching): {:?}",
+            duration
+        );
     }
 }

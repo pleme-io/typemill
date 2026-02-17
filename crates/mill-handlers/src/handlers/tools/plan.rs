@@ -55,28 +55,29 @@ impl ToolHandler for PlanToolsHandler {
             .clone()
             .unwrap_or(serde_json::Value::Null);
 
-        let (plan_value, options) = if let Ok(params) =
-            serde_json::from_value::<ApplyPlanParams>(args.clone())
-        {
-            if let Some(plan) = params.plan {
-                (serde_json::to_value(plan).unwrap_or(Value::Null), params.options)
+        let (plan_value, options) =
+            if let Ok(params) = serde_json::from_value::<ApplyPlanParams>(args.clone()) {
+                if let Some(plan) = params.plan {
+                    (
+                        serde_json::to_value(plan).unwrap_or(Value::Null),
+                        params.options,
+                    )
+                } else {
+                    (args, params.options)
+                }
             } else {
-                (args, params.options)
-            }
-        } else {
-            (args, None)
-        };
+                (args, None)
+            };
 
         let plan: RefactorPlan = serde_json::from_value(plan_value).map_err(|e| {
-            ServerError::invalid_request(format!(
-                "Failed to parse refactor plan JSON: {}",
-                e
-            ))
+            ServerError::invalid_request(format!("Failed to parse refactor plan JSON: {}", e))
         })?;
 
         let concrete_state = super::extensions::get_concrete_app_state(&context.app_state)?;
         let executor = PlanExecutor::new(concrete_state.file_service.clone());
-        let result = executor.execute_plan(plan, options.unwrap_or_default()).await?;
+        let result = executor
+            .execute_plan(plan, options.unwrap_or_default())
+            .await?;
 
         Ok(serde_json::to_value(result).unwrap_or(Value::Null))
     }

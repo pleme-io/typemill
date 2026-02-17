@@ -25,6 +25,18 @@ impl PrunePlanner {
     pub fn new() -> Self {
         Self
     }
+
+    fn perf_enabled() -> bool {
+        std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+    }
+
+    fn fast_prune_enabled() -> bool {
+        std::env::var("TYPEMILL_PRUNE_FAST")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false)
+    }
 }
 
 impl Default for PrunePlanner {
@@ -171,8 +183,9 @@ impl PrunePlanner {
 
         if let Some(client) = client_opt {
             // Create Uri from path
-            let uri: Uri = lsp_uri_from_file_path(def_file_path)
-                .map_err(|e| ServerError::invalid_request(format!("Invalid definition file path: {}", e)))?;
+            let uri: Uri = lsp_uri_from_file_path(def_file_path).map_err(|e| {
+                ServerError::invalid_request(format!("Invalid definition file path: {}", e))
+            })?;
 
             // Find references
             let params = lsp_types::ReferenceParams {
@@ -492,18 +505,26 @@ impl PrunePlanner {
 
         let file_path = Path::new(&params.target.path);
         let force = params.options.force.unwrap_or(false);
+        let fast_prune = Self::fast_prune_enabled();
+        let effective_force = force || fast_prune;
+        let perf_enabled = Self::perf_enabled();
+        let plan_start = std::time::Instant::now();
+
+        let detect_start = std::time::Instant::now();
 
         // Use FileService to generate dry-run plan for file deletion
         let dry_run_result = context
             .app_state
             .file_service
-            .delete_file(file_path, force, true)
+            .delete_file(file_path, effective_force, true)
             .await?;
+        let detect_ms = detect_start.elapsed().as_millis();
 
         // Extract the inner value from DryRunnable
         let result_value = dry_run_result.result;
 
         // Read file content for checksum before deletion
+        let checksum_start = std::time::Instant::now();
         let content = context
             .app_state
             .file_service
@@ -513,6 +534,7 @@ impl PrunePlanner {
                 error!(error = %e, file_path = %params.target.path, "Failed to read file");
                 ServerError::internal(format!("Failed to read file for checksum: {}", e))
             })?;
+        let checksum_ms = checksum_start.elapsed().as_millis();
 
         // Calculate checksum
         let mut file_checksums = HashMap::new();
@@ -557,6 +579,16 @@ impl PrunePlanner {
             });
         }
 
+        if fast_prune {
+            warnings.push(PlanWarning {
+                code: "FAST_PRUNE_MODE".to_string(),
+                message:
+                    "Fast prune mode enabled (TYPEMILL_PRUNE_FAST=1): dependency checks were skipped"
+                        .to_string(),
+                candidates: None,
+            });
+        }
+
         // Determine language from extension
         let language = crate::handlers::common::detect_language(&params.target.path).to_string();
 
@@ -575,6 +607,19 @@ impl PrunePlanner {
             .to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
         };
+
+        if perf_enabled {
+            info!(
+                file_path = %params.target.path,
+                detect_ms,
+                checksum_ms,
+                total_ms = plan_start.elapsed().as_millis(),
+                effective_force,
+                fast_prune,
+                affected_files_count,
+                "perf: prune_file_plan"
+            );
+        }
 
         Ok(DeletePlan {
             deletions,
@@ -598,12 +643,15 @@ impl PrunePlanner {
         );
 
         let dir_path = Path::new(&params.target.path);
+        let perf_enabled = Self::perf_enabled();
+        let plan_start = std::time::Instant::now();
 
         // Walk directory to collect files and checksums
         // Move directory walking and checking to a blocking task to avoid blocking the async runtime
         let dir_path_buf = dir_path.to_path_buf();
         let target_path_str = params.target.path.clone();
 
+        let walk_start = std::time::Instant::now();
         let (files, abs_dir): (Vec<PathBuf>, PathBuf) = tokio::task::spawn_blocking(move || {
             // Verify it's a directory inside the blocking task using synchronous fs
             if !dir_path_buf.is_dir() {
@@ -624,11 +672,13 @@ impl PrunePlanner {
         })
         .await
         .map_err(|e| ServerError::internal(format!("Task failed: {}", e)))??;
+        let walk_ms = walk_start.elapsed().as_millis();
 
         let mut file_checksums = HashMap::new();
         let mut file_count = 0;
 
         // Process file reads and checksums concurrently
+        let checksum_start = std::time::Instant::now();
         let results: Vec<_> = futures::stream::iter(files)
             .map(|path| {
                 let fs = context.app_state.file_service.clone();
@@ -645,6 +695,7 @@ impl PrunePlanner {
             .buffer_unordered(50) // Process 50 files concurrently
             .collect()
             .await;
+        let checksum_ms = checksum_start.elapsed().as_millis();
 
         for (path_str, checksum) in results.into_iter().flatten() {
             file_checksums.insert(path_str, checksum);
@@ -703,6 +754,17 @@ impl PrunePlanner {
             .to_string(),
             created_at: chrono::Utc::now().to_rfc3339(),
         };
+
+        if perf_enabled {
+            info!(
+                dir_path = %params.target.path,
+                walk_ms,
+                checksum_ms,
+                file_count,
+                total_ms = plan_start.elapsed().as_millis(),
+                "perf: prune_directory_plan"
+            );
+        }
 
         Ok(DeletePlan {
             deletions,

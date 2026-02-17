@@ -138,7 +138,7 @@ impl ReferenceDetector for TypeScriptReferenceDetector {
     ) -> Vec<PathBuf> {
         let mut affected = Vec::new();
 
-        tracing::info!(
+        tracing::debug!(
             project_root = %project_root.display(),
             old_path = %old_path.display(),
             old_is_dir = old_path.is_dir(),
@@ -178,10 +178,7 @@ impl ReferenceDetector for TypeScriptReferenceDetector {
             }
 
             // Skip node_modules
-            if file
-                .components()
-                .any(|c| c.as_os_str() == "node_modules")
-            {
+            if file.components().any(|c| c.as_os_str() == "node_modules") {
                 continue;
             }
 
@@ -302,7 +299,7 @@ impl ReferenceDetector for TypeScriptReferenceDetector {
             }
         }
 
-        tracing::info!(
+        tracing::debug!(
             affected_count = affected.len(),
             "Found TypeScript files affected by file move/rename"
         );

@@ -157,10 +157,7 @@ async fn ensure_init_py(module_path: &str) -> PluginResult<()> {
 }
 
 /// Merge dependencies from source pyproject.toml to target pyproject.toml
-async fn merge_pyproject_dependencies(
-    source_path: &Path,
-    target_path: &Path,
-) -> PluginResult<()> {
+async fn merge_pyproject_dependencies(source_path: &Path, target_path: &Path) -> PluginResult<()> {
     info!(
         source = %source_path.display(),
         target = %target_path.display(),
@@ -250,9 +247,9 @@ fn merge_dependencies_array(
 
     // Get or create dependencies array
     let deps_array = if section_table.contains_key(key) {
-        section_table[key]
-            .as_array_mut()
-            .ok_or_else(|| PluginApiError::internal(format!("[{}.{}] is not an array", section, key)))?
+        section_table[key].as_array_mut().ok_or_else(|| {
+            PluginApiError::internal(format!("[{}.{}] is not an array", section, key))
+        })?
     } else {
         section_table[key] = value(Array::new());
         section_table[key].as_array_mut().unwrap()
@@ -352,13 +349,18 @@ fn merge_optional_dependencies(
 
     let optional = project["optional-dependencies"]
         .as_table_mut()
-        .ok_or_else(|| PluginApiError::internal("[project.optional-dependencies] is not a table"))?;
+        .ok_or_else(|| {
+            PluginApiError::internal("[project.optional-dependencies] is not a table")
+        })?;
 
     // Get or create the group array
     let group_array = if optional.contains_key(group) {
-        optional[group]
-            .as_array_mut()
-            .ok_or_else(|| PluginApiError::internal(format!("[project.optional-dependencies.{}] is not an array", group)))?
+        optional[group].as_array_mut().ok_or_else(|| {
+            PluginApiError::internal(format!(
+                "[project.optional-dependencies.{}] is not an array",
+                group
+            ))
+        })?
     } else {
         optional[group] = value(Array::new());
         optional[group].as_array_mut().unwrap()
@@ -415,7 +417,11 @@ async fn update_imports_for_consolidation(
 
     // Convert package names to Python module format (hyphens to underscores)
     let source_module = source_package_name.replace('-', "_");
-    let target_module_full = format!("{}_{}", target_package_name.replace('-', "_"), target_module_name);
+    let target_module_full = format!(
+        "{}_{}",
+        target_package_name.replace('-', "_"),
+        target_module_name
+    );
 
     let mut files_updated = 0;
     let mut total_replacements = 0;
@@ -453,7 +459,16 @@ async fn update_imports_in_workspace_directory(
     let dir_name = dir.file_name().and_then(|s| s.to_str()).unwrap_or("");
     if matches!(
         dir_name,
-        ".git" | ".venv" | "venv" | "__pycache__" | ".mypy_cache" | ".pytest_cache" | "dist" | "build" | "node_modules" | ".tox"
+        ".git"
+            | ".venv"
+            | "venv"
+            | "__pycache__"
+            | ".mypy_cache"
+            | ".pytest_cache"
+            | "dist"
+            | "build"
+            | "node_modules"
+            | ".tox"
     ) {
         return Ok(());
     }
@@ -551,7 +566,10 @@ async fn update_imports_in_single_file(
                 // import source_module → import target_package.target_module as source_module
                 let indent = line.len() - line.trim_start().len();
                 let spaces: String = line.chars().take(indent).collect();
-                new_lines.push(format!("{}import {}.{} as {}", spaces, target_package, target_module, source_module));
+                new_lines.push(format!(
+                    "{}import {}.{} as {}",
+                    spaces, target_package, target_module, source_module
+                ));
                 replacements += 1;
             } else if trimmed.starts_with(&format!("import {} ", source_module)) {
                 // import source_module as alias → import target_package.target_module as alias
@@ -722,9 +740,7 @@ mod tests {
     async fn test_ensure_init_py() {
         let dir = tempdir().unwrap();
 
-        ensure_init_py(dir.path().to_str().unwrap())
-            .await
-            .unwrap();
+        ensure_init_py(dir.path().to_str().unwrap()).await.unwrap();
 
         assert!(
             dir.path().join("__init__.py").exists(),
@@ -737,7 +753,10 @@ mod tests {
         assert_eq!(extract_package_name("requests>=2.0"), "requests");
         assert_eq!(extract_package_name("numpy==1.21.0"), "numpy");
         assert_eq!(extract_package_name("pandas[sql]>=1.0"), "pandas");
-        assert_eq!(extract_package_name("pytest ; python_version >= '3.8'"), "pytest");
+        assert_eq!(
+            extract_package_name("pytest ; python_version >= '3.8'"),
+            "pytest"
+        );
         assert_eq!(extract_package_name("simple_package"), "simple_package");
     }
 

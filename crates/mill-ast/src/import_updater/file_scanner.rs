@@ -333,12 +333,12 @@ pub async fn find_project_files(
         // Universal exclusions that should NEVER be scanned during refactoring
         // These are cache/generated directories that exist regardless of .gitignore
         const UNIVERSAL_EXCLUSIONS: &[&str] = &[
-            ".git",         // Version control - never scan
-            "__pycache__",  // Python bytecode cache
-            ".mypy_cache",  // mypy type checker cache
+            ".git",          // Version control - never scan
+            "__pycache__",   // Python bytecode cache
+            ".mypy_cache",   // mypy type checker cache
             ".pytest_cache", // pytest cache
-            ".tox",         // tox virtualenvs
-            ".ruff_cache",  // ruff linter cache
+            ".tox",          // tox virtualenvs
+            ".ruff_cache",   // ruff linter cache
         ];
 
         let walker = WalkBuilder::new(&project_root)

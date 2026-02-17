@@ -513,8 +513,14 @@ mod tests {
             .iter()
             .any(|s| matches!(s.operation, RefactoringOperation::InlineVariable { .. }));
 
-        assert!(has_extract_function, "Should have extract function scenarios");
-        assert!(has_extract_variable, "Should have extract variable scenarios");
+        assert!(
+            has_extract_function,
+            "Should have extract function scenarios"
+        );
+        assert!(
+            has_extract_variable,
+            "Should have extract variable scenarios"
+        );
         assert!(has_inline_variable, "Should have inline variable scenarios");
     }
 }

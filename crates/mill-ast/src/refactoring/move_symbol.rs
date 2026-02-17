@@ -204,7 +204,7 @@ mod tests {
         .await;
 
         if let Err(ref e) = result {
-             println!("Test failed with error: {:?}", e);
+            println!("Test failed with error: {:?}", e);
         }
 
         assert!(result.is_ok(), "Expected OK result");

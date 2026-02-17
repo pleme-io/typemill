@@ -79,7 +79,12 @@ impl ImportCache {
     }
 
     /// Store imports for a file and update reverse index
-    pub fn set_imports(&self, file: PathBuf, imports: Vec<PathBuf>, last_modified: std::time::SystemTime) {
+    pub fn set_imports(
+        &self,
+        file: PathBuf,
+        imports: Vec<PathBuf>,
+        last_modified: std::time::SystemTime,
+    ) {
         // First, remove old reverse entries if this file was already cached
         if let Ok(forward) = self.forward.read() {
             if let Some(old_info) = forward.get(&file) {
@@ -95,10 +100,13 @@ impl ImportCache {
 
         // Update forward index
         if let Ok(mut forward) = self.forward.write() {
-            forward.insert(file.clone(), FileImportInfo {
-                imports: imports.clone(),
-                last_modified,
-            });
+            forward.insert(
+                file.clone(),
+                FileImportInfo {
+                    imports: imports.clone(),
+                    last_modified,
+                },
+            );
         }
 
         // Update reverse index
@@ -152,6 +160,28 @@ impl ImportCache {
     /// Check if the reverse index has any entries (partial cache from LSP results).
     pub fn has_any_reverse_entries(&self) -> bool {
         self.reverse.read().map(|r| !r.is_empty()).unwrap_or(false)
+    }
+
+    /// Check whether reverse-cache has an explicit key for a file path.
+    ///
+    /// This distinguishes "cache knows this path and has zero importers" from
+    /// "cache has no knowledge of this path yet".
+    pub fn has_reverse_entry_for_file(&self, imported_file: &Path) -> bool {
+        self.reverse
+            .read()
+            .map(|r| r.contains_key(imported_file))
+            .unwrap_or(false)
+    }
+
+    /// Check whether reverse-cache has any key under a directory prefix.
+    ///
+    /// For directory renames, this prevents treating an unrelated populated cache
+    /// as authoritative for this specific directory target.
+    pub fn has_reverse_entry_for_directory(&self, dir: &Path) -> bool {
+        self.reverse
+            .read()
+            .map(|r| r.keys().any(|p| p.starts_with(dir)))
+            .unwrap_or(false)
     }
 
     /// Populate the reverse index from LSP-detected importers

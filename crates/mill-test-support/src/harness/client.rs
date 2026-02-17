@@ -53,6 +53,30 @@ pub struct TestClient {
 }
 
 impl TestClient {
+    fn matrix_log_profile_override() -> Option<String> {
+        if let Ok(explicit_profile) = std::env::var("TYPEMILL_MATRIX_LOG_PROFILE") {
+            let explicit_profile = explicit_profile.to_ascii_lowercase();
+            return match explicit_profile.as_str() {
+                "perf" => {
+                    Some("warn,mill_services=warn,mill_handlers=warn,mill_lsp=warn".to_string())
+                }
+                "quiet" => Some("error".to_string()),
+                _ => None,
+            };
+        }
+
+        // Default matrix behavior: keep normal logs for correctness lanes, but
+        // automatically lower log verbosity for perf profile runs.
+        let matrix_profile = std::env::var("TYPEMILL_MATRIX_PROFILE")
+            .unwrap_or_else(|_| "full".to_string())
+            .to_ascii_lowercase();
+        if matrix_profile == "perf" {
+            Some("warn,mill_services=warn,mill_handlers=warn,mill_lsp=warn".to_string())
+        } else {
+            None
+        }
+    }
+
     /// Spawns mill server in stdio mode with the given working directory.
     pub fn new(working_dir: &Path) -> Self {
         // Determine the path to the mill binary by finding the workspace root
@@ -64,35 +88,12 @@ impl TestClient {
         let release_path = workspace_root.join("target/release/mill");
         let debug_path = workspace_root.join("target/debug/mill");
         let server_path = if release_path.exists() {
-            release_path.clone()
+            Some(release_path.clone())
+        } else if debug_path.exists() {
+            Some(debug_path.clone())
         } else {
-            debug_path.clone()
+            None
         };
-
-        // Pre-check: Fail fast if binary doesn't exist with helpful message
-        if !server_path.exists() {
-            panic!(
-                "\n\n\
-                 ❌ \x1b[1;31mMill binary not found\x1b[0m\n\
-                 \n\
-                 Expected location: \x1b[1m{}\x1b[0m (release) or \x1b[1m{}\x1b[0m (debug)\n\
-                 \n\
-                 Please build the project first:\n\
-                 \n\
-                 \x1b[1;36m    cargo build --workspace\x1b[0m  (debug)\n\
-                 \x1b[1;36m    cargo build --workspace --release\x1b[0m  (release, 2-5x faster)\n\
-                 \n\
-                 \x1b[33m💡 Low memory?\x1b[0m Use: cargo build -j 1\n\
-                 \n",
-                release_path.display(),
-                debug_path.display()
-            );
-        }
-
-        eprintln!(
-            "DEBUG: TestClient using server path: {}",
-            server_path.display()
-        );
 
         // Expand ALL environment variables in PATH for LSP server spawning
         // This is needed because cargo config sets PATH with $HOME, $NVM_DIR, etc.
@@ -122,9 +123,31 @@ impl TestClient {
         // Use a unique PID file for each test to avoid conflicts in parallel execution
         let pid_file = working_dir.join(".mill.pid");
 
-        let mut command = Command::new(&server_path);
+        let mut command = if let Some(path) = &server_path {
+            eprintln!("DEBUG: TestClient using server path: {}", path.display());
+            let mut command = Command::new(path);
+            command.arg("start");
+            command
+        } else {
+            let cargo_manifest = workspace_root.join("Cargo.toml");
+            eprintln!(
+                "⚠️ mill binary not found at {} or {}; falling back to cargo run --bin mill",
+                release_path.display(),
+                debug_path.display()
+            );
+            let mut command = Command::new("cargo");
+            command
+                .arg("run")
+                .arg("--quiet")
+                .arg("--manifest-path")
+                .arg(cargo_manifest)
+                .arg("--bin")
+                .arg("mill")
+                .arg("--")
+                .arg("start");
+            command
+        };
         command
-            .arg("start")
             .current_dir(working_dir)
             .env("PATH", expanded_path)
             .env("MILL_PID_FILE", pid_file) // Unique PID file per test
@@ -132,8 +155,11 @@ impl TestClient {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        // Propagate RUST_LOG to the server process for debugging
-        if let Ok(rust_log) = std::env::var("RUST_LOG") {
+        // Propagate RUST_LOG to the server process for debugging, with optional
+        // matrix-specific log profile override for perf benchmarking.
+        if let Some(override_log) = Self::matrix_log_profile_override() {
+            command.env("RUST_LOG", override_log);
+        } else if let Ok(rust_log) = std::env::var("RUST_LOG") {
             command.env("RUST_LOG", rust_log);
         }
 
@@ -146,7 +172,11 @@ impl TestClient {
             panic!(
                 "Failed to start mill binary at {:?}: {}. \n\
                  Make sure to build the binary first with: cargo build",
-                server_path, e
+                server_path
+                    .as_ref()
+                    .map(|p| p.display().to_string())
+                    .unwrap_or_else(|| "cargo run --bin mill".to_string()),
+                e
             )
         });
 
@@ -618,7 +648,10 @@ impl TestClient {
                 {
                     let has_results = response
                         .get("result")
-                        .and_then(|r| r.as_array().or_else(|| r.get("content").and_then(|c| c.as_array())))
+                        .and_then(|r| {
+                            r.as_array()
+                                .or_else(|| r.get("content").and_then(|c| c.as_array()))
+                        })
                         .map(|arr| !arr.is_empty())
                         .unwrap_or(false);
                     if has_results {

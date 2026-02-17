@@ -77,9 +77,9 @@ impl FileService {
             Some(res) => res,
             None => {
                 return Some(json!({
-                   "validation_status": "error",
-                   "validation_error": "Empty validation command"
-               }));
+                    "validation_status": "error",
+                    "validation_error": "Empty validation command"
+                }));
             }
         };
 
@@ -531,7 +531,8 @@ mod tests {
     #[test]
     fn test_parse_command_line_windows() {
         // Windows path with backslashes
-        let (prog, args) = parse_command_line_internal(r#"cargo check C:\Path\To\File"#, true).unwrap();
+        let (prog, args) =
+            parse_command_line_internal(r#"cargo check C:\Path\To\File"#, true).unwrap();
         assert_eq!(prog, "cargo");
         assert_eq!(args, vec!["check", r#"C:\Path\To\File"#]);
 

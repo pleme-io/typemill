@@ -747,10 +747,16 @@ mod tests {
         let re = Regex::new(pattern).unwrap();
 
         // This should pass because regex handles word boundaries correctly on UTF-8 bytes
-        assert!(re.is_match(content.as_bytes()), "Should find 'world' in multibyte string using Regex");
+        assert!(
+            re.is_match(content.as_bytes()),
+            "Should find 'world' in multibyte string using Regex"
+        );
 
         // Also check ignoring part of word
         let content2 = "Hello worldy";
-        assert!(!re.is_match(content2.as_bytes()), "Should not find 'world' in 'worldy'");
+        assert!(
+            !re.is_match(content2.as_bytes()),
+            "Should not find 'world' in 'worldy'"
+        );
     }
 }

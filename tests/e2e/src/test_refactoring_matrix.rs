@@ -13,8 +13,11 @@
 //! - Edge cases: deep nesting, empty folders, special characters
 
 use crate::test_real_projects::RealProjectContext;
+use futures::FutureExt;
 use serde_json::json;
 use serial_test::serial;
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
 
 // ============================================================================
 // Test Configuration
@@ -292,8 +295,8 @@ pub const PY_RUFF_CONFIG: RefactoringTestConfig = RefactoringTestConfig {
     repo_url: "https://github.com/astral-sh/ruff.git",
     project_name: "ruff",
     source_dir: "crates/ruff_python_ast/src", // Ruff is Rust-based but tests Python patterns
-    file_ext: "rs", // Actually Rust code that processes Python
-    build_verify: BuildVerification::None, // Complex PyO3 build
+    file_ext: "rs",                           // Actually Rust code that processes Python
+    build_verify: BuildVerification::None,    // Complex PyO3 build
     file_template: RS_TEMPLATES,
 };
 
@@ -309,6 +312,33 @@ pub const PYTHON_CONFIG: RefactoringTestConfig = PY_HTTPX_CONFIG;
 // Test Runner
 // ============================================================================
 
+fn collect_files_recursive(
+    root: &Path,
+    base: &Path,
+    out: &mut BTreeMap<PathBuf, String>,
+) -> Result<(), String> {
+    let entries = std::fs::read_dir(root)
+        .map_err(|e| format!("Failed to read directory {}: {}", root.display(), e))?;
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+        let path = entry.path();
+        if path.is_dir() {
+            collect_files_recursive(&path, base, out)?;
+            continue;
+        }
+        if path.is_file() {
+            let rel = path
+                .strip_prefix(base)
+                .map_err(|e| format!("Failed to compute relative path: {}", e))?
+                .to_path_buf();
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| format!("Failed to read file {}: {}", path.display(), e))?;
+            out.insert(rel, content);
+        }
+    }
+    Ok(())
+}
+
 /// Result of a single matrix test
 #[derive(Debug)]
 pub struct MatrixTestResult {
@@ -316,6 +346,9 @@ pub struct MatrixTestResult {
     pub passed: bool,
     pub error: Option<String>,
     pub build_passed: Option<bool>,
+    pub operation_ms: u128,
+    pub build_verify_ms: Option<u128>,
+    pub total_ms: u128,
 }
 
 /// Run the full refactoring matrix on a project
@@ -335,6 +368,24 @@ impl RefactoringMatrixRunner {
             ctx,
             results: Vec::new(),
             baseline_errors: 0,
+        }
+    }
+
+    fn matrix_verify_every() -> usize {
+        if let Some(from_env) = std::env::var("TYPEMILL_MATRIX_VERIFY_EVERY")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .filter(|v| *v > 0)
+        {
+            return from_env;
+        }
+
+        // In perf profile we default to a batched cadence to reduce build-check
+        // overhead while preserving full verification defaults elsewhere.
+        if Self::matrix_profile() == "perf" {
+            5
+        } else {
+            1
         }
     }
 
@@ -361,18 +412,6 @@ impl RefactoringMatrixRunner {
             }
         }
     }
-
-    /// Count current errors (for TypeScript)
-    fn count_current_errors(&self) -> usize {
-        match self.config.build_verify {
-            BuildVerification::TypeScript => {
-                let (count, _) = self.ctx.count_typescript_errors();
-                count
-            }
-            _ => 0,
-        }
-    }
-
     /// Verify the project builds (comparative: checks we didn't ADD errors)
     pub fn verify_build(&self) -> Result<(), String> {
         match self.config.build_verify {
@@ -406,8 +445,13 @@ impl RefactoringMatrixRunner {
     }
 
     /// Record a test result
-    fn record(&mut self, name: &str, result: Result<(), String>) {
-        let build_result = if result.is_ok() {
+    fn record(&mut self, name: &str, result: Result<(), String>, operation_ms: u128) {
+        let build_start = std::time::Instant::now();
+        let verify_every = Self::matrix_verify_every();
+        let operation_index = self.results.len() + 1;
+        let should_verify_now = operation_index % verify_every == 0;
+
+        let build_result = if result.is_ok() && should_verify_now {
             match self.verify_build() {
                 Ok(()) => Some(true),
                 Err(e) => {
@@ -422,6 +466,17 @@ impl RefactoringMatrixRunner {
                     Some(false)
                 }
             }
+        } else if result.is_ok() {
+            println!(
+                "  ℹ️  Skipping build verification for {} (TYPEMILL_MATRIX_VERIFY_EVERY={})",
+                name, verify_every
+            );
+            None
+        } else {
+            None
+        };
+        let build_verify_ms = if build_result.is_some() {
+            Some(build_start.elapsed().as_millis())
         } else {
             None
         };
@@ -431,7 +486,76 @@ impl RefactoringMatrixRunner {
             passed: result.is_ok(),
             error: result.err(),
             build_passed: build_result,
+            operation_ms,
+            build_verify_ms,
+            total_ms: operation_ms + build_verify_ms.unwrap_or(0),
         });
+    }
+
+    fn capture_directory_snapshot(
+        &self,
+        rel_dir: &str,
+    ) -> Result<BTreeMap<PathBuf, String>, String> {
+        let root = self.ctx.absolute_path(rel_dir);
+        if !root.exists() {
+            return Err(format!("Snapshot root does not exist: {}", root.display()));
+        }
+        let mut snapshot = BTreeMap::new();
+        collect_files_recursive(&root, &root, &mut snapshot)?;
+        Ok(snapshot)
+    }
+
+    fn verify_file_move_complete(
+        &self,
+        source_rel: &str,
+        dest_rel: &str,
+        source_content_before: &str,
+    ) -> Result<(), String> {
+        self.ctx.verify_file_not_exists(source_rel)?;
+        self.ctx.verify_file_exists(dest_rel)?;
+        let moved = self.ctx.read_file(dest_rel);
+        if moved != source_content_before {
+            return Err(format!(
+                "Moved file content mismatch for {} (from {})",
+                dest_rel, source_rel
+            ));
+        }
+        Ok(())
+    }
+
+    fn verify_directory_move_complete(
+        &self,
+        source_rel: &str,
+        dest_rel: &str,
+        before_snapshot: &BTreeMap<PathBuf, String>,
+    ) -> Result<(), String> {
+        self.ctx.verify_file_not_exists(source_rel)?;
+        self.ctx.verify_dir_exists(dest_rel)?;
+
+        for (relative, original_content) in before_snapshot {
+            let dest_abs = self.ctx.absolute_path(dest_rel).join(relative);
+            if !dest_abs.is_file() {
+                return Err(format!(
+                    "Moved file missing at destination: {}",
+                    dest_abs.display()
+                ));
+            }
+            let moved_content = std::fs::read_to_string(&dest_abs).map_err(|e| {
+                format!(
+                    "Failed to read moved file {} for content verification: {}",
+                    dest_abs.display(),
+                    e
+                )
+            })?;
+            if &moved_content != original_content {
+                return Err(format!(
+                    "Moved file content mismatch for {}",
+                    dest_abs.display()
+                ));
+            }
+        }
+
+        Ok(())
     }
 
     /// Print summary of all test results
@@ -450,7 +574,15 @@ impl RefactoringMatrixRunner {
                 Some(false) => " [build: ❌]",
                 None => "",
             };
-            println!("  {} {}{}", status, result.test_name, build);
+            println!(
+                "  {} {}{} (op: {} ms, build: {} ms, total: {} ms)",
+                status,
+                result.test_name,
+                build,
+                result.operation_ms,
+                result.build_verify_ms.unwrap_or(0),
+                result.total_ms
+            );
 
             if result.passed {
                 passed += 1;
@@ -459,6 +591,28 @@ impl RefactoringMatrixRunner {
                 if let Some(err) = &result.error {
                     println!("      Error: {}", err);
                 }
+            }
+        }
+
+        if !self.results.is_empty() {
+            let mut slowest: Vec<&MatrixTestResult> = self.results.iter().collect();
+            slowest.sort_by_key(|r| std::cmp::Reverse(r.total_ms));
+            println!("\n  Slowest operations by total time:");
+            for result in slowest.iter().take(5) {
+                println!(
+                    "    - {}: total {} ms (op {} ms + build {} ms)",
+                    result.test_name,
+                    result.total_ms,
+                    result.operation_ms,
+                    result.build_verify_ms.unwrap_or(0)
+                );
+            }
+
+            let mut slowest_op: Vec<&MatrixTestResult> = self.results.iter().collect();
+            slowest_op.sort_by_key(|r| std::cmp::Reverse(r.operation_ms));
+            println!("\n  Slowest operations by tool time:");
+            for result in slowest_op.into_iter().take(5) {
+                println!("    - {}: {} ms", result.test_name, result.operation_ms);
             }
         }
 
@@ -474,6 +628,7 @@ impl RefactoringMatrixRunner {
     pub async fn test_file_move_down(&mut self) {
         let test_name = "file_move_down";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -489,8 +644,12 @@ impl RefactoringMatrixRunner {
             let dest_dir = self.ctx.absolute_path(&format!("{}/subdir", src_dir));
             std::fs::create_dir_all(&dest_dir).ok();
 
-            let source = self.ctx.absolute_path(&format!("{}/test_move_down.{}", src_dir, ext));
-            let dest = self.ctx.absolute_path(&format!("{}/subdir/test_move_down.{}", src_dir, ext));
+            let source_rel = format!("{}/test_move_down.{}", src_dir, ext);
+            let dest_rel = format!("{}/subdir/test_move_down.{}", src_dir, ext);
+            let source_before = self.ctx.read_file(&source_rel);
+
+            let source = self.ctx.absolute_path(&source_rel);
+            let dest = self.ctx.absolute_path(&dest_rel);
 
             // Execute move
             self.ctx
@@ -506,20 +665,20 @@ impl RefactoringMatrixRunner {
                 .map_err(|e| format!("relocate failed: {}", e))?;
 
             // Verify
-            self.ctx.verify_file_not_exists(&format!("{}/test_move_down.{}", src_dir, ext))?;
-            self.ctx.verify_file_exists(&format!("{}/subdir/test_move_down.{}", src_dir, ext))?;
+            self.verify_file_move_complete(&source_rel, &dest_rel, &source_before)?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Move file up a directory level
     pub async fn test_file_move_up(&mut self) {
         let test_name = "file_move_up";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -531,8 +690,12 @@ impl RefactoringMatrixRunner {
                 self.config.file_template.simple_module,
             );
 
-            let source = self.ctx.absolute_path(&format!("{}/nested/test_move_up.{}", src_dir, ext));
-            let dest = self.ctx.absolute_path(&format!("{}/test_move_up.{}", src_dir, ext));
+            let source_rel = format!("{}/nested/test_move_up.{}", src_dir, ext);
+            let dest_rel = format!("{}/test_move_up.{}", src_dir, ext);
+            let source_before = self.ctx.read_file(&source_rel);
+
+            let source = self.ctx.absolute_path(&source_rel);
+            let dest = self.ctx.absolute_path(&dest_rel);
 
             self.ctx
                 .call_tool(
@@ -546,20 +709,20 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("relocate failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/nested/test_move_up.{}", src_dir, ext))?;
-            self.ctx.verify_file_exists(&format!("{}/test_move_up.{}", src_dir, ext))?;
+            self.verify_file_move_complete(&source_rel, &dest_rel, &source_before)?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Rename file in place
     pub async fn test_file_rename(&mut self) {
         let test_name = "file_rename";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -570,8 +733,12 @@ impl RefactoringMatrixRunner {
                 self.config.file_template.simple_module,
             );
 
-            let old_path = self.ctx.absolute_path(&format!("{}/old_name.{}", src_dir, ext));
-            let new_path = self.ctx.absolute_path(&format!("{}/new_name.{}", src_dir, ext));
+            let old_rel = format!("{}/old_name.{}", src_dir, ext);
+            let new_rel = format!("{}/new_name.{}", src_dir, ext);
+            let source_before = self.ctx.read_file(&old_rel);
+
+            let old_path = self.ctx.absolute_path(&old_rel);
+            let new_path = self.ctx.absolute_path(&new_rel);
 
             self.ctx
                 .call_tool(
@@ -585,20 +752,20 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("rename_all failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/old_name.{}", src_dir, ext))?;
-            self.ctx.verify_file_exists(&format!("{}/new_name.{}", src_dir, ext))?;
+            self.verify_file_move_complete(&old_rel, &new_rel, &source_before)?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Move file to sibling directory
     pub async fn test_file_move_sibling(&mut self) {
         let test_name = "file_move_sibling";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -613,8 +780,12 @@ impl RefactoringMatrixRunner {
             // Create dir_b
             std::fs::create_dir_all(self.ctx.absolute_path(&format!("{}/dir_b", src_dir))).ok();
 
-            let source = self.ctx.absolute_path(&format!("{}/dir_a/sibling.{}", src_dir, ext));
-            let dest = self.ctx.absolute_path(&format!("{}/dir_b/sibling.{}", src_dir, ext));
+            let source_rel = format!("{}/dir_a/sibling.{}", src_dir, ext);
+            let dest_rel = format!("{}/dir_b/sibling.{}", src_dir, ext);
+            let source_before = self.ctx.read_file(&source_rel);
+
+            let source = self.ctx.absolute_path(&source_rel);
+            let dest = self.ctx.absolute_path(&dest_rel);
 
             self.ctx
                 .call_tool(
@@ -628,14 +799,13 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("relocate failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/dir_a/sibling.{}", src_dir, ext))?;
-            self.ctx.verify_file_exists(&format!("{}/dir_b/sibling.{}", src_dir, ext))?;
+            self.verify_file_move_complete(&source_rel, &dest_rel, &source_before)?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     // =========================================================================
@@ -646,12 +816,13 @@ impl RefactoringMatrixRunner {
     pub async fn test_folder_rename(&mut self) {
         let test_name = "folder_rename";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
             let ext = self.config.file_ext;
 
-            // Create folder with files
+            // Create folder with files (including nested files to verify full-tree moves)
             self.ctx.create_test_file(
                 &format!("{}/old_folder/file1.{}", src_dir, ext),
                 self.config.file_template.simple_module,
@@ -660,9 +831,17 @@ impl RefactoringMatrixRunner {
                 &format!("{}/old_folder/file2.{}", src_dir, ext),
                 self.config.file_template.simple_module,
             );
+            self.ctx.create_test_file(
+                &format!("{}/old_folder/nested/deep_file.{}", src_dir, ext),
+                self.config.file_template.export_module,
+            );
 
-            let old_path = self.ctx.absolute_path(&format!("{}/old_folder", src_dir));
-            let new_path = self.ctx.absolute_path(&format!("{}/new_folder", src_dir));
+            let old_rel = format!("{}/old_folder", src_dir);
+            let new_rel = format!("{}/new_folder", src_dir);
+            let before_snapshot = self.capture_directory_snapshot(&old_rel)?;
+
+            let old_path = self.ctx.absolute_path(&old_rel);
+            let new_path = self.ctx.absolute_path(&new_rel);
 
             self.ctx
                 .call_tool(
@@ -676,22 +855,26 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("rename_all failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/old_folder", src_dir))?;
-            self.ctx.verify_dir_exists(&format!("{}/new_folder", src_dir))?;
-            self.ctx.verify_file_exists(&format!("{}/new_folder/file1.{}", src_dir, ext))?;
-            self.ctx.verify_file_exists(&format!("{}/new_folder/file2.{}", src_dir, ext))?;
+            self.verify_directory_move_complete(&old_rel, &new_rel, &before_snapshot)?;
+            self.ctx
+                .verify_file_exists(&format!("{}/new_folder/file1.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_exists(&format!("{}/new_folder/file2.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_exists(&format!("{}/new_folder/nested/deep_file.{}", src_dir, ext))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Move folder down into another folder
     pub async fn test_folder_move_down(&mut self) {
         let test_name = "folder_move_down";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -701,11 +884,19 @@ impl RefactoringMatrixRunner {
                 &format!("{}/movable/content.{}", src_dir, ext),
                 self.config.file_template.simple_module,
             );
+            self.ctx.create_test_file(
+                &format!("{}/movable/nested/content2.{}", src_dir, ext),
+                self.config.file_template.export_module,
+            );
 
             std::fs::create_dir_all(self.ctx.absolute_path(&format!("{}/container", src_dir))).ok();
 
-            let source = self.ctx.absolute_path(&format!("{}/movable", src_dir));
-            let dest = self.ctx.absolute_path(&format!("{}/container/movable", src_dir));
+            let source_rel = format!("{}/movable", src_dir);
+            let dest_rel = format!("{}/container/movable", src_dir);
+            let before_snapshot = self.capture_directory_snapshot(&source_rel)?;
+
+            let source = self.ctx.absolute_path(&source_rel);
+            let dest = self.ctx.absolute_path(&dest_rel);
 
             self.ctx
                 .call_tool(
@@ -719,21 +910,26 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("rename_all failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/movable", src_dir))?;
-            self.ctx.verify_dir_exists(&format!("{}/container/movable", src_dir))?;
-            self.ctx.verify_file_exists(&format!("{}/container/movable/content.{}", src_dir, ext))?;
+            self.verify_directory_move_complete(&source_rel, &dest_rel, &before_snapshot)?;
+            self.ctx
+                .verify_file_exists(&format!("{}/container/movable/content.{}", src_dir, ext))?;
+            self.ctx.verify_file_exists(&format!(
+                "{}/container/movable/nested/content2.{}",
+                src_dir, ext
+            ))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Move folder up one level
     pub async fn test_folder_move_up(&mut self) {
         let test_name = "folder_move_up";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -744,9 +940,17 @@ impl RefactoringMatrixRunner {
                 &format!("{}/parent/child/nested.{}", src_dir, ext),
                 self.config.file_template.simple_module,
             );
+            self.ctx.create_test_file(
+                &format!("{}/parent/child/deeper/leaf.{}", src_dir, ext),
+                self.config.file_template.export_module,
+            );
 
-            let source = self.ctx.absolute_path(&format!("{}/parent/child", src_dir));
-            let dest = self.ctx.absolute_path(&format!("{}/child", src_dir));
+            let source_rel = format!("{}/parent/child", src_dir);
+            let dest_rel = format!("{}/child", src_dir);
+            let before_snapshot = self.capture_directory_snapshot(&source_rel)?;
+
+            let source = self.ctx.absolute_path(&source_rel);
+            let dest = self.ctx.absolute_path(&dest_rel);
 
             self.ctx
                 .call_tool(
@@ -760,21 +964,24 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("rename_all failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/parent/child", src_dir))?;
-            self.ctx.verify_dir_exists(&format!("{}/child", src_dir))?;
-            self.ctx.verify_file_exists(&format!("{}/child/nested.{}", src_dir, ext))?;
+            self.verify_directory_move_complete(&source_rel, &dest_rel, &before_snapshot)?;
+            self.ctx
+                .verify_file_exists(&format!("{}/child/nested.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_exists(&format!("{}/child/deeper/leaf.{}", src_dir, ext))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Move folder to sibling directory
     pub async fn test_folder_move_sibling(&mut self) {
         let test_name = "folder_move_sibling";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -785,10 +992,18 @@ impl RefactoringMatrixRunner {
                 &format!("{}/folder_a/moveme/content.{}", src_dir, ext),
                 self.config.file_template.simple_module,
             );
+            self.ctx.create_test_file(
+                &format!("{}/folder_a/moveme/sub/content2.{}", src_dir, ext),
+                self.config.file_template.export_module,
+            );
             std::fs::create_dir_all(self.ctx.absolute_path(&format!("{}/folder_b", src_dir))).ok();
 
-            let source = self.ctx.absolute_path(&format!("{}/folder_a/moveme", src_dir));
-            let dest = self.ctx.absolute_path(&format!("{}/folder_b/moveme", src_dir));
+            let source_rel = format!("{}/folder_a/moveme", src_dir);
+            let dest_rel = format!("{}/folder_b/moveme", src_dir);
+            let before_snapshot = self.capture_directory_snapshot(&source_rel)?;
+
+            let source = self.ctx.absolute_path(&source_rel);
+            let dest = self.ctx.absolute_path(&dest_rel);
 
             self.ctx
                 .call_tool(
@@ -802,21 +1017,24 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("rename_all failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/folder_a/moveme", src_dir))?;
-            self.ctx.verify_dir_exists(&format!("{}/folder_b/moveme", src_dir))?;
-            self.ctx.verify_file_exists(&format!("{}/folder_b/moveme/content.{}", src_dir, ext))?;
+            self.verify_directory_move_complete(&source_rel, &dest_rel, &before_snapshot)?;
+            self.ctx
+                .verify_file_exists(&format!("{}/folder_b/moveme/content.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_exists(&format!("{}/folder_b/moveme/sub/content2.{}", src_dir, ext))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Delete folder with prune operation
     pub async fn test_prune_folder(&mut self) {
         let test_name = "prune_folder";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -853,7 +1071,7 @@ impl RefactoringMatrixRunner {
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     // =========================================================================
@@ -864,6 +1082,7 @@ impl RefactoringMatrixRunner {
     pub async fn test_find_replace_literal(&mut self) {
         let test_name = "find_replace_literal";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -890,14 +1109,18 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("find_replace failed: {}", e))?;
 
-            self.ctx.verify_file_contains(&format!("{}/replace_test.{}", src_dir, ext), "NEW_VALUE")?;
-            self.ctx.verify_file_not_contains(&format!("{}/replace_test.{}", src_dir, ext), "OLD_VALUE")?;
+            self.ctx
+                .verify_file_contains(&format!("{}/replace_test.{}", src_dir, ext), "NEW_VALUE")?;
+            self.ctx.verify_file_not_contains(
+                &format!("{}/replace_test.{}", src_dir, ext),
+                "OLD_VALUE",
+            )?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     // =========================================================================
@@ -908,6 +1131,7 @@ impl RefactoringMatrixRunner {
     pub async fn test_deep_to_shallow(&mut self) {
         let test_name = "deep_to_shallow";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
@@ -918,8 +1142,12 @@ impl RefactoringMatrixRunner {
                 self.config.file_template.simple_module,
             );
 
-            let source = self.ctx.absolute_path(&format!("{}/a/b/c/d/deep.{}", src_dir, ext));
-            let dest = self.ctx.absolute_path(&format!("{}/shallow.{}", src_dir, ext));
+            let source = self
+                .ctx
+                .absolute_path(&format!("{}/a/b/c/d/deep.{}", src_dir, ext));
+            let dest = self
+                .ctx
+                .absolute_path(&format!("{}/shallow.{}", src_dir, ext));
 
             self.ctx
                 .call_tool(
@@ -933,27 +1161,31 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("relocate failed: {}", e))?;
 
-            self.ctx.verify_file_exists(&format!("{}/shallow.{}", src_dir, ext))?;
-            self.ctx.verify_file_not_exists(&format!("{}/a/b/c/d/deep.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_exists(&format!("{}/shallow.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_not_exists(&format!("{}/a/b/c/d/deep.{}", src_dir, ext))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Move file to deeply nested location
     pub async fn test_shallow_to_deep(&mut self) {
         let test_name = "shallow_to_deep";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
             let ext = self.config.file_ext;
 
             let rel_path = format!("{}/top_level.{}", src_dir, ext);
-            self.ctx.create_test_file(&rel_path, self.config.file_template.simple_module);
+            self.ctx
+                .create_test_file(&rel_path, self.config.file_template.simple_module);
 
             // Verify file was actually created (debug step)
             self.ctx.verify_file_exists(&rel_path)?;
@@ -962,7 +1194,9 @@ impl RefactoringMatrixRunner {
             std::fs::create_dir_all(&dest_dir).ok();
 
             let source = self.ctx.absolute_path(&rel_path);
-            let dest = self.ctx.absolute_path(&format!("{}/x/y/z/buried.{}", src_dir, ext));
+            let dest = self
+                .ctx
+                .absolute_path(&format!("{}/x/y/z/buried.{}", src_dir, ext));
 
             self.ctx
                 .call_tool(
@@ -976,27 +1210,31 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("relocate failed: {}", e))?;
 
-            self.ctx.verify_file_exists(&format!("{}/x/y/z/buried.{}", src_dir, ext))?;
-            self.ctx.verify_file_not_exists(&format!("{}/top_level.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_exists(&format!("{}/x/y/z/buried.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_not_exists(&format!("{}/top_level.{}", src_dir, ext))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
     }
 
     /// Test: Delete file with prune
     pub async fn test_prune_file(&mut self) {
         let test_name = "prune_file";
         println!("\n🧪 Running: {}", test_name);
+        let start = std::time::Instant::now();
 
         let result = async {
             let src_dir = self.config.source_dir;
             let ext = self.config.file_ext;
 
             let rel_path = format!("{}/to_delete.{}", src_dir, ext);
-            self.ctx.create_test_file(&rel_path, self.config.file_template.simple_module);
+            self.ctx
+                .create_test_file(&rel_path, self.config.file_template.simple_module);
 
             // Verify file was actually created (debug step)
             self.ctx.verify_file_exists(&rel_path)?;
@@ -1014,13 +1252,20 @@ impl RefactoringMatrixRunner {
                 .await
                 .map_err(|e| format!("prune failed: {}", e))?;
 
-            self.ctx.verify_file_not_exists(&format!("{}/to_delete.{}", src_dir, ext))?;
+            self.ctx
+                .verify_file_not_exists(&format!("{}/to_delete.{}", src_dir, ext))?;
 
             Ok(())
         }
         .await;
 
-        self.record(test_name, result);
+        self.record(test_name, result, start.elapsed().as_millis());
+    }
+
+    fn matrix_profile() -> String {
+        std::env::var("TYPEMILL_MATRIX_PROFILE")
+            .unwrap_or_else(|_| "full".to_string())
+            .to_ascii_lowercase()
     }
 
     // =========================================================================
@@ -1052,34 +1297,51 @@ impl RefactoringMatrixRunner {
             Err(e) => println!("⚠️ Initial build: {}\n", e),
         }
 
-        // File operations
-        println!("\n📁 FILE OPERATIONS");
-        println!("{}", "-".repeat(40));
-        self.test_file_move_down().await;
-        self.test_file_move_up().await;
-        self.test_file_rename().await;
-        self.test_file_move_sibling().await;
+        let profile = Self::matrix_profile();
+        println!("⚙️ Matrix profile: {}", profile);
+        println!(
+            "⚙️ Build verification cadence: every {} operation(s)",
+            Self::matrix_verify_every()
+        );
 
-        // Folder operations
-        println!("\n📂 FOLDER OPERATIONS");
-        println!("{}", "-".repeat(40));
-        self.test_folder_rename().await;
-        self.test_folder_move_down().await;
-        self.test_folder_move_up().await;
-        self.test_folder_move_sibling().await;
-        self.test_prune_folder().await;
+        if profile == "perf" {
+            println!("\n🚀 PERF PROFILE OPERATIONS");
+            println!("{}", "-".repeat(40));
+            self.test_folder_rename().await;
+            self.test_folder_move_up().await;
+            self.test_prune_folder().await;
+            self.test_find_replace_literal().await;
+            self.test_deep_to_shallow().await;
+        } else {
+            // File operations
+            println!("\n📁 FILE OPERATIONS");
+            println!("{}", "-".repeat(40));
+            self.test_file_move_down().await;
+            self.test_file_move_up().await;
+            self.test_file_rename().await;
+            self.test_file_move_sibling().await;
 
-        // Content operations
-        println!("\n📝 CONTENT OPERATIONS");
-        println!("{}", "-".repeat(40));
-        self.test_find_replace_literal().await;
+            // Folder operations
+            println!("\n📂 FOLDER OPERATIONS");
+            println!("{}", "-".repeat(40));
+            self.test_folder_rename().await;
+            self.test_folder_move_down().await;
+            self.test_folder_move_up().await;
+            self.test_folder_move_sibling().await;
+            self.test_prune_folder().await;
 
-        // Edge cases
-        println!("\n🔬 EDGE CASES");
-        println!("{}", "-".repeat(40));
-        self.test_deep_to_shallow().await;
-        self.test_shallow_to_deep().await;
-        self.test_prune_file().await;
+            // Content operations
+            println!("\n📝 CONTENT OPERATIONS");
+            println!("{}", "-".repeat(40));
+            self.test_find_replace_literal().await;
+
+            // Edge cases
+            println!("\n🔬 EDGE CASES");
+            println!("{}", "-".repeat(40));
+            self.test_deep_to_shallow().await;
+            self.test_shallow_to_deep().await;
+            self.test_prune_file().await;
+        }
 
         // Final build verification
         println!("\n🏁 FINAL BUILD VERIFICATION");
@@ -1294,6 +1556,99 @@ async fn test_matrix_python() {
 }
 
 // ============================================================================
+// Sharded Matrix Group Tests (for CI/runtime isolation)
+// ============================================================================
+
+/// Run Python matrix shard only (independent reporting/timeout behavior).
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_shard_python() {
+    let mut failures = Vec::new();
+
+    for (name, cfg) in [
+        ("py_httpx", PY_HTTPX_CONFIG),
+        ("py_rich", PY_RICH_CONFIG),
+        ("py_pydantic", PY_PYDANTIC_CONFIG),
+        ("py_fastapi", PY_FASTAPI_CONFIG),
+    ] {
+        let result = std::panic::AssertUnwindSafe(run_matrix_test(cfg, 0.5))
+            .catch_unwind()
+            .await;
+        if result.is_err() {
+            failures.push(name);
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "Python matrix shard failures: {:?}",
+        failures
+    );
+}
+
+/// Run Rust matrix shard only (independent reporting/timeout behavior).
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_shard_rust() {
+    let mut failures = Vec::new();
+
+    for (name, cfg) in [
+        ("rs_thiserror", RS_THISERROR_CONFIG),
+        ("rs_anyhow", RS_ANYHOW_CONFIG),
+        ("rs_oncecell", RS_ONCECELL_CONFIG),
+        ("rs_ripgrep", RS_RIPGREP_CONFIG),
+        ("rs_tokio", RS_TOKIO_CONFIG),
+        ("rs_ruff", PY_RUFF_CONFIG),
+    ] {
+        let result = std::panic::AssertUnwindSafe(run_matrix_test(cfg, 0.5))
+            .catch_unwind()
+            .await;
+        if result.is_err() {
+            failures.push(name);
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "Rust matrix shard failures: {:?}",
+        failures
+    );
+}
+
+/// Run TypeScript matrix shard only (independent reporting/timeout behavior).
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_matrix_shard_typescript() {
+    let mut failures = Vec::new();
+
+    for (name, cfg) in [
+        ("ts_zod", TS_ZOD_CONFIG),
+        ("ts_ky", TS_KY_CONFIG),
+        ("ts_sveltekit", TS_SVELTEKIT_CONFIG),
+        ("ts_nanoid", TS_NANOID_CONFIG),
+        ("ts_pattern", TS_PATTERN_CONFIG),
+        ("ts_turborepo", TS_TURBOREPO_CONFIG),
+        ("ts_nextjs", TS_NEXTJS_CONFIG),
+    ] {
+        let result = std::panic::AssertUnwindSafe(run_matrix_test(cfg, 0.5))
+            .catch_unwind()
+            .await;
+        if result.is_err() {
+            failures.push(name);
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "TypeScript matrix shard failures: {:?}",
+        failures
+    );
+}
+
+// ============================================================================
 // Isolated Single-Operation Tests (for debugging)
 // ============================================================================
 
@@ -1336,7 +1691,11 @@ async fn test_isolated_single_file_rename_zod() {
 
     // Assert
     let result = &runner.results[0];
-    assert!(result.passed, "file_rename operation failed: {:?}", result.error);
+    assert!(
+        result.passed,
+        "file_rename operation failed: {:?}",
+        result.error
+    );
     assert!(
         result.build_passed == Some(true),
         "Build verification failed after file_rename - refactoring introduced new errors"

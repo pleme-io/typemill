@@ -507,8 +507,14 @@ where
         .map_err(|e| anyhow::anyhow!("rename should succeed: {}", e))?;
 
     // Always verify the file was renamed
-    assert!(workspace.file_exists("src/new.rs"), "File should be renamed");
-    assert!(!workspace.file_exists("src/old.rs"), "Old file should be gone");
+    assert!(
+        workspace.file_exists("src/new.rs"),
+        "File should be renamed"
+    );
+    assert!(
+        !workspace.file_exists("src/old.rs"),
+        "Old file should be gone"
+    );
 
     verify(&workspace)
 }
@@ -517,10 +523,7 @@ where
 /// Handles the common match Ok/Err pattern where Err means "LSP not available, skip".
 ///
 /// Returns Ok(Some(response)) if the tool call succeeded, Ok(None) if LSP unavailable.
-pub async fn try_refactor_tool(
-    client: &mut TestClient,
-    params: Value,
-) -> Result<Option<Value>> {
+pub async fn try_refactor_tool(client: &mut TestClient, params: Value) -> Result<Option<Value>> {
     match client.call_tool("refactor", params).await {
         Ok(response) => {
             if response.get("error").is_some() {

@@ -161,7 +161,8 @@ impl RenameService {
                     Self::find_target_crate_root(&new_path)
                         .await
                         .ok_or_else(|| mill_foundation::errors::MillError::InvalidRequest {
-                            message: "Could not find target crate root for consolidation".to_string(),
+                            message: "Could not find target crate root for consolidation"
+                                .to_string(),
                             parameter: Some("newName".to_string()),
                         })?;
 
@@ -172,28 +173,28 @@ impl RenameService {
                     "Validating consolidation for circular dependencies"
                 );
 
-            #[cfg(feature = "lang-rust")]
-            {
-                use mill_lang_rust::dependency_analysis::validate_no_circular_dependencies;
-
-                match validate_no_circular_dependencies(
-                    &old_path,
-                    &target_crate_root,
-                    workspace_root,
-                )
-                .await
+                #[cfg(feature = "lang-rust")]
                 {
-                    // Only reject if there are ACTUAL problematic modules that would create circular imports.
-                    // It's normal for target to depend on source (e.g., app → lib) during consolidation.
-                    // The key question is: are there specific modules in source that would create
-                    // circular imports after being merged into target? If problematic_modules is empty,
-                    // the consolidation is safe.
-                    Ok(analysis)
-                        if analysis.has_circular_dependency
-                            && !analysis.problematic_modules.is_empty() =>
+                    use mill_lang_rust::dependency_analysis::validate_no_circular_dependencies;
+
+                    match validate_no_circular_dependencies(
+                        &old_path,
+                        &target_crate_root,
+                        workspace_root,
+                    )
+                    .await
                     {
-                        return Err(mill_foundation::errors::MillError::InvalidRequest {
-                            message: format!(
+                        // Only reject if there are ACTUAL problematic modules that would create circular imports.
+                        // It's normal for target to depend on source (e.g., app → lib) during consolidation.
+                        // The key question is: are there specific modules in source that would create
+                        // circular imports after being merged into target? If problematic_modules is empty,
+                        // the consolidation is safe.
+                        Ok(analysis)
+                            if analysis.has_circular_dependency
+                                && !analysis.problematic_modules.is_empty() =>
+                        {
+                            return Err(mill_foundation::errors::MillError::InvalidRequest {
+                                message: format!(
                                 "Cannot consolidate {} into {}: would create circular dependency.\n\
                                  Dependency chain: {}\n\
                                  Problematic modules: {}",
@@ -202,30 +203,30 @@ impl RenameService {
                                 analysis.dependency_chain.join(" → "),
                                 analysis.problematic_modules.len()
                             ),
-                            parameter: Some("target".to_string()),
-                        });
-                    }
-                    Ok(_) => {
-                        info!("Circular dependency validation passed");
-                    }
-                    Err(e) => {
-                        // Log validation error but don't fail the plan
-                        // This allows consolidation to proceed if validation itself fails
-                        tracing::warn!(
-                            error = %e,
-                            "Failed to validate circular dependencies, proceeding anyway"
-                        );
+                                parameter: Some("target".to_string()),
+                            });
+                        }
+                        Ok(_) => {
+                            info!("Circular dependency validation passed");
+                        }
+                        Err(e) => {
+                            // Log validation error but don't fail the plan
+                            // This allows consolidation to proceed if validation itself fails
+                            tracing::warn!(
+                                error = %e,
+                                "Failed to validate circular dependencies, proceeding anyway"
+                            );
+                        }
                     }
                 }
-            }
 
-            #[cfg(not(feature = "lang-rust"))]
-            {
-                // Rust language support not compiled in, skip validation
-                debug!(
+                #[cfg(not(feature = "lang-rust"))]
+                {
+                    // Rust language support not compiled in, skip validation
+                    debug!(
                     "Rust language support not available, skipping circular dependency validation"
                 );
-            }
+                }
             } // end if pkg_type == PackageType::Cargo
         } // end if let Some(pkg_type) = consolidation_type
 
@@ -528,16 +529,24 @@ mod tests {
         // Create source Python package
         let src_pkg = root.join("source_pkg");
         fs::create_dir(&src_pkg).unwrap();
-        fs::write(src_pkg.join("pyproject.toml"), r#"[project]
+        fs::write(
+            src_pkg.join("pyproject.toml"),
+            r#"[project]
 name = "source"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
 
         // Create target Python package
         let target_pkg = root.join("target_pkg");
         fs::create_dir(&target_pkg).unwrap();
-        fs::write(target_pkg.join("pyproject.toml"), r#"[project]
+        fs::write(
+            target_pkg.join("pyproject.toml"),
+            r#"[project]
 name = "target"
-"#).unwrap();
+"#,
+        )
+        .unwrap();
         let target_src = target_pkg.join("src");
         fs::create_dir(&target_src).unwrap();
 
