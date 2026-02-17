@@ -59,6 +59,8 @@ pub struct Session {
     pub initialized: bool,
     /// The ID of the user for this session.
     pub user_id: Option<String>,
+    /// The authenticated project ID (if any)
+    pub authenticated_project_id: Option<String>,
 }
 
 impl Session {
@@ -69,6 +71,7 @@ impl Session {
             project_root: None,
             initialized: false,
             user_id: None,
+            authenticated_project_id: None,
         }
     }
 }
@@ -174,11 +177,14 @@ async fn handle_connection(
         .peer_addr()
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
-    let mut user_id_from_token: Option<String> = None;
+    // Thread-safe container for auth data captured during handshake
+    // Stores: (user_id, project_id)
+    let auth_data = Arc::new(std::sync::Mutex::new(None::<(Option<String>, Option<String>)>));
+    let auth_data_clone = auth_data.clone();
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
-    let ws_stream = match accept_hdr_async(stream, |req: &Request, response: Response| {
+    let ws_stream = match accept_hdr_async(stream, move |req: &Request, response: Response| {
         // Check if authentication is required
         if let Some(auth_config) = &config_clone.server.auth {
             // Extract Authorization header
@@ -216,7 +222,14 @@ async fn handle_connection(
                                 );
                             }
 
-                            user_id_from_token = token_data.claims.user_id;
+                            // Capture auth data
+                            if let Ok(mut guard) = auth_data_clone.lock() {
+                                *guard = Some((
+                                    token_data.claims.user_id,
+                                    token_data.claims.project_id,
+                                ));
+                            }
+
                             return Ok(response);
                         }
                         Err(e) => {
@@ -259,7 +272,14 @@ async fn handle_connection(
     tracing::info!("WebSocket connection established");
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
-    session.user_id = user_id_from_token;
+
+    // Extract captured auth data
+    if let Ok(guard) = auth_data.lock() {
+        if let Some((user_id, project_id)) = guard.clone() {
+            session.user_id = user_id;
+            session.authenticated_project_id = project_id;
+        }
+    }
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -457,7 +477,23 @@ async fn handle_initialize(
     };
 
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+
+    // Verify project ID if authenticated
+    if let Some(auth_project_id) = &session.authenticated_project_id {
+        if let Some(req_project_id) = &payload.project {
+            if auth_project_id != req_project_id {
+                return Err(MillError::permission_denied(format!(
+                    "Project mismatch: token is for project '{}', but request is for '{}'",
+                    auth_project_id, req_project_id
+                )));
+            }
+        }
+        // If request didn't specify project, use authenticated one
+        session.project_id = Some(auth_project_id.clone());
+    } else {
+        session.project_id = payload.project;
+    }
+
     session.project_root = payload.project_root;
     session.initialized = true;
 
