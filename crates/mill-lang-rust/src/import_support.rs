@@ -93,7 +93,7 @@ impl ImportRenameSupport for RustImportSupport {
         old_name: &str,
         new_name: &str,
     ) -> (String, usize) {
-        tracing::info!(
+        tracing::debug!(
             old_name = %old_name,
             new_name = %new_name,
             "RustImportSupport::rewrite_imports_for_rename ENTRY"
@@ -103,7 +103,7 @@ impl ImportRenameSupport for RustImportSupport {
         let mut changes_count = 0;
         let lines: Vec<&str> = content.lines().collect();
 
-        tracing::info!(lines_count = lines.len(), "Split content into lines");
+        tracing::debug!(lines_count = lines.len(), "Split content into lines");
 
         // State machine for collecting multi-line use statements
         let mut in_use_stmt = false;
@@ -274,7 +274,7 @@ impl ImportRenameSupport for RustImportSupport {
 
         changes_count += qualified_path_changes;
 
-        tracing::info!(
+        tracing::debug!(
             use_statement_changes = changes_count - qualified_path_changes,
             qualified_path_changes = qualified_path_changes,
             total_changes = changes_count,
@@ -494,7 +494,7 @@ impl RustImportSupport {
         let old_rust_ident = old_name.replace('-', "_");
         let new_rust_ident = new_name.replace('-', "_");
 
-        tracing::info!(
+        tracing::debug!(
             use_statement = %trimmed,
             old_name = %old_name,
             new_name = %new_name,
@@ -576,7 +576,7 @@ impl RustImportSupport {
                 let (effective_old, effective_new) =
                     Self::normalize_relative_import_paths(old_name, new_name, &item_use.tree);
 
-                tracing::info!(
+                tracing::debug!(
                     effective_old = %effective_old,
                     effective_new = %effective_new,
                     original_statement = %trimmed,
@@ -603,7 +603,7 @@ impl RustImportSupport {
                         result.pop();
                     }
 
-                    tracing::info!(
+                    tracing::debug!(
                         original = %trimmed,
                         transformed = %normalized,
                         "Successfully transformed super/self import via AST"
@@ -695,7 +695,7 @@ impl RustImportSupport {
                     (old_rust_ident.clone(), new_rust_ident.clone())
                 };
 
-                tracing::info!(
+                tracing::debug!(
                     effective_old = %effective_old,
                     effective_new = %effective_new,
                     "Computed effective module paths"
@@ -721,7 +721,7 @@ impl RustImportSupport {
                         result.pop(); // Remove trailing newline
                     }
 
-                    tracing::info!(
+                    tracing::debug!(
                         original = %trimmed,
                         transformed = %normalized,
                         "Successfully transformed use statement"

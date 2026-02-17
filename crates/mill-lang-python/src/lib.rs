@@ -179,8 +179,8 @@ impl LanguagePlugin for PythonPlugin {
         project_root: &Path,
         _rename_info: Option<&serde_json::Value>,
     ) -> Option<(String, usize)> {
-        use mill_plugin_api::ImportMoveSupport;
         use mill_lang_common::import_helpers::replace_in_lines;
+        use mill_plugin_api::ImportMoveSupport;
 
         let old_rel = old_path.strip_prefix(project_root).unwrap_or(old_path);
         let new_rel = new_path.strip_prefix(project_root).unwrap_or(new_path);

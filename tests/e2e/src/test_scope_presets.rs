@@ -36,13 +36,22 @@ async fn test_scope_standard_updates_code_docs_configs() {
     run_scope_rename_test(
         &[
             ("src/old.rs", "pub fn hello() {}"),
-            ("README.md", "# Readme\n\nSee [old.rs](src/old.rs) for implementation.\n"),
-            ("docs/guide.md", "# Guide\n\nCheck out `src/old.rs` for the source code.\n"),
+            (
+                "README.md",
+                "# Readme\n\nSee [old.rs](src/old.rs) for implementation.\n",
+            ),
+            (
+                "docs/guide.md",
+                "# Guide\n\nCheck out `src/old.rs` for the source code.\n",
+            ),
         ],
         Some("standard"),
         |ws| {
             let readme = ws.read_file("README.md");
-            assert!(readme.contains("new.rs"), "With 'standard' scope, markdown links should be updated");
+            assert!(
+                readme.contains("new.rs"),
+                "With 'standard' scope, markdown links should be updated"
+            );
             let guide = ws.read_file("docs/guide.md");
             assert!(
                 guide.contains("src/new.rs") || guide.contains("new.rs"),
@@ -106,7 +115,10 @@ async fn test_deprecated_code_only_alias_still_works() {
         Some("code-only"),
         |ws| {
             let readme = ws.read_file("README.md");
-            assert!(readme.contains("old.rs"), "Deprecated 'code-only' should behave like 'code' scope");
+            assert!(
+                readme.contains("old.rs"),
+                "Deprecated 'code-only' should behave like 'code' scope"
+            );
             Ok(())
         },
     )
@@ -126,7 +138,10 @@ async fn test_deprecated_all_alias_still_works() {
         Some("all"),
         |ws| {
             let readme = ws.read_file("README.md");
-            assert!(readme.contains("new.rs"), "Deprecated 'all' should behave like 'standard' scope");
+            assert!(
+                readme.contains("new.rs"),
+                "Deprecated 'all' should behave like 'standard' scope"
+            );
             let api = ws.read_file("docs/api.md");
             assert!(
                 api.contains("src/new.rs") || api.contains("new.rs"),
@@ -150,7 +165,10 @@ async fn test_default_scope_is_standard() {
         None, // No scope = default ("standard")
         |ws| {
             let readme = ws.read_file("README.md");
-            assert!(readme.contains("new.rs"), "Default scope should update docs (standard scope behavior)");
+            assert!(
+                readme.contains("new.rs"),
+                "Default scope should update docs (standard scope behavior)"
+            );
             Ok(())
         },
     )

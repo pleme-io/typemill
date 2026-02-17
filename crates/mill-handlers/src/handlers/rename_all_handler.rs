@@ -193,7 +193,10 @@ impl RenameAllHandler {
     /// Convert ExecutionResult to WriteResponse (Execution Mode)
     fn convert_result_to_write_response(result: &ExecutionResult) -> ServerResult<WriteResponse> {
         let summary_text = if result.success {
-            format!("Successfully renamed {} file(s)", result.applied_files.len())
+            format!(
+                "Successfully renamed {} file(s)",
+                result.applied_files.len()
+            )
         } else {
             "Rename operation failed".to_string()
         };
@@ -520,5 +523,4 @@ mod tests {
         assert!(options.dry_run); // Default is true for safety
         assert!(options.scope.is_none());
     }
-
 }

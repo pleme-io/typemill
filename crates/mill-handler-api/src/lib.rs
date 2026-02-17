@@ -110,10 +110,8 @@ pub trait LanguagePluginRegistry: Send + Sync {
 #[async_trait]
 pub trait LspAdapter: Send + Sync + LspImportFinder {
     /// Get or create an LSP client for the given file extension
-    async fn get_or_create_client(
-        &self,
-        file_extension: &str,
-    ) -> Result<Arc<LspClient>, MillError>;
+    async fn get_or_create_client(&self, file_extension: &str)
+        -> Result<Arc<LspClient>, MillError>;
 
     /// Access to the inner adapter for downcasting
     fn as_any(&self) -> &dyn std::any::Any;

@@ -52,7 +52,10 @@ mod tests {
         let blocks = find_script_blocks(source);
         assert_eq!(blocks.len(), 1);
         let block = &blocks[0];
-        assert_eq!(&source[block.content_start..block.content_end], "const a = 1;");
+        assert_eq!(
+            &source[block.content_start..block.content_end],
+            "const a = 1;"
+        );
     }
 
     #[test]
@@ -60,7 +63,13 @@ mod tests {
         let source = r#"<script>one</script>\n<script context=\"module\">two</script>"#;
         let blocks = find_script_blocks(source);
         assert_eq!(blocks.len(), 2);
-        assert_eq!(&source[blocks[0].content_start..blocks[0].content_end], "one");
-        assert_eq!(&source[blocks[1].content_start..blocks[1].content_end], "two");
+        assert_eq!(
+            &source[blocks[0].content_start..blocks[0].content_end],
+            "one"
+        );
+        assert_eq!(
+            &source[blocks[1].content_start..blocks[1].content_end],
+            "two"
+        );
     }
 }

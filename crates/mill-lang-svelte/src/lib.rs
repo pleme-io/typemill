@@ -6,8 +6,7 @@
 use async_trait::async_trait;
 use mill_plugin_api::mill_plugin;
 use mill_plugin_api::{
-    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities,
-    PluginResult,
+    LanguageMetadata, LanguagePlugin, ManifestData, ParsedSource, PluginCapabilities, PluginResult,
 };
 use serde_json::json;
 use std::path::Path;
@@ -35,8 +34,9 @@ pub struct SveltePlugin {
 }
 
 impl SveltePlugin {
-    pub const CAPABILITIES: PluginCapabilities =
-        PluginCapabilities::none().with_imports().with_path_alias_resolver();
+    pub const CAPABILITIES: PluginCapabilities = PluginCapabilities::none()
+        .with_imports()
+        .with_path_alias_resolver();
 
     pub fn new() -> Self {
         Self {
@@ -131,8 +131,8 @@ mod tests {
     use super::*;
     use mill_plugin_api::path_alias_resolver::PathAliasResolver;
     use pretty_assertions::assert_eq;
-    use tempfile::TempDir;
     use std::path::PathBuf;
+    use tempfile::TempDir;
 
     #[test]
     fn rewrites_svelte_imports_inside_script() {
@@ -279,6 +279,4 @@ import { format } from '$lib/utils/text';
         assert!(changes >= 1, "should update at least one import");
         assert!(updated.contains("$lib/utils/text-format"));
     }
-
-    
 }

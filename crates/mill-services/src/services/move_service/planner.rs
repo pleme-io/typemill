@@ -1,12 +1,12 @@
 //! Planning logic for file and directory moves
 
-use crate::services::reference_updater::{LspImportFinder, ReferenceUpdater};
 use crate::services::reference_updater::helpers::create_import_update_edit;
+use crate::services::reference_updater::{LspImportFinder, ReferenceUpdater};
 use mill_foundation::errors::MillError as ServerError;
 use mill_foundation::protocol::EditPlan;
 use mill_plugin_api::{PluginDiscovery, ScanScope};
 use std::path::Path;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 type ServerResult<T> = Result<T, ServerError>;
 
@@ -84,7 +84,7 @@ pub async fn plan_file_move(
             "First edit in plan"
         );
     } else {
-        warn!(
+        debug!(
             old_path = %old_abs.display(),
             new_path = %new_abs.display(),
             "No edits returned from reference updater (may be expected if no imports)"
@@ -128,14 +128,9 @@ async fn append_svelte_import_edits(
             Err(_) => continue,
         };
 
-        if let Some((updated, count)) = plugin.rewrite_file_references(
-            &content,
-            old_abs,
-            new_abs,
-            &file,
-            project_root,
-            None,
-        ) {
+        if let Some((updated, count)) =
+            plugin.rewrite_file_references(&content, old_abs, new_abs, &file, project_root, None)
+        {
             if count > 0 && updated != content {
                 edit_plan.edits.push(create_import_update_edit(
                     &file,
@@ -356,7 +351,9 @@ async fn plan_documentation_and_config_edits(
     // which updates both imports AND qualified paths (e.g., crate_b::func()).
     // Including .rs here would create duplicate overlapping edits.
     let file_extensions: std::collections::HashSet<&str> =
-        ["md", "markdown", "toml", "yaml", "yml"].into_iter().collect();
+        ["md", "markdown", "toml", "yaml", "yml"]
+            .into_iter()
+            .collect();
 
     // Pre-compute the files inside the directory being moved so we can
     // update references to specific files (e.g., docs/guide.md)
@@ -460,7 +457,15 @@ async fn plan_documentation_and_config_edits(
                     };
 
                     // Return file info for plugin processing
-                    Some((file_path, content, all_renames, rename_info, moved_files, project_root, ext))
+                    Some((
+                        file_path,
+                        content,
+                        all_renames,
+                        rename_info,
+                        moved_files,
+                        project_root,
+                        ext,
+                    ))
                 });
             }
         } else {
@@ -488,7 +493,8 @@ async fn plan_documentation_and_config_edits(
 
     // Process files with plugins (using batch API)
     let mut edits = Vec::new();
-    for (file_path, content, all_renames, rename_info, moved_files, project_root, ext) in file_infos {
+    for (file_path, content, all_renames, rename_info, moved_files, project_root, ext) in file_infos
+    {
         // Find the plugin again for this extension
         if let Some(plugin) = plugin_registry.find_by_extension(&ext) {
             // OPTIMIZATION: Use batch API - single call with all renames

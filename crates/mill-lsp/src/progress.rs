@@ -416,9 +416,9 @@ impl ProgressManager {
             match tokio::time::timeout(remaining, rx.recv()).await {
                 Ok(Ok((token, state))) => {
                     let token_str = token.to_string();
-                    let is_indexing = indexing_tokens
-                        .iter()
-                        .any(|t| token_str.contains(t) || token_str.to_lowercase().contains("index"));
+                    let is_indexing = indexing_tokens.iter().any(|t| {
+                        token_str.contains(t) || token_str.to_lowercase().contains("index")
+                    });
 
                     if is_indexing {
                         match &state {

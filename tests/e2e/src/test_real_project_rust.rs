@@ -168,7 +168,10 @@ impl TestStruct {
 async fn test_thiserror_prune_module() {
     let mut ctx = THISERROR_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
 
-    ctx.create_test_file("src/to_delete.rs", "pub const DELETE_ME: &str = \"delete\";");
+    ctx.create_test_file(
+        "src/to_delete.rs",
+        "pub const DELETE_ME: &str = \"delete\";",
+    );
 
     let file_path = ctx.absolute_path("src/to_delete.rs");
     assert!(file_path.exists(), "File should exist before prune");
@@ -269,10 +272,7 @@ pub fn use_old() -> &'static str {
 async fn test_oncecell_rename_folder() {
     let mut ctx = ONCECELL_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
 
-    ctx.create_test_file(
-        "src/test_dir/mod.rs",
-        "pub mod utils;\npub mod helpers;",
-    );
+    ctx.create_test_file("src/test_dir/mod.rs", "pub mod utils;\npub mod helpers;");
     ctx.create_test_file("src/test_dir/utils.rs", "pub fn util_fn() {}");
     ctx.create_test_file("src/test_dir/helpers.rs", "pub fn helper_fn() {}");
 

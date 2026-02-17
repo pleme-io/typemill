@@ -1827,7 +1827,10 @@ fn write_daemon_root(socket_path: &std::path::Path, root: &std::path::Path) {
     if let Some(parent) = daemon_root_path(socket_path).parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    let _ = std::fs::write(daemon_root_path(socket_path), root.to_string_lossy().as_ref());
+    let _ = std::fs::write(
+        daemon_root_path(socket_path),
+        root.to_string_lossy().as_ref(),
+    );
 }
 
 #[cfg(unix)]

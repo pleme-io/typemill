@@ -175,10 +175,7 @@ class TestClass:
 async fn test_httpx_prune_module() {
     let mut ctx = HTTPX_CONTEXT.lock().unwrap_or_else(|e| e.into_inner());
 
-    ctx.create_test_file(
-        "httpx/to_delete.py",
-        "DELETE_ME = 'this will be deleted'",
-    );
+    ctx.create_test_file("httpx/to_delete.py", "DELETE_ME = 'this will be deleted'");
 
     let file_path = ctx.absolute_path("httpx/to_delete.py");
     assert!(file_path.exists(), "File should exist before prune");
@@ -453,11 +450,16 @@ def use_old() -> OldClass:
             } else if content.contains("NewClass") {
                 println!("⚠️ pydantic: Class renamed but not all references updated");
             } else {
-                println!("⚠️ pydantic: Symbol rename completed but content unchanged (LSP indexing)");
+                println!(
+                    "⚠️ pydantic: Symbol rename completed but content unchanged (LSP indexing)"
+                );
             }
         }
         Err(e) => {
-            println!("⚠️ pydantic: Symbol rename failed (LSP may need time): {}", e);
+            println!(
+                "⚠️ pydantic: Symbol rename failed (LSP may need time): {}",
+                e
+            );
         }
     }
 }
@@ -486,10 +488,7 @@ async fn test_pydantic_create_package_dry_run() {
         .expect("create_package should succeed");
 
     assert!(result.get("result").is_some());
-    assert!(
-        !pkg_path.exists(),
-        "Package should NOT exist after dry run"
-    );
+    assert!(!pkg_path.exists(), "Package should NOT exist after dry run");
     println!("✅ pydantic: Successfully dry-run create_package for Python");
 }
 

@@ -29,13 +29,11 @@
 
 use crate::test_real_projects::RealProjectContext;
 use crate::test_refactoring_matrix::{
-    RefactoringTestConfig, BuildVerification, FileTemplate,
-    TS_TEMPLATES, RS_TEMPLATES, PY_TEMPLATES,
+    BuildVerification, RefactoringTestConfig, PY_TEMPLATES, RS_TEMPLATES, TS_TEMPLATES,
 };
 use serde_json::json;
 use serial_test::serial;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
 
 // ============================================================================
 // Performance Test Configuration
@@ -107,7 +105,9 @@ impl PerformanceTestRunner {
                     let new_errors = current_errors - self.baseline_errors;
                     Err(format!(
                         "Introduced {} new errors (was: {}, now: {}): {}",
-                        new_errors, self.baseline_errors, current_errors,
+                        new_errors,
+                        self.baseline_errors,
+                        current_errors,
                         error_output.chars().take(1000).collect::<String>()
                     ))
                 }
@@ -133,7 +133,10 @@ impl PerformanceTestRunner {
     /// Print comprehensive summary table
     pub fn print_summary(&self) {
         println!("\n{}", "=".repeat(100));
-        println!("  LSP vs AST PERFORMANCE COMPARISON: {}", self.config.project_name);
+        println!(
+            "  LSP vs AST PERFORMANCE COMPARISON: {}",
+            self.config.project_name
+        );
         println!("{}\n", "=".repeat(100));
 
         // Group results by test category
@@ -150,10 +153,19 @@ impl PerformanceTestRunner {
         }
 
         // Print table header
-        println!("| {:<40} | {:<10} | {:<12} | {:<8} | {:<8} | {:<30} |",
-            "Test Name", "Type", "Duration", "Success", "Build", "Notes");
-        println!("|{}|{}|{}|{}|{}|{}|",
-            "-".repeat(42), "-".repeat(12), "-".repeat(14), "-".repeat(10), "-".repeat(10), "-".repeat(32));
+        println!(
+            "| {:<40} | {:<10} | {:<12} | {:<8} | {:<8} | {:<30} |",
+            "Test Name", "Type", "Duration", "Success", "Build", "Notes"
+        );
+        println!(
+            "|{}|{}|{}|{}|{}|{}|",
+            "-".repeat(42),
+            "-".repeat(12),
+            "-".repeat(14),
+            "-".repeat(10),
+            "-".repeat(10),
+            "-".repeat(32)
+        );
 
         for result in &self.results {
             let success_str = if result.success { "✅" } else { "❌" };
@@ -162,7 +174,8 @@ impl PerformanceTestRunner {
                 Some(false) => "❌",
                 None => "N/A",
             };
-            println!("| {:<40} | {:<10} | {:>12?} | {:<8} | {:<8} | {:<30} |",
+            println!(
+                "| {:<40} | {:<10} | {:>12?} | {:<8} | {:<8} | {:<30} |",
                 &result.test_name[..result.test_name.len().min(40)],
                 result.operation_type,
                 result.duration,
@@ -178,16 +191,30 @@ impl PerformanceTestRunner {
 
         let total = self.results.len();
         let successful = self.results.iter().filter(|r| r.success).count();
-        let builds_passed = self.results.iter().filter(|r| r.build_passed == Some(true)).count();
+        let builds_passed = self
+            .results
+            .iter()
+            .filter(|r| r.build_passed == Some(true))
+            .count();
 
         println!("  Total tests: {}", total);
-        println!("  Successful: {} ({:.1}%)", successful, (successful as f64 / total as f64) * 100.0);
-        println!("  Builds passed: {} ({:.1}%)", builds_passed, (builds_passed as f64 / total as f64) * 100.0);
+        println!(
+            "  Successful: {} ({:.1}%)",
+            successful,
+            (successful as f64 / total as f64) * 100.0
+        );
+        println!(
+            "  Builds passed: {} ({:.1}%)",
+            builds_passed,
+            (builds_passed as f64 / total as f64) * 100.0
+        );
 
         // Compare LSP vs AST for similar operations
         if !lsp_results.is_empty() && !ast_results.is_empty() {
-            let lsp_avg: Duration = lsp_results.iter().map(|r| r.duration).sum::<Duration>() / lsp_results.len() as u32;
-            let ast_avg: Duration = ast_results.iter().map(|r| r.duration).sum::<Duration>() / ast_results.len() as u32;
+            let lsp_avg: Duration =
+                lsp_results.iter().map(|r| r.duration).sum::<Duration>() / lsp_results.len() as u32;
+            let ast_avg: Duration =
+                ast_results.iter().map(|r| r.duration).sum::<Duration>() / ast_results.len() as u32;
 
             println!("\n  LSP average time: {:?}", lsp_avg);
             println!("  AST average time: {:?}", ast_avg);
@@ -214,23 +241,29 @@ impl PerformanceTestRunner {
         println!("\n🔬 Running: {}", test_name);
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "search_code",
-            json!({
-                "query": "function"
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "search_code",
+                json!({
+                    "query": "function"
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error, notes) = match result {
             Ok(resp) => {
-                let count = resp.get("result")
+                let count = resp
+                    .get("result")
                     .and_then(|r| r.as_array())
                     .map(|a| a.len())
-                    .or_else(|| resp.get("result")
-                        .and_then(|r| r.get("results"))
-                        .and_then(|s| s.as_array())
-                        .map(|a| a.len()))
+                    .or_else(|| {
+                        resp.get("result")
+                            .and_then(|r| r.get("results"))
+                            .and_then(|s| s.as_array())
+                            .map(|a| a.len())
+                    })
                     .unwrap_or(0);
                 (true, None, format!("Found {} symbols", count))
             }
@@ -270,24 +303,37 @@ impl PerformanceTestRunner {
         let file_path = warmup_file.unwrap();
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "inspect_code",
-            json!({
-                "filePath": file_path.to_string_lossy(),
-                "line": 5,
-                "character": 10,
-                "include": ["definition"]
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "inspect_code",
+                json!({
+                    "filePath": file_path.to_string_lossy(),
+                    "line": 5,
+                    "character": 10,
+                    "include": ["definition"]
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error, notes) = match result {
             Ok(resp) => {
-                let has_def = resp.get("result")
+                let has_def = resp
+                    .get("result")
                     .and_then(|r| r.get("content"))
                     .and_then(|c| c.get("definition"))
                     .is_some();
-                (true, None, if has_def { "Definition found" } else { "No definition" }.to_string())
+                (
+                    true,
+                    None,
+                    if has_def {
+                        "Definition found"
+                    } else {
+                        "No definition"
+                    }
+                    .to_string(),
+                )
             }
             Err(e) => (false, Some(e.to_string()), "Lookup failed".to_string()),
         };
@@ -324,20 +370,24 @@ impl PerformanceTestRunner {
         let file_path = warmup_file.unwrap();
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "inspect_code",
-            json!({
-                "filePath": file_path.to_string_lossy(),
-                "line": 5,
-                "character": 10,
-                "include": ["references"]
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "inspect_code",
+                json!({
+                    "filePath": file_path.to_string_lossy(),
+                    "line": 5,
+                    "character": 10,
+                    "include": ["references"]
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error, notes) = match result {
             Ok(resp) => {
-                let ref_count = resp.get("result")
+                let ref_count = resp
+                    .get("result")
                     .and_then(|r| r.get("content"))
                     .and_then(|c| c.get("references"))
                     .and_then(|refs| refs.get("locations"))
@@ -381,20 +431,24 @@ impl PerformanceTestRunner {
         let file_path = warmup_file.unwrap();
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "inspect_code",
-            json!({
-                "filePath": file_path.to_string_lossy(),
-                "line": 1,
-                "character": 0,
-                "include": ["diagnostics"]
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "inspect_code",
+                json!({
+                    "filePath": file_path.to_string_lossy(),
+                    "line": 1,
+                    "character": 0,
+                    "include": ["diagnostics"]
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error, notes) = match result {
             Ok(resp) => {
-                let diag_count = resp.get("result")
+                let diag_count = resp
+                    .get("result")
                     .and_then(|r| r.get("content"))
                     .and_then(|c| c.get("diagnostics"))
                     .and_then(|d| d.as_array())
@@ -434,18 +488,25 @@ impl PerformanceTestRunner {
             self.config.file_template.simple_module,
         );
 
-        let old_path = self.ctx.absolute_path(&format!("{}/perf_ast_test.{}", src_dir, ext));
-        let new_path = self.ctx.absolute_path(&format!("{}/perf_ast_renamed.{}", src_dir, ext));
+        let old_path = self
+            .ctx
+            .absolute_path(&format!("{}/perf_ast_test.{}", src_dir, ext));
+        let new_path = self
+            .ctx
+            .absolute_path(&format!("{}/perf_ast_renamed.{}", src_dir, ext));
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "rename_all",
-            json!({
-                "target": { "kind": "file", "filePath": old_path.to_string_lossy() },
-                "newName": new_path.to_string_lossy(),
-                "options": { "dryRun": false }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "rename_all",
+                json!({
+                    "target": { "kind": "file", "filePath": old_path.to_string_lossy() },
+                    "newName": new_path.to_string_lossy(),
+                    "options": { "dryRun": false }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error) = match result {
@@ -492,17 +553,22 @@ impl PerformanceTestRunner {
         );
 
         let old_path = self.ctx.absolute_path(&format!("{}/perf_dir", src_dir));
-        let new_path = self.ctx.absolute_path(&format!("{}/perf_dir_renamed", src_dir));
+        let new_path = self
+            .ctx
+            .absolute_path(&format!("{}/perf_dir_renamed", src_dir));
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "rename_all",
-            json!({
-                "target": { "kind": "directory", "filePath": old_path.to_string_lossy() },
-                "newName": new_path.to_string_lossy(),
-                "options": { "dryRun": false }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "rename_all",
+                json!({
+                    "target": { "kind": "directory", "filePath": old_path.to_string_lossy() },
+                    "newName": new_path.to_string_lossy(),
+                    "options": { "dryRun": false }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error) = match result {
@@ -548,18 +614,25 @@ impl PerformanceTestRunner {
         let dest_dir = self.ctx.absolute_path(&format!("{}/perf_subdir", src_dir));
         std::fs::create_dir_all(&dest_dir).ok();
 
-        let source = self.ctx.absolute_path(&format!("{}/perf_move_test.{}", src_dir, ext));
-        let dest = self.ctx.absolute_path(&format!("{}/perf_subdir/perf_move_test.{}", src_dir, ext));
+        let source = self
+            .ctx
+            .absolute_path(&format!("{}/perf_move_test.{}", src_dir, ext));
+        let dest = self
+            .ctx
+            .absolute_path(&format!("{}/perf_subdir/perf_move_test.{}", src_dir, ext));
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "relocate",
-            json!({
-                "target": { "kind": "file", "filePath": source.to_string_lossy() },
-                "destination": dest.to_string_lossy(),
-                "options": { "dryRun": false }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "relocate",
+                json!({
+                    "target": { "kind": "file", "filePath": source.to_string_lossy() },
+                    "destination": dest.to_string_lossy(),
+                    "options": { "dryRun": false }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error) = match result {
@@ -602,18 +675,21 @@ impl PerformanceTestRunner {
         );
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "workspace",
-            json!({
-                "action": "find_replace",
-                "params": {
-                    "pattern": "OLD_PERF_VALUE",
-                    "replacement": "NEW_PERF_VALUE",
-                    "mode": "literal"
-                },
-                "options": { "dryRun": false }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "workspace",
+                json!({
+                    "action": "find_replace",
+                    "params": {
+                        "pattern": "OLD_PERF_VALUE",
+                        "replacement": "NEW_PERF_VALUE",
+                        "mode": "literal"
+                    },
+                    "options": { "dryRun": false }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error) = match result {
@@ -622,7 +698,10 @@ impl PerformanceTestRunner {
         };
 
         // Cleanup
-        let _ = std::fs::remove_file(self.ctx.absolute_path(&format!("{}/perf_replace.{}", src_dir, ext)));
+        let _ = std::fs::remove_file(
+            self.ctx
+                .absolute_path(&format!("{}/perf_replace.{}", src_dir, ext)),
+        );
 
         self.record(PerformanceResult {
             test_name: test_name.to_string(),
@@ -649,16 +728,21 @@ impl PerformanceTestRunner {
             self.config.file_template.simple_module,
         );
 
-        let file_path = self.ctx.absolute_path(&format!("{}/perf_delete.{}", src_dir, ext));
+        let file_path = self
+            .ctx
+            .absolute_path(&format!("{}/perf_delete.{}", src_dir, ext));
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "prune",
-            json!({
-                "target": { "kind": "file", "filePath": file_path.to_string_lossy() },
-                "options": { "dryRun": false }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "prune",
+                json!({
+                    "target": { "kind": "file", "filePath": file_path.to_string_lossy() },
+                    "options": { "dryRun": false }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error) = match result {
@@ -705,7 +789,10 @@ impl PerformanceTestRunner {
 
         // Create multiple files that import from it (to simulate real-world scenario)
         for i in 0..5 {
-            let import_content = self.config.file_template.import_template
+            let import_content = self
+                .config
+                .file_template
+                .import_template
                 .replace("{import_path}", "perf_export_module");
             self.ctx.create_test_file(
                 &format!("{}/perf_importer_{}.{}", src_dir, i, ext),
@@ -717,23 +804,31 @@ impl PerformanceTestRunner {
         let test_name_preview = "hybrid_rename_preview";
         println!("\n🔬 Running: {}", test_name_preview);
 
-        let old_path = self.ctx.absolute_path(&format!("{}/perf_export_module.{}", src_dir, ext));
-        let new_path = self.ctx.absolute_path(&format!("{}/perf_export_module_renamed.{}", src_dir, ext));
+        let old_path = self
+            .ctx
+            .absolute_path(&format!("{}/perf_export_module.{}", src_dir, ext));
+        let new_path = self
+            .ctx
+            .absolute_path(&format!("{}/perf_export_module_renamed.{}", src_dir, ext));
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "rename_all",
-            json!({
-                "target": { "kind": "file", "filePath": old_path.to_string_lossy() },
-                "newName": new_path.to_string_lossy(),
-                "options": { "dryRun": true }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "rename_all",
+                json!({
+                    "target": { "kind": "file", "filePath": old_path.to_string_lossy() },
+                    "newName": new_path.to_string_lossy(),
+                    "options": { "dryRun": true }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error, notes) = match &result {
             Ok(resp) => {
-                let affected = resp.get("result")
+                let affected = resp
+                    .get("result")
                     .and_then(|r| r.get("content"))
                     .and_then(|c| c.get("filesChanged"))
                     .and_then(|f| f.as_array())
@@ -759,14 +854,17 @@ impl PerformanceTestRunner {
         println!("\n🔬 Running: {}", test_name_execute);
 
         let start = Instant::now();
-        let result = self.ctx.call_tool(
-            "rename_all",
-            json!({
-                "target": { "kind": "file", "filePath": old_path.to_string_lossy() },
-                "newName": new_path.to_string_lossy(),
-                "options": { "dryRun": false }
-            })
-        ).await;
+        let result = self
+            .ctx
+            .call_tool(
+                "rename_all",
+                json!({
+                    "target": { "kind": "file", "filePath": old_path.to_string_lossy() },
+                    "newName": new_path.to_string_lossy(),
+                    "options": { "dryRun": false }
+                }),
+            )
+            .await;
         let duration = start.elapsed();
 
         let (success, error) = match result {
@@ -783,7 +881,10 @@ impl PerformanceTestRunner {
         // Cleanup all test files
         let _ = std::fs::remove_file(&new_path);
         for i in 0..5 {
-            let _ = std::fs::remove_file(self.ctx.absolute_path(&format!("{}/perf_importer_{}.{}", src_dir, i, ext)));
+            let _ = std::fs::remove_file(
+                self.ctx
+                    .absolute_path(&format!("{}/perf_importer_{}.{}", src_dir, i, ext)),
+            );
         }
 
         self.record(PerformanceResult {
@@ -829,7 +930,10 @@ impl PerformanceTestRunner {
     /// Run all performance tests
     pub async fn run_all(&mut self) {
         println!("\n{}", "=".repeat(100));
-        println!("  LSP vs AST PERFORMANCE TESTS: {}", self.config.project_name);
+        println!(
+            "  LSP vs AST PERFORMANCE TESTS: {}",
+            self.config.project_name
+        );
         println!("{}\n", "=".repeat(100));
 
         // Warmup

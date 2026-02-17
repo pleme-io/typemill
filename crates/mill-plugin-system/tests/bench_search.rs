@@ -1,7 +1,7 @@
+use async_trait::async_trait;
+use mill_plugin_api::SymbolKind;
 use mill_plugin_system::adapters::lsp_adapter::{LspAdapterPlugin, LspService};
 use mill_plugin_system::{LanguagePlugin, PluginRequest, PluginResponse};
-use mill_plugin_api::SymbolKind;
-use async_trait::async_trait;
 use serde_json::{json, Map, Number, Value};
 use std::sync::Arc;
 use std::time::Instant;
@@ -98,7 +98,10 @@ async fn benchmark_search_workspace_symbols() {
 
     if let Some(Value::Array(results)) = response.data {
         println!("Received {} symbols", results.len());
-        assert!(results.len() > 700 && results.len() < 800, "Should have filtered results to approx 769");
+        assert!(
+            results.len() > 700 && results.len() < 800,
+            "Should have filtered results to approx 769"
+        );
     } else {
         panic!("Expected array response");
     }

@@ -63,6 +63,10 @@ async fn test_valid_command_parsing() {
 
     if status == "error" {
         let err_msg = val["validation_error"].as_str().unwrap();
-        assert!(!err_msg.contains("Security Error"), "Should not be a security error: {}", err_msg);
+        assert!(
+            !err_msg.contains("Security Error"),
+            "Should not be a security error: {}",
+            err_msg
+        );
     }
 }

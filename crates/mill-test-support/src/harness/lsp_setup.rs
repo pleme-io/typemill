@@ -6,6 +6,14 @@ use std::process::Command;
 pub struct LspSetupHelper;
 
 impl LspSetupHelper {
+    fn command_is_healthy(command: &str) -> bool {
+        Command::new(command)
+            .arg("--version")
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }
+
     /// Check if required LSP servers are available on the system
     /// Note: Language support temporarily reduced to TypeScript + Rust
     pub fn check_lsp_servers_available() -> Result<(), String> {
@@ -23,6 +31,43 @@ impl LspSetupHelper {
         // We don't fail if it's missing since it's usually present
 
         Ok(())
+    }
+
+    fn lsp_server_entry(
+        command_name: &str,
+        extensions: &[&str],
+        root_dir: &str,
+    ) -> Option<serde_json::Value> {
+        let resolved = Self::resolve_command_path(command_name);
+        if resolved.is_none() {
+            eprintln!(
+                "DEBUG: Skipping unavailable LSP server '{}' from test config",
+                command_name
+            );
+            return None;
+        }
+
+        let cmd = resolved.unwrap();
+        if !Self::command_is_healthy(&cmd) {
+            eprintln!(
+                "DEBUG: Skipping unhealthy LSP server '{}' (resolved to '{}') from test config",
+                command_name, cmd
+            );
+            return None;
+        }
+
+        let command = if command_name == "typescript-language-server" {
+            json!([cmd, "--stdio"])
+        } else {
+            json!([cmd])
+        };
+
+        Some(json!({
+            "extensions": extensions,
+            "command": command,
+            "rootDir": root_dir,
+            "restartInterval": 5
+        }))
     }
 
     /// Check if a command is available on the system
@@ -98,18 +143,30 @@ impl LspSetupHelper {
                 "include": ["**/*"],
                 "exclude": ["node_modules"]
             });
-            workspace.create_file("tsconfig.json", &serde_json::to_string_pretty(&tsconfig).unwrap());
+            workspace.create_file(
+                "tsconfig.json",
+                &serde_json::to_string_pretty(&tsconfig).unwrap(),
+            );
         }
 
-        // Resolve absolute paths for LSP servers to avoid PATH issues
-        let ts_lsp_path = Self::resolve_command_path("typescript-language-server")
-            .unwrap_or_else(|| "typescript-language-server".to_string());
-        let rust_analyzer_path = Self::resolve_command_path("rust-analyzer")
-            .unwrap_or_else(|| "rust-analyzer".to_string());
+        // Resolve and keep only available LSP servers to avoid 60s startup timeouts
+        let root_dir = workspace.path().to_string_lossy().to_string();
+        let mut servers = Vec::new();
+        if let Some(server) = Self::lsp_server_entry(
+            "typescript-language-server",
+            &["ts", "tsx", "js", "jsx"],
+            &root_dir,
+        ) {
+            servers.push(server);
+        }
+        if let Some(server) = Self::lsp_server_entry("rust-analyzer", &["rs"], &root_dir) {
+            servers.push(server);
+        }
 
-        // Always log LSP paths for debugging test failures
-        eprintln!("DEBUG: Resolved TypeScript LSP path: {}", ts_lsp_path);
-        eprintln!("DEBUG: Resolved Rust LSP path: {}", rust_analyzer_path);
+        eprintln!(
+            "DEBUG: Enabled {} LSP servers for test workspace",
+            servers.len()
+        );
 
         // Create a full AppConfig structure to ensure proper deserialization
         let config = json!({
@@ -119,20 +176,7 @@ impl LspSetupHelper {
                 "timeoutMs": 30000
             },
             "lsp": {
-                "servers": [
-                    {
-                        "extensions": ["ts", "tsx", "js", "jsx"],
-                        "command": [ts_lsp_path, "--stdio"],
-                        "rootDir": workspace.path().to_string_lossy(),
-                        "restartInterval": 5
-                    },
-                    {
-                        "extensions": ["rs"],
-                        "command": [rust_analyzer_path],
-                        "rootDir": workspace.path().to_string_lossy(),
-                        "restartInterval": 5
-                    }
-                ],
+                "servers": servers,
                 "defaultTimeoutMs": 30000,
                 "enablePreload": true
             },
@@ -172,6 +216,71 @@ impl LspSetupHelper {
                 eprintln!("DEBUG: WARNING: Config file could not be read!");
             }
         }
+    }
+
+    pub fn prune_unavailable_lsp_servers(workspace: &TestWorkspace) -> Result<bool, String> {
+        let config_path = workspace.path().join(".typemill/config.json");
+        let content = std::fs::read_to_string(&config_path)
+            .map_err(|e| format!("Failed to read {}: {}", config_path.display(), e))?;
+
+        let mut config: serde_json::Value = serde_json::from_str(&content)
+            .map_err(|e| format!("Failed to parse {}: {}", config_path.display(), e))?;
+
+        let (before, after) = {
+            let Some(servers) = config
+                .get_mut("lsp")
+                .and_then(|lsp| lsp.get_mut("servers"))
+                .and_then(|servers| servers.as_array_mut())
+            else {
+                return Ok(true);
+            };
+
+            let before = servers.len();
+            servers.retain(|server| {
+                let command = server
+                    .get("command")
+                    .and_then(|c| c.as_array())
+                    .and_then(|arr| arr.first())
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
+
+                let keep = !command.is_empty() && Self::command_is_healthy(command);
+                if !keep {
+                    eprintln!(
+                        "DEBUG: Disabling unavailable/unhealthy LSP server command '{}' in {}",
+                        command,
+                        config_path.display()
+                    );
+                }
+                keep
+            });
+
+            (before, servers.len())
+        };
+
+        if before != after {
+            if let Some(lsp_obj) = config.get_mut("lsp").and_then(|v| v.as_object_mut()) {
+                if after == 0 {
+                    lsp_obj.insert("enablePreload".to_string(), serde_json::Value::Bool(false));
+                }
+            }
+
+            std::fs::write(
+                &config_path,
+                serde_json::to_string_pretty(&config)
+                    .map_err(|e| format!("Failed to serialize {}: {}", config_path.display(), e))?,
+            )
+            .map_err(|e| format!("Failed to write {}: {}", config_path.display(), e))?;
+
+            eprintln!(
+                "DEBUG: Pruned LSP servers in {}: {} -> {}",
+                config_path.display(),
+                before,
+                after
+            );
+        }
+
+        Ok(after > 0)
     }
 
     /// Resolve full path for a command
@@ -230,12 +339,20 @@ impl LspSetupHelper {
         match extension {
             "ts" | "tsx" | "js" | "jsx" => {
                 let ts_lsp_path = Self::resolve_command_path("typescript-language-server")
-                    .unwrap_or_else(|| "typescript-language-server".to_string());
+                    .ok_or_else(|| {
+                        mill_foundation::errors::MillError::lsp(
+                            "TypeScript LSP server not available".to_string(),
+                        )
+                    })?;
                 Ok(vec![ts_lsp_path, "--stdio".to_string()])
             }
             "rs" => {
-                let rust_analyzer_path = Self::resolve_command_path("rust-analyzer")
-                    .unwrap_or_else(|| "rust-analyzer".to_string());
+                let rust_analyzer_path =
+                    Self::resolve_command_path("rust-analyzer").ok_or_else(|| {
+                        mill_foundation::errors::MillError::lsp(
+                            "rust-analyzer not available".to_string(),
+                        )
+                    })?;
                 Ok(vec![rust_analyzer_path])
             }
             _ => Err(mill_foundation::errors::MillError::lsp(format!(

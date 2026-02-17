@@ -428,7 +428,9 @@ export function createFormattedId(raw: string) {
     if main_content.contains("./utils/helpers") {
         println!("✅ nanoid: Import path updated correctly");
     } else {
-        println!("⚠️ nanoid: File moved but imports may not be updated (expected for non-LSP move)");
+        println!(
+            "⚠️ nanoid: File moved but imports may not be updated (expected for non-LSP move)"
+        );
     }
 
     // Verify project still type-checks after move

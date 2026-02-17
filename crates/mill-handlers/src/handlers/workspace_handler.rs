@@ -633,12 +633,14 @@ impl WorkspaceHandler {
         let sub_action_clone = sub_action.clone();
 
         // Read Cargo.toml asynchronously
-        let cargo_content = tokio::fs::read_to_string(&manifest_path).await.map_err(|e| {
-            ServerError::invalid_request(format!(
-                "Failed to read workspace manifest '{}': {}",
-                manifest_path, e
-            ))
-        })?;
+        let cargo_content = tokio::fs::read_to_string(&manifest_path)
+            .await
+            .map_err(|e| {
+                ServerError::invalid_request(format!(
+                    "Failed to read workspace manifest '{}': {}",
+                    manifest_path, e
+                ))
+            })?;
 
         let (members_before, members_after, changes_made, workspace_updated, new_content) =
             tokio::task::spawn_blocking(move || {
@@ -759,12 +761,14 @@ impl WorkspaceHandler {
             .map_err(|e| ServerError::internal(format!("Task join error: {}", e)))??;
 
         if let Some(content) = new_content {
-            tokio::fs::write(&manifest_path, content).await.map_err(|e| {
-                ServerError::invalid_request(format!(
-                    "Failed to write workspace manifest: {}",
-                    e
-                ))
-            })?;
+            tokio::fs::write(&manifest_path, content)
+                .await
+                .map_err(|e| {
+                    ServerError::invalid_request(format!(
+                        "Failed to write workspace manifest: {}",
+                        e
+                    ))
+                })?;
         }
 
         let summary = match sub_action.as_str() {
@@ -808,29 +812,84 @@ impl WorkspaceHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::{Path, PathBuf};
-    use std::sync::Arc;
-    use tokio::sync::Mutex;
-    use mill_handler_api::{FileService, LanguagePluginRegistry};
     use mill_foundation::core::dry_run::DryRunnable;
     use mill_foundation::errors::MillError;
     use mill_foundation::protocol::EditPlan;
+    use mill_handler_api::{FileService, LanguagePluginRegistry};
     use mill_plugin_api::{LanguagePlugin, ScanScope};
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
 
     // Mock implementations
     struct DummyFileService;
     #[async_trait]
     impl FileService for DummyFileService {
-        async fn read_file(&self, _: &Path) -> Result<String, MillError> { Ok("".to_string()) }
-        async fn list_files(&self, _: &Path, _: bool) -> Result<Vec<String>, MillError> { Ok(vec![]) }
-        async fn write_file(&self, _: &Path, _: &str, _: bool) -> Result<DryRunnable<Value>, MillError> { Ok(DryRunnable::new(false, Value::Null)) }
-        async fn delete_file(&self, _: &Path, _: bool, _: bool) -> Result<DryRunnable<Value>, MillError> { Ok(DryRunnable::new(false, Value::Null)) }
-        async fn create_file(&self, _: &Path, _: Option<&str>, _: bool, _: bool) -> Result<DryRunnable<Value>, MillError> { Ok(DryRunnable::new(false, Value::Null)) }
-        async fn rename_file_with_imports(&self, _: &Path, _: &Path, _: bool, _: Option<ScanScope>) -> Result<DryRunnable<Value>, MillError> { Ok(DryRunnable::new(false, Value::Null)) }
-        async fn rename_directory_with_imports(&self, _: &Path, _: &Path, _: bool, _: Option<ScanScope>, _: bool) -> Result<DryRunnable<Value>, MillError> { Ok(DryRunnable::new(false, Value::Null)) }
-        async fn list_files_with_pattern(&self, _: &Path, _: bool, _: Option<&str>) -> Result<Vec<String>, MillError> { Ok(vec![]) }
-        fn to_absolute_path_checked(&self, p: &Path) -> Result<PathBuf, MillError> { Ok(p.to_path_buf()) }
-        async fn apply_edit_plan(&self, _: &EditPlan) -> Result<mill_foundation::protocol::EditPlanResult, MillError> {
+        async fn read_file(&self, _: &Path) -> Result<String, MillError> {
+            Ok("".to_string())
+        }
+        async fn list_files(&self, _: &Path, _: bool) -> Result<Vec<String>, MillError> {
+            Ok(vec![])
+        }
+        async fn write_file(
+            &self,
+            _: &Path,
+            _: &str,
+            _: bool,
+        ) -> Result<DryRunnable<Value>, MillError> {
+            Ok(DryRunnable::new(false, Value::Null))
+        }
+        async fn delete_file(
+            &self,
+            _: &Path,
+            _: bool,
+            _: bool,
+        ) -> Result<DryRunnable<Value>, MillError> {
+            Ok(DryRunnable::new(false, Value::Null))
+        }
+        async fn create_file(
+            &self,
+            _: &Path,
+            _: Option<&str>,
+            _: bool,
+            _: bool,
+        ) -> Result<DryRunnable<Value>, MillError> {
+            Ok(DryRunnable::new(false, Value::Null))
+        }
+        async fn rename_file_with_imports(
+            &self,
+            _: &Path,
+            _: &Path,
+            _: bool,
+            _: Option<ScanScope>,
+        ) -> Result<DryRunnable<Value>, MillError> {
+            Ok(DryRunnable::new(false, Value::Null))
+        }
+        async fn rename_directory_with_imports(
+            &self,
+            _: &Path,
+            _: &Path,
+            _: bool,
+            _: Option<ScanScope>,
+            _: bool,
+        ) -> Result<DryRunnable<Value>, MillError> {
+            Ok(DryRunnable::new(false, Value::Null))
+        }
+        async fn list_files_with_pattern(
+            &self,
+            _: &Path,
+            _: bool,
+            _: Option<&str>,
+        ) -> Result<Vec<String>, MillError> {
+            Ok(vec![])
+        }
+        fn to_absolute_path_checked(&self, p: &Path) -> Result<PathBuf, MillError> {
+            Ok(p.to_path_buf())
+        }
+        async fn apply_edit_plan(
+            &self,
+            _: &EditPlan,
+        ) -> Result<mill_foundation::protocol::EditPlanResult, MillError> {
             Ok(mill_foundation::protocol::EditPlanResult {
                 success: true,
                 modified_files: vec![],
@@ -842,17 +901,25 @@ mod tests {
                     complexity: 0,
                     impact_areas: vec![],
                     consolidation: None,
-                }
+                },
             })
         }
     }
 
     struct DummyPluginRegistry;
     impl LanguagePluginRegistry for DummyPluginRegistry {
-        fn get_plugin(&self, _: &str) -> Option<&dyn LanguagePlugin> { None }
-        fn supported_extensions(&self) -> Vec<String> { vec![] }
-        fn get_plugin_for_manifest(&self, _: &Path) -> Option<&dyn LanguagePlugin> { None }
-        fn inner(&self) -> &dyn std::any::Any { self }
+        fn get_plugin(&self, _: &str) -> Option<&dyn LanguagePlugin> {
+            None
+        }
+        fn supported_extensions(&self) -> Vec<String> {
+            vec![]
+        }
+        fn get_plugin_for_manifest(&self, _: &Path) -> Option<&dyn LanguagePlugin> {
+            None
+        }
+        fn inner(&self) -> &dyn std::any::Any {
+            self
+        }
     }
 
     #[test]
@@ -869,17 +936,21 @@ mod tests {
         let cargo_toml_path = temp_dir.path().join("Cargo.toml");
 
         // Create a larger Cargo.toml to make I/O more significant
-        let mut cargo_content = String::from(r#"
+        let mut cargo_content = String::from(
+            r#"
 [workspace]
 members = [
-"#);
+"#,
+        );
         // Add 1000 members to make the file larger and parsing/writing more substantial
         for i in 0..1000 {
             cargo_content.push_str(&format!("    \"member_{}\",\n", i));
         }
         cargo_content.push_str("]\n");
 
-        tokio::fs::write(&cargo_toml_path, &cargo_content).await.unwrap();
+        tokio::fs::write(&cargo_toml_path, &cargo_content)
+            .await
+            .unwrap();
 
         let handler = WorkspaceHandler::new();
 
@@ -918,7 +989,10 @@ members = [
         };
 
         let start = Instant::now();
-        let result = handler.handle_tool_call(&context, &tool_call).await.unwrap();
+        let result = handler
+            .handle_tool_call(&context, &tool_call)
+            .await
+            .unwrap();
         let duration = start.elapsed();
 
         println!("test_update_members_performance took: {:?}", duration);
@@ -936,7 +1010,9 @@ members = [
 [workspace]
 members = []
 "#;
-        tokio::fs::write(&cargo_toml_path, cargo_content).await.unwrap();
+        tokio::fs::write(&cargo_toml_path, cargo_content)
+            .await
+            .unwrap();
 
         let handler = WorkspaceHandler::new();
 
@@ -974,7 +1050,10 @@ members = []
             arguments: Some(args),
         };
 
-        let result = handler.handle_tool_call(&context, &tool_call).await.unwrap();
+        let result = handler
+            .handle_tool_call(&context, &tool_call)
+            .await
+            .unwrap();
 
         // Verify response
         assert_eq!(result["status"], "success");
@@ -983,5 +1062,4 @@ members = []
         let new_content = tokio::fs::read_to_string(&cargo_toml_path).await.unwrap();
         assert!(new_content.contains("\"new_member\""));
     }
-
 }

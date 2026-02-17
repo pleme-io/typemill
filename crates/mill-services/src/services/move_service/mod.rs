@@ -487,9 +487,7 @@ mod tests {
         registry.register(std::sync::Arc::from(
             mill_lang_typescript::TypeScriptPlugin::new(),
         ));
-        registry.register(std::sync::Arc::from(
-            mill_lang_svelte::SveltePlugin::boxed(),
-        ));
+        registry.register(std::sync::Arc::from(mill_lang_svelte::SveltePlugin::boxed()));
 
         let reference_updater = ReferenceUpdater::new(&project_root);
         let service = MoveService::new(&reference_updater, &registry, &project_root);

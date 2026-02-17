@@ -8,6 +8,7 @@
 //! - Dry-run mode for safe previewing
 
 use crate::handlers::workspace::{case_preserving, literal_matcher, regex_matcher};
+use memchr::memmem;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
 use mill_foundation::protocol::{EditLocation, EditPlan, EditPlanMetadata, EditType, TextEdit};
 use regex;
@@ -15,7 +16,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use tokio::io::AsyncReadExt;
 use tracing::{debug, error, info};
+
+const STREAM_SCAN_THRESHOLD_BYTES: u64 = 1_000_000;
+const STREAM_SCAN_CHUNK_BYTES: usize = 64 * 1024;
 
 /// Parameters for find/replace operations
 #[derive(Debug, Deserialize)]
@@ -120,6 +125,7 @@ fn default_excludes() -> Vec<String> {
         "**/*.gif".into(),
         "**/*.ico".into(),
         "**/*.webp".into(),
+        "**/*.avif".into(),
         "**/*.svg".into(),
         "**/*.bmp".into(),
         // Font files
@@ -137,10 +143,12 @@ fn default_excludes() -> Vec<String> {
         // Media files
         "**/*.mp3".into(),
         "**/*.mp4".into(),
+        "**/*.webm".into(),
         "**/*.wav".into(),
         "**/*.avi".into(),
         "**/*.mov".into(),
         // Other binary files
+        "**/*.glb".into(),
         "**/*.pdf".into(),
         "**/*.exe".into(),
         "**/*.dll".into(),
@@ -354,14 +362,133 @@ async fn discover_files(
     Ok(files)
 }
 
+fn is_likely_binary_file(path: &Path) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    matches!(
+        ext.as_str(),
+        "png"
+            | "jpg"
+            | "jpeg"
+            | "gif"
+            | "ico"
+            | "webp"
+            | "avif"
+            | "svg"
+            | "bmp"
+            | "woff"
+            | "woff2"
+            | "ttf"
+            | "otf"
+            | "eot"
+            | "zip"
+            | "tar"
+            | "gz"
+            | "rar"
+            | "7z"
+            | "mp3"
+            | "mp4"
+            | "webm"
+            | "wav"
+            | "avi"
+            | "mov"
+            | "glb"
+            | "pdf"
+            | "exe"
+            | "dll"
+            | "so"
+            | "dylib"
+            | "wasm"
+    )
+}
+
+async fn file_may_contain_literal(path: &Path, pattern: &[u8]) -> Result<bool, ServerError> {
+    if pattern.is_empty() {
+        return Ok(true);
+    }
+
+    let metadata = tokio::fs::metadata(path)
+        .await
+        .map_err(|e| ServerError::internal(format!("Failed to read metadata: {}", e)))?;
+
+    // Small files: single read is faster than chunk orchestration.
+    if metadata.len() <= STREAM_SCAN_THRESHOLD_BYTES {
+        let bytes = tokio::fs::read(path)
+            .await
+            .map_err(|e| ServerError::internal(format!("Failed to read file: {}", e)))?;
+        return Ok(memmem::find(&bytes, pattern).is_some());
+    }
+
+    // Large files: stream in chunks to avoid loading full content in memory.
+    let mut file = tokio::fs::File::open(path)
+        .await
+        .map_err(|e| ServerError::internal(format!("Failed to open file: {}", e)))?;
+    let finder = memmem::Finder::new(pattern);
+    let overlap = pattern.len().saturating_sub(1);
+
+    let mut carry: Vec<u8> = Vec::new();
+    let mut buf = vec![0u8; STREAM_SCAN_CHUNK_BYTES];
+
+    loop {
+        let read = file
+            .read(&mut buf)
+            .await
+            .map_err(|e| ServerError::internal(format!("Failed to stream file: {}", e)))?;
+
+        if read == 0 {
+            return Ok(false);
+        }
+
+        let chunk = &buf[..read];
+        let mut scan_buf = Vec::with_capacity(carry.len() + chunk.len());
+        scan_buf.extend_from_slice(&carry);
+        scan_buf.extend_from_slice(chunk);
+
+        if finder.find(&scan_buf).is_some() {
+            return Ok(true);
+        }
+
+        if overlap == 0 {
+            carry.clear();
+        } else if scan_buf.len() > overlap {
+            carry = scan_buf[scan_buf.len() - overlap..].to_vec();
+        } else {
+            carry = scan_buf;
+        }
+    }
+}
+
 /// Process a single file and find all matches
 async fn process_file(
     file_path: &Path,
     params: &FindReplaceParams,
-    context: &mill_handler_api::ToolHandlerContext,
+    _context: &mill_handler_api::ToolHandlerContext,
 ) -> Result<FileEdits, ServerError> {
-    // Read file content
-    let content = context
+    if is_likely_binary_file(file_path) {
+        return Ok(FileEdits {
+            file_path: file_path.to_path_buf(),
+            edits: Vec::new(),
+        });
+    }
+
+    // Fast literal prefilter. For large files we use chunked streaming scan to avoid
+    // loading whole files when there is no candidate byte match.
+    if params.mode == SearchMode::Literal
+        && !params.pattern.is_empty()
+        && !file_may_contain_literal(file_path, params.pattern.as_bytes()).await?
+    {
+        return Ok(FileEdits {
+            file_path: file_path.to_path_buf(),
+            edits: Vec::new(),
+        });
+    }
+
+    // Read file content only after passing prefilters.
+    let content = _context
         .app_state
         .file_service
         .read_file(file_path)
@@ -820,7 +947,6 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Edit conflict"));
     }
-
 }
 
 #[cfg(test)]
@@ -857,7 +983,11 @@ mod benchmarks {
             });
         }
 
-        println!("Benchmarking apply_edits with {} edits on {} lines...", edits.len(), 10000);
+        println!(
+            "Benchmarking apply_edits with {} edits on {} lines...",
+            edits.len(),
+            10000
+        );
 
         // Run Optimized
         let start_opt = Instant::now();
@@ -866,6 +996,9 @@ mod benchmarks {
         println!("Optimized implementation: {:?}", duration_opt);
 
         // Assert performance is reasonable (< 100ms)
-        assert!(duration_opt.as_millis() < 100, "Optimized implementation should be faster than 100ms");
+        assert!(
+            duration_opt.as_millis() < 100,
+            "Optimized implementation should be faster than 100ms"
+        );
     }
 }

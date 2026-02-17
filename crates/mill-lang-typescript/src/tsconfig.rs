@@ -151,7 +151,6 @@ impl TsConfig {
 
         Ok(resolved)
     }
-
 }
 
 /// Strip JSON comments from content

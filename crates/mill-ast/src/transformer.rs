@@ -263,34 +263,37 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         // Advance lines until start_line
         let mut advance_failed = false;
         while current_line < start_line {
-             match source[current_byte_idx..].find('\n') {
+            match source[current_byte_idx..].find('\n') {
                 Some(idx) => {
                     current_byte_idx += idx + 1; // Skip past \n
                     current_line += 1;
                 }
                 None => {
-                     // Check if we are appending at EOF (allowed if start_line == num_lines)
-                     // But we don't know num_lines exactly without full scan?
-                     // Actually, if we hit None, current_byte_idx is start of last line (or empty string).
-                     // If source ends with newline, we are at EOF? No.
-                     // `find` failing means no more newlines.
-                     // We might still have text until EOF.
-                     // If start_line > current_line, and no more newlines, then start_line is out of bounds
-                     // UNLESS we are targeting the line *after* the last line (append at EOF).
-                     // But `current_line` counts from 0.
-                     // If source has 3 lines (0, 1, 2). `find` will find 2 newlines (if ending with newline).
+                    // Check if we are appending at EOF (allowed if start_line == num_lines)
+                    // But we don't know num_lines exactly without full scan?
+                    // Actually, if we hit None, current_byte_idx is start of last line (or empty string).
+                    // If source ends with newline, we are at EOF? No.
+                    // `find` failing means no more newlines.
+                    // We might still have text until EOF.
+                    // If start_line > current_line, and no more newlines, then start_line is out of bounds
+                    // UNLESS we are targeting the line *after* the last line (append at EOF).
+                    // But `current_line` counts from 0.
+                    // If source has 3 lines (0, 1, 2). `find` will find 2 newlines (if ending with newline).
 
-                     // Let's rely on indices being valid or we error.
-                     advance_failed = true;
-                     break;
+                    // Let's rely on indices being valid or we error.
+                    advance_failed = true;
+                    break;
                 }
             }
         }
 
         if advance_failed {
-             skipped_edits.push(SkippedEdit {
+            skipped_edits.push(SkippedEdit {
                 edit: edit.clone(),
-                reason: format!("Edit start line {} is out of bounds (reached line {})", start_line, current_line),
+                reason: format!(
+                    "Edit start line {} is out of bounds (reached line {})",
+                    start_line, current_line
+                ),
                 suggestion: None,
             });
             continue;
@@ -317,9 +320,9 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
                 }
                 None => {
                     // EOF reached
-                     if current_col == start_col {
-                         break; // We are exactly at EOF which is allowed for append
-                     }
+                    if current_col == start_col {
+                        break; // We are exactly at EOF which is allowed for append
+                    }
                     col_advance_failed = true;
                     break;
                 }
@@ -327,9 +330,12 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         }
 
         if col_advance_failed {
-             skipped_edits.push(SkippedEdit {
+            skipped_edits.push(SkippedEdit {
                 edit: edit.clone(),
-                reason: format!("Edit start position {}:{} is out of bounds", start_line, start_col),
+                reason: format!(
+                    "Edit start position {}:{} is out of bounds",
+                    start_line, start_col
+                ),
                 suggestion: None,
             });
             continue;
@@ -339,9 +345,12 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
 
         // Check overlap with previous edit
         if start_byte_idx < last_byte_idx {
-             skipped_edits.push(SkippedEdit {
+            skipped_edits.push(SkippedEdit {
                 edit: edit.clone(),
-                reason: format!("Edit overlaps with previous edit (start byte {} < last byte {})", start_byte_idx, last_byte_idx),
+                reason: format!(
+                    "Edit overlaps with previous edit (start byte {} < last byte {})",
+                    start_byte_idx, last_byte_idx
+                ),
                 suggestion: None,
             });
             continue;
@@ -368,20 +377,20 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
 
         let mut end_advance_failed = false;
         while end_cursor_line < end_line {
-             match source[end_cursor_byte_idx..].find('\n') {
+            match source[end_cursor_byte_idx..].find('\n') {
                 Some(idx) => {
                     end_cursor_byte_idx += idx + 1;
                     end_cursor_line += 1;
                 }
                 None => {
-                     end_advance_failed = true;
-                     break;
+                    end_advance_failed = true;
+                    break;
                 }
             }
         }
 
         if end_advance_failed {
-             skipped_edits.push(SkippedEdit {
+            skipped_edits.push(SkippedEdit {
                 edit: edit.clone(),
                 reason: format!("Edit end line {} is out of bounds", end_line),
                 suggestion: None,
@@ -396,7 +405,7 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         let mut current_end_col = 0;
 
         while current_end_col < end_col {
-             match chars_end.next() {
+            match chars_end.next() {
                 Some(ch) => {
                     if ch == '\n' {
                         end_col_advance_failed = true;
@@ -406,9 +415,9 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
                     current_end_col += 1;
                 }
                 None => {
-                     if current_end_col == end_col {
-                         break;
-                     }
+                    if current_end_col == end_col {
+                        break;
+                    }
                     end_col_advance_failed = true;
                     break;
                 }
@@ -416,9 +425,12 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         }
 
         if end_col_advance_failed {
-             skipped_edits.push(SkippedEdit {
+            skipped_edits.push(SkippedEdit {
                 edit: edit.clone(),
-                reason: format!("Edit end position {}:{} is out of bounds", end_line, end_col),
+                reason: format!(
+                    "Edit end position {}:{} is out of bounds",
+                    end_line, end_col
+                ),
                 suggestion: None,
             });
             continue;
@@ -430,9 +442,12 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         if !edit.original_text.is_empty() {
             let actual_text = &source[start_byte_idx..end_byte_idx];
             if actual_text != edit.original_text {
-                 skipped_edits.push(SkippedEdit {
+                skipped_edits.push(SkippedEdit {
                     edit: edit.clone(),
-                    reason: format!("Expected text '{}' but found '{}'", edit.original_text, actual_text),
+                    reason: format!(
+                        "Expected text '{}' but found '{}'",
+                        edit.original_text, actual_text
+                    ),
                     suggestion: None,
                 });
                 continue;
@@ -457,7 +472,7 @@ pub fn apply_edit_plan(source: &str, plan: &EditPlan) -> AstResult<TransformResu
         let l_added = if is_multiline {
             edit.new_text.matches('\n').count() as i32 + 1
         } else {
-             edit.new_text.matches('\n').count() as i32
+            edit.new_text.matches('\n').count() as i32
         };
 
         lines_removed += l_removed;
@@ -561,7 +576,7 @@ mod tests {
             description: "Add comment".to_string(),
         };
 
-         let plan = EditPlan {
+        let plan = EditPlan {
             source_file: "test.rs".to_string(),
             edits: vec![edit],
             dependency_updates: vec![],
@@ -577,7 +592,10 @@ mod tests {
         };
 
         let result = apply_edit_plan(&source, &plan).unwrap();
-        assert_eq!(result.transformed_source, "// Added comment\nconsole.log('hello');");
+        assert_eq!(
+            result.transformed_source,
+            "// Added comment\nconsole.log('hello');"
+        );
         assert_eq!(result.statistics.lines_added, 1);
         assert_eq!(result.statistics.characters_added, 17);
     }
@@ -594,14 +612,20 @@ mod benchmarks {
         // Create a large source file (10,000 lines)
         let mut source = String::new();
         for i in 0..10000 {
-            source.push_str(&format!("let variable_{} = {}; // Some content to make the line longer\n", i, i));
+            source.push_str(&format!(
+                "let variable_{} = {}; // Some content to make the line longer\n",
+                i, i
+            ));
         }
 
         // Create 1000 edits (modifying every 10th line)
         let mut edits = Vec::new();
         for i in (0..10000).step_by(10) {
             let line_idx = i;
-            let original_line = format!("let variable_{} = {}; // Some content to make the line longer\n", i, i);
+            let original_line = format!(
+                "let variable_{} = {}; // Some content to make the line longer\n",
+                i, i
+            );
 
             edits.push(TextEdit {
                 file_path: None,
@@ -634,7 +658,11 @@ mod benchmarks {
             },
         };
 
-        println!("Benchmarking apply_edit_plan with {} edits on {} lines...", plan.edits.len(), 10000);
+        println!(
+            "Benchmarking apply_edit_plan with {} edits on {} lines...",
+            plan.edits.len(),
+            10000
+        );
 
         let start = Instant::now();
         let result = apply_edit_plan(&source, &plan).unwrap();
@@ -646,6 +674,9 @@ mod benchmarks {
         assert_eq!(result.applied_edits.len(), 1000);
 
         // With optimization, this should be very fast (< 50ms)
-        assert!(duration.as_millis() < 50, "Optimization should be faster than 50ms");
+        assert!(
+            duration.as_millis() < 50,
+            "Optimization should be faster than 50ms"
+        );
     }
 }

@@ -26,8 +26,8 @@ impl ManifestOps for PyProjectManifest {
         &[
             "dependencies",
             "optional-dependencies",
-            "dev-dependencies",  // PDM style
-            "dev",               // Poetry dev group
+            "dev-dependencies", // PDM style
+            "dev",              // Poetry dev group
         ]
     }
 
@@ -239,11 +239,12 @@ impl ManifestOps for PyProjectManifest {
                     project["optional-dependencies"] = Item::Table(toml_edit::Table::new());
                 }
 
-                let opt_deps = project["optional-dependencies"]
-                    .as_table_mut()
-                    .ok_or_else(|| {
-                        ServerError::parse("[project.optional-dependencies] is not a table")
-                    })?;
+                let opt_deps =
+                    project["optional-dependencies"]
+                        .as_table_mut()
+                        .ok_or_else(|| {
+                            ServerError::parse("[project.optional-dependencies] is not a table")
+                        })?;
 
                 // Use "dev" as default group or get from features
                 let group = info
@@ -281,9 +282,9 @@ impl ManifestOps for PyProjectManifest {
                     pdm["dev-dependencies"] = Item::Table(toml_edit::Table::new());
                 }
 
-                let dev_deps = pdm["dev-dependencies"]
-                    .as_table_mut()
-                    .ok_or_else(|| ServerError::parse("[tool.pdm.dev-dependencies] is not a table"))?;
+                let dev_deps = pdm["dev-dependencies"].as_table_mut().ok_or_else(|| {
+                    ServerError::parse("[tool.pdm.dev-dependencies] is not a table")
+                })?;
 
                 // Use "dev" as the default group
                 if !dev_deps.contains_key("dev") {

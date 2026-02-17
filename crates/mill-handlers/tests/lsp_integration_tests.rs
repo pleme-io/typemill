@@ -79,11 +79,7 @@ function createProcessor<T>(type: string): DataProcessor<T> | null {
         .get("typeInfo")
         .and_then(|ti| ti.get("hover"))
         .and_then(|h| h.get("contents"))
-        .or_else(|| {
-            content_field
-                .get("hover")
-                .and_then(|h| h.get("contents"))
-        })
+        .or_else(|| content_field.get("hover").and_then(|h| h.get("contents")))
         .or_else(|| content_field.get("contents"))
         .expect("Content should have hover.contents or contents field");
 

@@ -184,7 +184,32 @@ impl LanguagePlugin for RustPlugin {
             }
         }
 
-        tracing::info!(
+        let old_path_str = old_path.to_str().unwrap_or_default();
+        let old_basename = old_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+        let old_module_stem = old_path
+            .file_stem()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
+
+        // Fast path: if neither full path nor basename appears in content,
+        // this file cannot possibly reference the renamed target.
+        if !old_path_str.is_empty()
+            && !content.contains(old_path_str)
+            && (old_basename.is_empty() || !content.contains(old_basename))
+            && (old_module_stem.is_empty() || !content.contains(old_module_stem))
+        {
+            tracing::debug!(
+                old_path = %old_path.display(),
+                current_file = %current_file.display(),
+                "Skipping Rust rewrite: content does not reference old path/basename/module stem"
+            );
+            return None;
+        }
+
+        tracing::debug!(
             old_path = %old_path.display(),
             new_path = %new_path.display(),
             current_file = %current_file.display(),
@@ -202,7 +227,7 @@ impl LanguagePlugin for RustPlugin {
 
         let final_result = match result {
             Ok((mut modified_content, mut total_changes)) => {
-                tracing::info!(
+                tracing::debug!(
                     content_len = modified_content.len(),
                     changes_count = total_changes,
                     "RustPlugin::rewrite_file_references import rewrite OK"

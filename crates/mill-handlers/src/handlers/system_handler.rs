@@ -146,17 +146,15 @@ impl SystemHandler {
 
         // Get the LSP adapter from context
         let lsp_adapter_guard = context.lsp_adapter.lock().await;
-        let lsp_adapter = lsp_adapter_guard.as_ref().ok_or_else(|| {
-            ServerError::internal("LSP adapter not initialized")
-        })?;
+        let lsp_adapter = lsp_adapter_guard
+            .as_ref()
+            .ok_or_else(|| ServerError::internal("LSP adapter not initialized"))?;
 
         // Downcast to DirectLspAdapter to access progress methods
         let direct_adapter = lsp_adapter
             .as_any()
             .downcast_ref::<DirectLspAdapter>()
-            .ok_or_else(|| {
-                ServerError::internal("LSP adapter is not a DirectLspAdapter")
-            })?;
+            .ok_or_else(|| ServerError::internal("LSP adapter is not a DirectLspAdapter"))?;
 
         // Get progress from all active LSP clients
         let progress = direct_adapter.get_all_lsp_progress().await;

@@ -9,19 +9,34 @@ pub mod detectors;
 pub mod helpers;
 
 pub use cache::{load_filelist_cache, save_filelist_cache, FileImportInfo, ImportCache};
-pub use helpers::{compute_line_info, create_full_file_edit, create_import_update_edit, create_path_reference_edit};
+pub use helpers::{
+    compute_line_info, create_full_file_edit, create_import_update_edit, create_path_reference_edit,
+};
 
 use async_trait::async_trait;
 use mill_foundation::errors::MillError as ServerError;
-use mill_plugin_api::LanguagePlugin;
 use mill_foundation::protocol::{DependencyUpdate, EditPlan, EditPlanMetadata};
+use mill_plugin_api::LanguagePlugin;
 
 type ServerResult<T> = Result<T, ServerError>;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::task::JoinSet;
 use std::time::Duration;
+use tokio::task::JoinSet;
+
+static LSP_UNAVAILABLE_SHORT_CIRCUIT: AtomicBool = AtomicBool::new(false);
+
+#[derive(Debug, Default)]
+struct DetectionTelemetry {
+    cache_hit: bool,
+    lsp_ttl_hit: bool,
+    lsp_query_attempted: bool,
+    lsp_query_success: bool,
+    lsp_query_failed: bool,
+    plugin_fallbacks: usize,
+}
 
 /// Trait for LSP-based import detection
 ///
@@ -34,7 +49,10 @@ pub trait LspImportFinder: Send + Sync {
     async fn find_files_that_import(&self, file_path: &Path) -> Result<Vec<PathBuf>, String>;
 
     /// Find all files that import any file within a directory
-    async fn find_files_that_import_directory(&self, dir_path: &Path) -> Result<Vec<PathBuf>, String>;
+    async fn find_files_that_import_directory(
+        &self,
+        dir_path: &Path,
+    ) -> Result<Vec<PathBuf>, String>;
 }
 
 /// A service for updating references in a workspace.
@@ -70,6 +88,22 @@ impl ReferenceUpdater {
             project_root: project_root.as_ref().to_path_buf(),
             import_cache: cache,
         }
+    }
+
+    /// Returns cached importer count for a file if cache is populated.
+    ///
+    /// This is a fast-path signal used by perf-sensitive operations (e.g. prune)
+    /// to skip expensive full-workspace scans when we already know there are no
+    /// inbound references.
+    pub fn cached_importers_count(&self, file_path: &Path) -> Option<usize> {
+        if !(self.import_cache.is_populated() || self.import_cache.has_any_reverse_entries()) {
+            return None;
+        }
+        Some(
+            self.import_cache
+                .get_importers(&file_path.to_path_buf())
+                .len(),
+        )
     }
 
     /// Updates all references to `old_path` to point to `new_path`.
@@ -168,10 +202,15 @@ impl ReferenceUpdater {
         let skip_lsp_for_dir = std::env::var("TYPEMILL_SKIP_LSP_FOR_DIR")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false);
-        let cache_ready = self.import_cache.is_populated() || self.import_cache.has_any_reverse_entries();
+        let cache_ready = if is_directory_rename {
+            self.import_cache.has_reverse_entry_for_directory(old_path)
+        } else {
+            self.import_cache.has_reverse_entry_for_file(old_path)
+        };
         let cached_importers = if prefer_cache && cache_ready {
             let cached = if is_directory_rename {
-                self.import_cache.get_importers_for_directory(&old_path.to_path_buf())
+                self.import_cache
+                    .get_importers_for_directory(&old_path.to_path_buf())
             } else {
                 self.import_cache.get_importers(&old_path.to_path_buf())
             };
@@ -181,21 +220,23 @@ impl ReferenceUpdater {
         };
 
         let lsp_start = std::time::Instant::now();
+        let mut telemetry = DetectionTelemetry::default();
+        let lsp_short_circuit_enabled = std::env::var("TYPEMILL_SHORT_CIRCUIT_LSP_ON_FAILURE")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(true);
         let lsp_detected_files = if let Some(cached) = cached_importers {
+            telemetry.cache_hit = true;
             if perf_enabled {
-                tracing::info!(
-                    files_count = cached.len(),
-                    "perf: cached_importers_used"
-                );
+                tracing::info!(files_count = cached.len(), "perf: cached_importers_used");
             }
             Some(cached)
-        } else if let Some(cached) = self.import_cache.get_lsp_cached(old_path, is_directory_rename)
+        } else if let Some(cached) = self
+            .import_cache
+            .get_lsp_cached(old_path, is_directory_rename)
         {
+            telemetry.lsp_ttl_hit = true;
             if perf_enabled {
-                tracing::info!(
-                    files_count = cached.len(),
-                    "perf: lsp_ttl_cache_hit"
-                );
+                tracing::info!(files_count = cached.len(), "perf: lsp_ttl_cache_hit");
             }
             Some(cached)
         } else if skip_lsp_for_dir && is_directory_rename && self.import_cache.is_populated() {
@@ -203,7 +244,12 @@ impl ReferenceUpdater {
                 tracing::info!("perf: skipped_lsp_for_dir");
             }
             None
+        } else if lsp_short_circuit_enabled && LSP_UNAVAILABLE_SHORT_CIRCUIT.load(Ordering::Relaxed)
+        {
+            tracing::debug!("Skipping LSP detection due to previous initialization failure");
+            None
         } else if let Some(finder) = lsp_finder {
+            telemetry.lsp_query_attempted = true;
             // Query LSP for importing files (directory or file)
             let lsp_result = if is_directory_rename {
                 finder.find_files_that_import_directory(old_path).await
@@ -213,6 +259,7 @@ impl ReferenceUpdater {
 
             match lsp_result {
                 Ok(files) => {
+                    telemetry.lsp_query_success = true;
                     // CRITICAL: Filter LSP results to only include project files
                     // LSP may return references from node_modules or TypeScript lib files
                     let filtered_files: Vec<PathBuf> = files
@@ -220,8 +267,12 @@ impl ReferenceUpdater {
                         .filter(|f| f.starts_with(&self.project_root))
                         .collect();
 
-                    let kind = if is_directory_rename { "directory" } else { "file" };
-                    tracing::info!(
+                    let kind = if is_directory_rename {
+                        "directory"
+                    } else {
+                        "file"
+                    };
+                    tracing::debug!(
                         files_count = filtered_files.len(),
                         old_path = %old_path.display(),
                         kind = kind,
@@ -235,16 +286,21 @@ impl ReferenceUpdater {
                             filtered_files.clone(),
                         );
                     } else {
-                        self.import_cache.cache_lsp_importers(
-                            old_path.to_path_buf(),
-                            filtered_files.clone(),
-                        );
+                        self.import_cache
+                            .cache_lsp_importers(old_path.to_path_buf(), filtered_files.clone());
                     }
-                    self.import_cache
-                        .set_lsp_cached(old_path, is_directory_rename, filtered_files.clone());
+                    self.import_cache.set_lsp_cached(
+                        old_path,
+                        is_directory_rename,
+                        filtered_files.clone(),
+                    );
                     Some(filtered_files)
                 }
                 Err(e) => {
+                    telemetry.lsp_query_failed = true;
+                    if lsp_short_circuit_enabled {
+                        LSP_UNAVAILABLE_SHORT_CIRCUIT.store(true, Ordering::Relaxed);
+                    }
                     tracing::debug!(
                         error = %e,
                         "LSP detection failed, falling back to scanning"
@@ -264,10 +320,31 @@ impl ReferenceUpdater {
         }
 
         let affected_start = std::time::Instant::now();
-        let mut affected_files = if is_comprehensive {
+        let cached_zero_inbound_for_file = !is_directory_rename
+            && !is_comprehensive
+            && self.cached_importers_count(old_path) == Some(0);
+
+        let mut affected_files = if cached_zero_inbound_for_file {
+            // Fast path: when cache proves there are no inbound references to this file,
+            // avoid broad affected-file discovery scans. Keep only the moved file itself
+            // so relative-import rewrites inside that file can still be processed.
+            let mut minimal = Vec::new();
+            if project_files.contains(&old_path.to_path_buf()) {
+                minimal.push(old_path.to_path_buf());
+            } else if project_files.contains(&new_path.to_path_buf()) {
+                minimal.push(new_path.to_path_buf());
+            }
+            tracing::debug!(
+                old_path = %old_path.display(),
+                new_path = %new_path.display(),
+                minimal_candidates = minimal.len(),
+                "Using cached zero-importer fast path for affected file detection"
+            );
+            minimal
+        } else if is_comprehensive {
             // Comprehensive mode: scan ALL files in scope
             // Plugins will handle detection based on update_exact_matches, update_markdown_prose, etc.
-            tracing::info!(
+            tracing::debug!(
                 project_files_count = project_files.len(),
                 "Using comprehensive scope - scanning all files matching scope filters"
             );
@@ -287,7 +364,8 @@ impl ReferenceUpdater {
             // If LSP returned empty for file moves, fall back to plugin-based scanning
             // LSP may not have indexed all files (e.g., files with path aliases)
             if files.is_empty() && !is_directory_rename {
-                tracing::info!(
+                telemetry.plugin_fallbacks += 1;
+                tracing::debug!(
                     old_path = %old_path.display(),
                     "LSP returned empty results for file move, falling back to plugin scanning"
                 );
@@ -303,6 +381,7 @@ impl ReferenceUpdater {
                 .await?
             } else {
                 if is_directory_rename {
+                    telemetry.plugin_fallbacks += 1;
                     let mut merged: HashSet<PathBuf> = files.into_iter().collect();
                     let plugin_files = self
                         .find_affected_files_for_rename_with_map(
@@ -329,6 +408,7 @@ impl ReferenceUpdater {
                 new_path = %new_path.display(),
                 "Detected package rename, using package-level detection"
             );
+            telemetry.plugin_fallbacks += 1;
             self.find_affected_files_for_rename_with_map(
                 old_path,
                 new_path,
@@ -346,11 +426,12 @@ impl ReferenceUpdater {
 
             // Directory-level detection for string literals and imports
             // This is essential for catching path references that aren't imports
-            tracing::info!(
+            tracing::debug!(
                 old_path = %old_path.display(),
                 new_path = %new_path.display(),
                 "Running directory-level detection for string literals and imports"
             );
+            telemetry.plugin_fallbacks += 1;
             let directory_level_affected = self
                 .find_affected_files_for_rename_with_map(
                     old_path,
@@ -369,13 +450,14 @@ impl ReferenceUpdater {
 
             let affected_vec: Vec<PathBuf> = all_affected.into_iter().collect();
 
-            tracing::info!(
+            tracing::debug!(
                 affected_files_count = affected_vec.len(),
                 "Directory rename: found affected files (including string literals/imports)"
             );
 
             affected_vec
         } else {
+            telemetry.plugin_fallbacks += 1;
             self.find_affected_files_for_rename_with_map(
                 old_path,
                 new_path,
@@ -395,13 +477,24 @@ impl ReferenceUpdater {
             );
         }
 
+        tracing::info!(
+            cache_hit = telemetry.cache_hit,
+            lsp_ttl_hit = telemetry.lsp_ttl_hit,
+            lsp_query_attempted = telemetry.lsp_query_attempted,
+            lsp_query_success = telemetry.lsp_query_success,
+            lsp_query_failed = telemetry.lsp_query_failed,
+            plugin_fallbacks = telemetry.plugin_fallbacks,
+            "Reference detection telemetry"
+        );
+
         // For directory renames, exclude files inside the renamed directory UNLESS it's a Rust crate rename
         // For Rust crate renames, we need to process files inside the crate to update self-referencing imports
+        let dir_expand_start = std::time::Instant::now();
         if is_directory_rename {
             if is_package_rename {
                 // For Rust crate renames, INCLUDE files inside the crate for self-reference updates
                 // Add all Rust files inside the renamed crate to affected_files
-                tracing::info!(
+                tracing::debug!(
                     "Rust crate rename detected - including files inside crate for self-reference updates"
                 );
 
@@ -414,7 +507,7 @@ impl ReferenceUpdater {
                     .cloned()
                     .collect();
 
-                tracing::info!(
+                tracing::debug!(
                     files_in_crate_count = files_in_crate.len(),
                     "Found Rust files inside renamed crate"
                 );
@@ -440,7 +533,7 @@ impl ReferenceUpdater {
                     .cloned()
                     .collect();
 
-                tracing::info!(
+                tracing::debug!(
                     files_in_directory_count = files_in_directory.len(),
                     "Adding files inside moved directory for internal import updates"
                 );
@@ -453,10 +546,91 @@ impl ReferenceUpdater {
             }
         }
 
-        tracing::info!(
+        if perf_enabled {
+            tracing::info!(
+                elapsed_ms = dir_expand_start.elapsed().as_millis(),
+                "perf: directory_expansion_and_internal_file_merge"
+            );
+        }
+
+        // Additional fast-path for large directory renames: keep files inside renamed directory,
+        // plus files whose extension family is compatible with moved files.
+        if is_directory_rename && !is_package_rename {
+            let moved_exts: std::collections::HashSet<String> = project_files
+                .iter()
+                .filter(|f| f.starts_with(old_path))
+                .filter_map(|f| f.extension().and_then(|e| e.to_str()))
+                .map(|ext| ext.to_ascii_lowercase())
+                .collect();
+
+            if !moved_exts.is_empty() {
+                let before = affected_files.len();
+                affected_files.retain(|file| {
+                    if file.starts_with(old_path) {
+                        return true;
+                    }
+                    let target_ext = file.extension().and_then(|e| e.to_str());
+
+                    moved_exts.iter().any(|moved_ext| {
+                        is_extension_compatible_for_rewrite(Some(moved_ext.as_str()), target_ext)
+                    })
+                });
+
+                tracing::debug!(
+                    before_count = before,
+                    after_count = affected_files.len(),
+                    moved_extensions = ?moved_exts,
+                    "Filtered directory-rename affected files by extension compatibility"
+                );
+            }
+        }
+
+        // Rust fallback: when LSP reference detection under-reports affected files
+        // (e.g. missing rust-analyzer in CI), include all Rust source files so
+        // file/module rename rewrites still run deterministically.
+        if old_path.extension().and_then(|e| e.to_str()) == Some("rs") {
+            for file in &project_files {
+                if file.extension().and_then(|e| e.to_str()) == Some("rs")
+                    && !affected_files.contains(file)
+                {
+                    affected_files.push(file.clone());
+                }
+            }
+        }
+
+        tracing::debug!(
             affected_files_count = affected_files.len(),
             "Processing affected files for reference updates"
         );
+
+        if affected_files.is_empty() {
+            if perf_enabled {
+                tracing::info!(
+                    total_ms = perf_start.elapsed().as_millis(),
+                    "perf: update_references_total"
+                );
+            }
+            tracing::debug!("No affected files found; returning empty EditPlan");
+            return Ok(EditPlan {
+                source_file: old_path.to_string_lossy().to_string(),
+                edits: Vec::new(),
+                dependency_updates: Vec::new(),
+                validations: Vec::new(),
+                metadata: EditPlanMetadata {
+                    intent_name: "update_references".to_string(),
+                    intent_arguments: serde_json::json!({
+                        "old_path": old_path.to_string_lossy(),
+                        "new_path": new_path.to_string_lossy(),
+                    }),
+                    created_at: chrono::Utc::now(),
+                    complexity: 1,
+                    impact_areas: vec!["imports".to_string(), "file_references".to_string()],
+                    consolidation: None,
+                },
+            });
+        }
+
+        let svelte_phase_start = std::time::Instant::now();
 
         #[cfg(feature = "lang-svelte")]
         if !is_directory_rename {
@@ -500,6 +674,13 @@ impl ReferenceUpdater {
                     affected_files.push(file);
                 }
             }
+        }
+
+        if perf_enabled {
+            tracing::info!(
+                elapsed_ms = svelte_phase_start.elapsed().as_millis(),
+                "perf: svelte_extra_detection"
+            );
         }
 
         // Prepare shared state for parallel processing
@@ -567,14 +748,20 @@ impl ReferenceUpdater {
                     .and_then(|ext| ext.to_str())
                     .unwrap_or("");
                 let plugin = if !ext_str.is_empty() {
-                    plugin_map.get(ext_str)
+                    plugin_map.get(ext_str).cloned()
                 } else {
                     None
                 };
 
                 let plugin = match plugin {
                     Some(p) => Some(p),
-                    None => None,
+                    None => {
+                        if ext_str == "rs" {
+                            native_plugin_for_extension("rs")
+                        } else {
+                            None
+                        }
+                    }
                 };
 
                 let content = match tokio::fs::read_to_string(&file_path).await {
@@ -594,7 +781,8 @@ impl ReferenceUpdater {
                 let mut file_edits = Vec::new();
 
                 if plugin.is_none() {
-                    #[cfg(feature = "lang-svelte")]
+
+        #[cfg(feature = "lang-svelte")]
                     if ext_str == "svelte" {
                         let plugin = mill_lang_svelte::SveltePlugin::new();
                         let rewrite_result = plugin.rewrite_file_references(
@@ -619,6 +807,21 @@ impl ReferenceUpdater {
                         }
 
                         return Some(file_edits);
+                    }
+
+                    if ext_str == "rs" && !is_directory_rename {
+                        if let Some((updated_content, count)) =
+                            rewrite_rust_file_rename_fallback(&content, &old_path, &new_path)
+                        {
+                            file_edits.push(create_import_update_edit(
+                                &file_path,
+                                content.clone(),
+                                updated_content,
+                                count,
+                                "file rename (rust textual fallback)",
+                            ));
+                            return Some(file_edits);
+                        }
                     }
 
                     return None;
@@ -750,7 +953,7 @@ impl ReferenceUpdater {
 
                     // If any changes were made, add a single edit for this file
                     if total_changes > 0 && combined_content != content {
-                        tracing::info!(
+                        tracing::debug!(
                             file_path = %file_path.display(),
                             total_changes,
                             "Adding edit for directory rename with {} total changes",
@@ -767,7 +970,7 @@ impl ReferenceUpdater {
                     }
                 } else {
                     // File rename logic
-                    tracing::info!(
+                    tracing::debug!(
                         file_path = %file_path.display(),
                         old_path = %old_path.display(),
                         new_path = %new_path.display(),
@@ -803,8 +1006,8 @@ impl ReferenceUpdater {
                         merged_rename_info.as_ref().as_ref(),
                     );
 
-                    tracing::info!(
-                        result = ?rewrite_result,
+                    tracing::debug!(
+                        has_changes = rewrite_result.as_ref().map(|(_, c)| *c).unwrap_or(0),
                         "Plugin rewrite_file_references returned"
                     );
 
@@ -819,6 +1022,22 @@ impl ReferenceUpdater {
                             ));
                         }
                     }
+
+                    // Safety fallback for Rust file rename when plugin rewrites emit no edits.
+                    if file_edits.is_empty() && ext_str == "rs" && !is_directory_rename {
+                        if let Some((updated_content, count)) =
+                            rewrite_rust_file_rename_fallback(&content, &old_path, &new_path)
+                        {
+                            file_edits.push(create_import_update_edit(
+                                &file_path,
+                                content.clone(),
+                                updated_content,
+                                count,
+                                "file rename (rust textual fallback)",
+                            ));
+                        }
+                    }
+
                 }
 
                 Some(file_edits)
@@ -848,7 +1067,7 @@ impl ReferenceUpdater {
             );
         }
 
-        tracing::info!(
+        tracing::debug!(
             all_edits_count = all_edits.len(),
             "Returning EditPlan with edits"
         );
@@ -881,6 +1100,10 @@ impl ReferenceUpdater {
         use std::collections::HashSet;
 
         let mut affected = HashSet::new();
+        let perf_enabled = std::env::var("TYPEMILL_PERF")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let find_start = std::time::Instant::now();
         let plugin_map = Arc::new(build_plugin_ext_map(plugins));
         let plugins_arc = Arc::new(plugins.to_vec());
         let project_files_arc = Arc::new(project_files.to_vec());
@@ -949,6 +1172,17 @@ impl ReferenceUpdater {
 
         let mut affected_vec: Vec<PathBuf> = affected.into_iter().collect();
         affected_vec.sort(); // Deterministic order
+
+        if perf_enabled {
+            tracing::info!(
+                renamed_file = %renamed_file.display(),
+                project_files = project_files.len(),
+                affected_files = affected_vec.len(),
+                elapsed_ms = find_start.elapsed().as_millis(),
+                "perf: find_affected_files"
+            );
+        }
+
         Ok(affected_vec)
     }
 
@@ -1172,14 +1406,8 @@ pub(crate) fn is_extension_compatible_for_rewrite(
     }
 
     // Web group: TS/JS/Svelte are mutually compatible.
-    if matches!(
-        renamed_ext.as_str(),
-        "ts" | "tsx" | "js" | "jsx" | "svelte"
-    ) {
-        return matches!(
-            target_ext.as_str(),
-            "ts" | "tsx" | "js" | "jsx" | "svelte"
-        );
+    if matches!(renamed_ext.as_str(), "ts" | "tsx" | "js" | "jsx" | "svelte") {
+        return matches!(target_ext.as_str(), "ts" | "tsx" | "js" | "jsx" | "svelte");
     }
 
     // Keep other languages isolated by default.
@@ -1198,7 +1426,74 @@ fn build_plugin_ext_map(
             map.entry(ext.to_string()).or_insert_with(|| plugin.clone());
         }
     }
+
+    // Rewriting imports/references requires deterministic native language plugins.
+    // If extension mapping points at an LSP adapter, force a native plugin fallback when available.
+    let ext_keys: Vec<String> = map.keys().cloned().collect();
+    for ext in ext_keys {
+        let needs_fallback = map
+            .get(&ext)
+            .map(|p| p.metadata().name.ends_with("-lsp"))
+            .unwrap_or(false);
+
+        if !needs_fallback {
+            continue;
+        }
+
+        if let Some(native) = plugins.iter().find(|p| {
+            !p.metadata().name.ends_with("-lsp")
+                && p.metadata()
+                    .extensions
+                    .iter()
+                    .any(|plugin_ext| *plugin_ext == ext)
+        }) {
+            map.insert(ext, native.clone());
+            continue;
+        }
+
+        if let Some(native) = native_plugin_for_extension(&ext) {
+            map.insert(ext, native);
+        }
+    }
+
     map
+}
+
+fn native_plugin_for_extension(
+    ext: &str,
+) -> Option<std::sync::Arc<dyn mill_plugin_api::LanguagePlugin>> {
+    #[cfg(feature = "lang-rust")]
+    if ext == "rs" {
+        return Some(std::sync::Arc::new(mill_lang_rust::RustPlugin::default()));
+    }
+
+    #[cfg(feature = "lang-typescript")]
+    if matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs") {
+        return Some(std::sync::Arc::new(
+            mill_lang_typescript::TypeScriptPlugin::default(),
+        ));
+    }
+
+    #[cfg(feature = "lang-python")]
+    if ext == "py" {
+        return Some(std::sync::Arc::new(
+            mill_lang_python::PythonPlugin::default(),
+        ));
+    }
+
+    #[cfg(feature = "lang-svelte")]
+    if ext == "svelte" {
+        return Some(std::sync::Arc::new(mill_lang_svelte::SveltePlugin::new()));
+    }
+
+    #[cfg(feature = "lang-markdown")]
+    if matches!(ext, "md" | "markdown" | "mdx") {
+        return Some(std::sync::Arc::new(
+            mill_lang_markdown::MarkdownPlugin::new(),
+        ));
+    }
+
+    None
 }
 
 /// Merges existing rename_info (cargo package names) with serialized RenameScope (scope flags)
@@ -1352,8 +1647,7 @@ pub async fn find_project_files_with_map(
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
 ) -> ServerResult<Vec<PathBuf>> {
     let project_root = project_root.to_path_buf();
-    let plugin_extensions: std::collections::HashSet<String> =
-        plugin_map.keys().cloned().collect();
+    let plugin_extensions: std::collections::HashSet<String> = plugin_map.keys().cloned().collect();
     let rename_scope = rename_scope.cloned();
 
     let scope_key = build_filelist_scope_key(&plugin_extensions, rename_scope.as_ref());
@@ -1405,12 +1699,12 @@ fn scan_project_files_sync(
     // Universal exclusions that should NEVER be scanned during refactoring
     // These are cache/generated directories that exist regardless of .gitignore
     const UNIVERSAL_EXCLUSIONS: &[&str] = &[
-        ".git",         // Version control - never scan
-        "__pycache__",  // Python bytecode cache
-        ".mypy_cache",  // mypy type checker cache
+        ".git",          // Version control - never scan
+        "__pycache__",   // Python bytecode cache
+        ".mypy_cache",   // mypy type checker cache
         ".pytest_cache", // pytest cache
-        ".tox",         // tox virtualenvs
-        ".ruff_cache",  // ruff linter cache
+        ".tox",          // tox virtualenvs
+        ".ruff_cache",   // ruff linter cache
     ];
 
     let mut builder = WalkBuilder::new(project_root);
@@ -1537,6 +1831,50 @@ fn content_might_reference_path(
     false
 }
 
+fn rewrite_rust_file_rename_fallback(
+    content: &str,
+    old_path: &Path,
+    new_path: &Path,
+) -> Option<(String, usize)> {
+    let old_mod = old_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+    let new_mod = new_path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+
+    if old_mod.is_empty() || new_mod.is_empty() || old_mod == new_mod {
+        return None;
+    }
+
+    let mut updated = content.to_string();
+    let mut changes = 0usize;
+
+    for (old_decl, new_decl) in [
+        (format!("mod {};", old_mod), format!("mod {};", new_mod)),
+        (
+            format!("pub mod {};", old_mod),
+            format!("pub mod {};", new_mod),
+        ),
+    ] {
+        if updated.contains(&old_decl) {
+            let count = updated.matches(&old_decl).count();
+            updated = updated.replace(&old_decl, &new_decl);
+            changes += count;
+        }
+    }
+
+    let old_qualified = format!("{}::", old_mod);
+    let new_qualified = format!("{}::", new_mod);
+    if updated.contains(&old_qualified) {
+        let count = updated.matches(&old_qualified).count();
+        updated = updated.replace(&old_qualified, &new_qualified);
+        changes += count;
+    }
+
+    if changes > 0 && updated != content {
+        Some((updated, changes))
+    } else {
+        None
+    }
+}
+
 fn rewrite_concurrency_limit() -> usize {
     let env = std::env::var("TYPEMILL_REWRITE_CONCURRENCY")
         .ok()
@@ -1565,8 +1903,8 @@ fn ensure_filelist_watcher(
         return;
     }
 
-    use once_cell::sync::OnceCell;
     use dashmap::DashMap;
+    use once_cell::sync::OnceCell;
 
     static WATCHERS: OnceCell<DashMap<String, bool>> = OnceCell::new();
     let watchers = WATCHERS.get_or_init(DashMap::new);

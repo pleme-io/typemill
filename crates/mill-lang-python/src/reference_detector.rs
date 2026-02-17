@@ -48,14 +48,11 @@ impl PythonReferenceDetector {
     }
 
     /// Check if an import statement references the target module
-    fn import_matches(
-        import_module: &str,
-        target_module: &str,
-        is_directory: bool,
-    ) -> bool {
+    fn import_matches(import_module: &str, target_module: &str, is_directory: bool) -> bool {
         if is_directory {
             // For directories, check if import starts with or equals the module
-            import_module == target_module || import_module.starts_with(&format!("{}.", target_module))
+            import_module == target_module
+                || import_module.starts_with(&format!("{}.", target_module))
         } else {
             // For files, check exact match or parent match
             import_module == target_module
@@ -241,7 +238,9 @@ impl ReferenceDetector for PythonReferenceDetector {
                                         .file_name()
                                         .and_then(|n| n.to_str())
                                         .unwrap_or("");
-                                    if resolved == old_module || resolved.starts_with(&format!("{}.", old_module)) {
+                                    if resolved == old_module
+                                        || resolved.starts_with(&format!("{}.", old_module))
+                                    {
                                         has_reference = true;
                                         break;
                                     }
@@ -413,12 +412,9 @@ mod tests {
         )
         .await
         .unwrap();
-        tokio::fs::write(
-            project_root.join("utils/helpers.py"),
-            "def process(): pass",
-        )
-        .await
-        .unwrap();
+        tokio::fs::write(project_root.join("utils/helpers.py"), "def process(): pass")
+            .await
+            .unwrap();
 
         // Create app.py that imports from utils package
         tokio::fs::write(
@@ -503,10 +499,7 @@ mod tests {
 
         // Regular file
         assert_eq!(
-            PythonReferenceDetector::path_to_module(
-                Path::new("/project/utils.py"),
-                project_root
-            ),
+            PythonReferenceDetector::path_to_module(Path::new("/project/utils.py"), project_root),
             Some("utils".to_string())
         );
 
@@ -541,16 +534,30 @@ mod tests {
     #[test]
     fn test_import_matches() {
         // Exact match for file
-        assert!(PythonReferenceDetector::import_matches("utils", "utils", false));
+        assert!(PythonReferenceDetector::import_matches(
+            "utils", "utils", false
+        ));
 
         // No match for different module
-        assert!(!PythonReferenceDetector::import_matches("helpers", "utils", false));
+        assert!(!PythonReferenceDetector::import_matches(
+            "helpers", "utils", false
+        ));
 
         // Directory match
-        assert!(PythonReferenceDetector::import_matches("utils", "utils", true));
-        assert!(PythonReferenceDetector::import_matches("utils.helpers", "utils", true));
+        assert!(PythonReferenceDetector::import_matches(
+            "utils", "utils", true
+        ));
+        assert!(PythonReferenceDetector::import_matches(
+            "utils.helpers",
+            "utils",
+            true
+        ));
 
         // No partial match for files
-        assert!(!PythonReferenceDetector::import_matches("utils.helpers", "utils", false));
+        assert!(!PythonReferenceDetector::import_matches(
+            "utils.helpers",
+            "utils",
+            false
+        ));
     }
 }

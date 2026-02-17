@@ -12,55 +12,31 @@ use mill_plugin_api::{
 };
 use regex::{Captures, Regex};
 use std::path::Path;
+use std::sync::LazyLock;
 use tracing::debug;
+
+static INLINE_LINK_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"!?\[([^]]+)\]\(([^)]+)\)").unwrap());
+
+static REF_DEFINITION_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*\[([^]]+)\]:\s*(\S+)").unwrap());
+
+static AUTOLINK_REGEX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<([^>]+)>").unwrap());
+
+static INLINE_CODE_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"`([^`]+[/\\][^`]*)`").unwrap());
+
+static PROSE_PATH_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"([a-zA-Z0-9_-]+/[a-zA-Z0-9_/.-]*)").unwrap());
 
 /// Import support for markdown files
 ///
 /// Detects and updates file references in markdown links
-pub struct MarkdownImportSupport {
-    /// Regex for inline markdown links: [text](path) or ![alt](path)
-    inline_link_regex: Regex,
-    /// Regex for reference-style link definitions: [ref]: path
-    ref_definition_regex: Regex,
-    /// Regex for autolinks: <path>
-    autolink_regex: Regex,
-    /// Regex for inline code containing paths: `path/to/file`
-    inline_code_regex: Regex,
-    /// Regex for plain prose paths (not in links or code): integration-tests/src/
-    prose_path_regex: Regex,
-}
+pub struct MarkdownImportSupport;
 
 impl MarkdownImportSupport {
     pub fn new() -> Self {
-        // Matches inline links: [text](path) or ![alt](path)
-        // Fixed regex: [^] means "not ]", not "not \"
-        let inline_link_regex = Regex::new(r"!?\[([^]]+)\]\(([^)]+)\)").unwrap();
-
-        // Matches reference-style link definitions: [ref]: path
-        // Must be at start of line (after optional whitespace)
-        let ref_definition_regex = Regex::new(r"(?m)^\s*\[([^]]+)\]:\s*(\S+)").unwrap();
-
-        // Matches autolinks: <path>
-        // Excludes mailto: and other URL schemes
-        let autolink_regex = Regex::new(r"<([^>]+)>").unwrap();
-
-        // Matches inline code containing paths: `path/to/file` or `path\to\file`
-        // Must contain a slash or backslash to look like a path
-        let inline_code_regex = Regex::new(r"`([^`]+[/\\][^`]*)`").unwrap();
-
-        // Matches paths in prose (not inside links or code)
-        // Matches patterns like: integration-tests/src/ or docs/api.md
-        // No word boundaries to handle Unicode chars like ├── integration-tests/
-        // Pattern itself is specific enough: requires alphanumeric/dash/underscore, then slash
-        let prose_path_regex = Regex::new(r"([a-zA-Z0-9_-]+/[a-zA-Z0-9_/.-]*)").unwrap();
-
-        Self {
-            inline_link_regex,
-            ref_definition_regex,
-            autolink_regex,
-            inline_code_regex,
-            prose_path_regex,
-        }
+        Self
     }
 
     /// Check if a string looks like a path (contains slash and extension, or matches path patterns)
@@ -121,14 +97,19 @@ impl MarkdownImportSupport {
     }
 
     /// Normalize path for comparison (resolve relative paths)
-    fn normalize_path(path: &str) -> String {
+    fn normalize_path(path: &str) -> &str {
         // Remove leading ./
-        let trimmed = path.trim_start_matches("./");
+        path.trim_start_matches("./")
+    }
 
-        // For comparison purposes, we keep ../ segments intact
-        // The normalization is mainly about removing leading ./ for consistency
-        // Full path resolution (../../foo -> /bar/foo) requires context of the current file
-        trimmed.to_string()
+    /// Check if an extracted markdown path should be rewritten for a rename.
+    fn path_matches_rename(clean_path: &str, old_name: &str, old_with_dot_slash: &str) -> bool {
+        clean_path == old_name
+            || clean_path == old_with_dot_slash
+            || old_name.ends_with(clean_path)
+            || old_name
+                .strip_suffix(clean_path)
+                .is_some_and(|prefix| prefix.ends_with('/'))
     }
 
     /// Extract anchor from path if present
@@ -266,44 +247,57 @@ impl Default for MarkdownImportSupport {
 impl ImportParser for MarkdownImportSupport {
     fn parse_imports(&self, content: &str) -> Vec<String> {
         let mut imports = Vec::new();
+        let has_inline_link_syntax = content.contains("](") && content.contains('[');
+        let has_ref_definition_syntax = content.contains("]:");
+        let has_autolink_syntax = content.contains('<') && content.contains('>');
+
+        if !has_inline_link_syntax && !has_ref_definition_syntax && !has_autolink_syntax {
+            return imports;
+        }
 
         // 1. Parse inline links: [text](path) or ![alt](path)
-        for captures in self.inline_link_regex.captures_iter(content) {
-            if let Some(path_match) = captures.get(2) {
-                let path = path_match.as_str();
+        if has_inline_link_syntax {
+            for captures in INLINE_LINK_REGEX.captures_iter(content) {
+                if let Some(path_match) = captures.get(2) {
+                    let path = path_match.as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
-                    if !clean_path.is_empty() {
-                        imports.push(Self::normalize_path(clean_path));
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
+                        if !clean_path.is_empty() {
+                            imports.push(Self::normalize_path(clean_path).to_string());
+                        }
                     }
                 }
             }
         }
 
         // 2. Parse reference-style link definitions: [ref]: path
-        for captures in self.ref_definition_regex.captures_iter(content) {
-            if let Some(path_match) = captures.get(2) {
-                let path = path_match.as_str();
+        if has_ref_definition_syntax {
+            for captures in REF_DEFINITION_REGEX.captures_iter(content) {
+                if let Some(path_match) = captures.get(2) {
+                    let path = path_match.as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
-                    if !clean_path.is_empty() {
-                        imports.push(Self::normalize_path(clean_path));
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
+                        if !clean_path.is_empty() {
+                            imports.push(Self::normalize_path(clean_path).to_string());
+                        }
                     }
                 }
             }
         }
 
         // 3. Parse autolinks: <path>
-        for captures in self.autolink_regex.captures_iter(content) {
-            if let Some(path_match) = captures.get(1) {
-                let path = path_match.as_str();
+        if has_autolink_syntax {
+            for captures in AUTOLINK_REGEX.captures_iter(content) {
+                if let Some(path_match) = captures.get(1) {
+                    let path = path_match.as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
-                    if !clean_path.is_empty() {
-                        imports.push(Self::normalize_path(clean_path));
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
+                        if !clean_path.is_empty() {
+                            imports.push(Self::normalize_path(clean_path).to_string());
+                        }
                     }
                 }
             }
@@ -345,125 +339,131 @@ impl ImportRenameSupport for MarkdownImportSupport {
         let old_with_dot_slash = format!("./{}", old_name);
         let old_with_trailing_slash = format!("{}/", old_name);
 
+        // Syntax pre-filters to skip full-content regex scans when syntax cannot exist.
+        let has_inline_link_syntax = content.contains("](") && content.contains('[');
+        let has_ref_definition_syntax = content.contains("]:");
+        let has_autolink_syntax = content.contains('<') && content.contains('>');
+        let has_inline_code_syntax = content.contains('`');
+        let has_prose_path_syntax = content.contains('/');
+
         // Rewrite inline links
-        let mut result = self
-            .inline_link_regex
-            .replace_all(content, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let link_text = caps.get(1).unwrap().as_str();
-                let path = caps.get(2).unwrap().as_str();
+        let mut result = if has_inline_link_syntax {
+            INLINE_LINK_REGEX
+                .replace_all(content, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let link_text = caps.get(1).unwrap().as_str();
+                    let path = caps.get(2).unwrap().as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
 
-                    if clean_path == old_name
-                        || clean_path == old_with_dot_slash
-                        || old_name.ends_with(clean_path)
-                        || old_name.ends_with(&format!("/{}", clean_path))
-                    {
-                        count += 1;
-                        return Self::build_link(full_match, link_text, new_name, path);
+                        if Self::path_matches_rename(clean_path, old_name, &old_with_dot_slash) {
+                            count += 1;
+                            return Self::build_link(full_match, link_text, new_name, path);
+                        }
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string()
+        } else {
+            content.to_string()
+        };
 
         // Rewrite reference-style link definitions
-        result = self
-            .ref_definition_regex
-            .replace_all(&result, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let ref_label = caps.get(1).unwrap().as_str();
-                let path = caps.get(2).unwrap().as_str();
+        if has_ref_definition_syntax {
+            result = REF_DEFINITION_REGEX
+                .replace_all(&result, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let ref_label = caps.get(1).unwrap().as_str();
+                    let path = caps.get(2).unwrap().as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
 
-                    if clean_path == old_name
-                        || clean_path == old_with_dot_slash
-                        || old_name.ends_with(clean_path)
-                        || old_name.ends_with(&format!("/{}", clean_path))
-                    {
-                        count += 1;
-                        return Self::build_ref_definition(full_match, ref_label, new_name, path);
+                        if Self::path_matches_rename(clean_path, old_name, &old_with_dot_slash) {
+                            count += 1;
+                            return Self::build_ref_definition(
+                                full_match, ref_label, new_name, path,
+                            );
+                        }
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string();
+        }
 
         // Rewrite autolinks
-        result = self
-            .autolink_regex
-            .replace_all(&result, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let path = caps.get(1).unwrap().as_str();
+        if has_autolink_syntax {
+            result = AUTOLINK_REGEX
+                .replace_all(&result, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let path = caps.get(1).unwrap().as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
 
-                    if clean_path == old_name
-                        || clean_path == old_with_dot_slash
-                        || old_name.ends_with(clean_path)
-                        || old_name.ends_with(&format!("/{}", clean_path))
-                    {
-                        count += 1;
-                        return Self::build_autolink(new_name, path);
+                        if Self::path_matches_rename(clean_path, old_name, &old_with_dot_slash) {
+                            count += 1;
+                            return Self::build_autolink(new_name, path);
+                        }
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string();
+        }
 
         // Rewrite inline code paths
         let is_nested_rename = new_name.starts_with(&old_with_trailing_slash);
-        result = self
-            .inline_code_regex
-            .replace_all(&result, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let code_content = caps.get(1).unwrap().as_str();
+        if has_inline_code_syntax {
+            result = INLINE_CODE_REGEX
+                .replace_all(&result, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let code_content = caps.get(1).unwrap().as_str();
 
-                if Self::looks_like_path(code_content) {
-                    if is_nested_rename && code_content.contains(new_name) {
+                    if Self::looks_like_path(code_content) {
+                        if is_nested_rename && code_content.contains(new_name) {
+                            return full_match.to_string();
+                        }
+
+                        if code_content == old_name
+                            || code_content.starts_with(&old_with_trailing_slash)
+                        {
+                            count += 1;
+                            let updated_content = code_content.replacen(old_name, new_name, 1);
+                            return format!("`{}`", updated_content);
+                        }
+                    }
+
+                    full_match.to_string()
+                })
+                .to_string();
+        }
+
+        // Rewrite prose paths (plain text paths in documentation)
+        if has_prose_path_syntax {
+            result = PROSE_PATH_REGEX
+                .replace_all(&result, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let path_content = caps.get(1).unwrap().as_str();
+
+                    if is_nested_rename && path_content.contains(new_name) {
                         return full_match.to_string();
                     }
 
-                    if code_content == old_name
-                        || code_content.starts_with(&old_with_trailing_slash)
+                    if path_content == old_name
+                        || path_content.starts_with(&old_with_trailing_slash)
                     {
                         count += 1;
-                        let updated_content = code_content.replacen(old_name, new_name, 1);
-                        return format!("`{}`", updated_content);
+                        return path_content.replacen(old_name, new_name, 1);
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
-
-        // Rewrite prose paths (plain text paths in documentation)
-        result = self
-            .prose_path_regex
-            .replace_all(&result, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let path_content = caps.get(1).unwrap().as_str();
-
-                if is_nested_rename && path_content.contains(new_name) {
-                    return full_match.to_string();
-                }
-
-                if path_content == old_name || path_content.starts_with(&old_with_trailing_slash) {
-                    count += 1;
-                    return path_content.replacen(old_name, new_name, 1);
-                }
-
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string();
+        }
 
         debug!(
             changes = count,
@@ -484,77 +484,84 @@ impl ImportMoveSupport for MarkdownImportSupport {
 
         let old_str = old_path.to_string_lossy();
         let new_str = new_path.to_string_lossy();
+        let normalized_old_str = Self::normalize_path(&old_str);
+        let old_path_str = old_path.to_str().unwrap_or("");
+
+        let has_inline_link_syntax = content.contains("](") && content.contains('[');
+        let has_ref_definition_syntax = content.contains("]:");
+        let has_autolink_syntax = content.contains('<') && content.contains('>');
 
         // Rewrite inline links
-        let mut result = self
-            .inline_link_regex
-            .replace_all(content, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let link_text = caps.get(1).unwrap().as_str();
-                let path = caps.get(2).unwrap().as_str();
+        let mut result = if has_inline_link_syntax {
+            INLINE_LINK_REGEX
+                .replace_all(content, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let link_text = caps.get(1).unwrap().as_str();
+                    let path = caps.get(2).unwrap().as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
-                    let normalized = Self::normalize_path(clean_path);
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
+                        let normalized = Self::normalize_path(clean_path);
 
-                    if normalized == Self::normalize_path(&old_str)
-                        || clean_path.ends_with(old_path.to_str().unwrap_or(""))
-                    {
-                        count += 1;
-                        return Self::build_link(full_match, link_text, &new_str, path);
+                        if normalized == normalized_old_str || clean_path.ends_with(old_path_str) {
+                            count += 1;
+                            return Self::build_link(full_match, link_text, &new_str, path);
+                        }
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string()
+        } else {
+            content.to_string()
+        };
 
         // Rewrite reference-style link definitions
-        result = self
-            .ref_definition_regex
-            .replace_all(&result, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let ref_label = caps.get(1).unwrap().as_str();
-                let path = caps.get(2).unwrap().as_str();
+        if has_ref_definition_syntax {
+            result = REF_DEFINITION_REGEX
+                .replace_all(&result, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let ref_label = caps.get(1).unwrap().as_str();
+                    let path = caps.get(2).unwrap().as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
-                    let normalized = Self::normalize_path(clean_path);
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
+                        let normalized = Self::normalize_path(clean_path);
 
-                    if normalized == Self::normalize_path(&old_str)
-                        || clean_path.ends_with(old_path.to_str().unwrap_or(""))
-                    {
-                        count += 1;
-                        return Self::build_ref_definition(full_match, ref_label, &new_str, path);
+                        if normalized == normalized_old_str || clean_path.ends_with(old_path_str) {
+                            count += 1;
+                            return Self::build_ref_definition(
+                                full_match, ref_label, &new_str, path,
+                            );
+                        }
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string();
+        }
 
         // Rewrite autolinks
-        result = self
-            .autolink_regex
-            .replace_all(&result, |caps: &Captures| {
-                let full_match = caps.get(0).unwrap().as_str();
-                let path = caps.get(1).unwrap().as_str();
+        if has_autolink_syntax {
+            result = AUTOLINK_REGEX
+                .replace_all(&result, |caps: &Captures| {
+                    let full_match = caps.get(0).unwrap().as_str();
+                    let path = caps.get(1).unwrap().as_str();
 
-                if Self::is_file_reference(path) {
-                    let clean_path = Self::path_without_anchor(path);
-                    let normalized = Self::normalize_path(clean_path);
+                    if Self::is_file_reference(path) {
+                        let clean_path = Self::path_without_anchor(path);
+                        let normalized = Self::normalize_path(clean_path);
 
-                    if normalized == Self::normalize_path(&old_str)
-                        || clean_path.ends_with(old_path.to_str().unwrap_or(""))
-                    {
-                        count += 1;
-                        return Self::build_autolink(&new_str, path);
+                        if normalized == normalized_old_str || clean_path.ends_with(old_path_str) {
+                            count += 1;
+                            return Self::build_autolink(&new_str, path);
+                        }
                     }
-                }
 
-                full_match.to_string()
-            })
-            .to_string();
+                    full_match.to_string()
+                })
+                .to_string();
+        }
 
         debug!(changes = count, old_path = ?old_path, new_path = ?new_path, "Rewrote markdown links for move (inline + reference-style + autolinks)");
         (result, count)
@@ -570,8 +577,7 @@ impl ImportMutationSupport for MarkdownImportSupport {
 
     fn remove_import(&self, content: &str, module: &str) -> String {
         // Remove inline links
-        let mut result = self
-            .inline_link_regex
+        let mut result = INLINE_LINK_REGEX
             .replace_all(content, |caps: &Captures| {
                 let full_match = caps.get(0).unwrap().as_str();
                 let path = caps.get(2).unwrap().as_str();
@@ -590,8 +596,7 @@ impl ImportMutationSupport for MarkdownImportSupport {
             .to_string();
 
         // Remove reference-style link definitions
-        result = self
-            .ref_definition_regex
+        result = REF_DEFINITION_REGEX
             .replace_all(&result, |caps: &Captures| {
                 let full_match = caps.get(0).unwrap().as_str();
                 let path = caps.get(2).unwrap().as_str();
@@ -610,8 +615,7 @@ impl ImportMutationSupport for MarkdownImportSupport {
             .to_string();
 
         // Remove autolinks
-        result = self
-            .autolink_regex
+        result = AUTOLINK_REGEX
             .replace_all(&result, |caps: &Captures| {
                 let full_match = caps.get(0).unwrap().as_str();
                 let path = caps.get(1).unwrap().as_str();

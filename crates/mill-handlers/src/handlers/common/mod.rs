@@ -26,9 +26,7 @@ pub fn lsp_uri_from_file_path(path: &std::path::Path) -> ServerResult<lsp_types:
 
 /// Convert a file:// URI string into an LSP Uri, encoding characters rejected by fluent-uri.
 pub fn lsp_uri_from_uri_str(uri_str: &str) -> ServerResult<lsp_types::Uri> {
-    let normalized = uri_str
-        .replace('[', "%5B")
-        .replace(']', "%5D");
+    let normalized = uri_str.replace('[', "%5B").replace(']', "%5D");
     normalized
         .parse::<lsp_types::Uri>()
         .map_err(|e| ServerError::internal(format!("Failed to parse URI '{}': {}", normalized, e)))

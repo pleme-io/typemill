@@ -329,7 +329,12 @@ impl TypeScriptPathAliasResolver {
     fn find_nearest_svelte_config(&self, importing_file: &Path) -> Option<PathBuf> {
         self.find_nearest_config_with_cache(
             importing_file,
-            &["svelte.config.js", "svelte.config.ts", "svelte.config.mjs", "svelte.config.cjs"],
+            &[
+                "svelte.config.js",
+                "svelte.config.ts",
+                "svelte.config.mjs",
+                "svelte.config.cjs",
+            ],
             &self.svelte_config_path_cache,
         )
     }
@@ -360,11 +365,9 @@ impl TypeScriptPathAliasResolver {
         }
 
         let config_dir = config_path.parent()?;
-        let map = if let Some(runtime_map) = load_aliases_from_config_runtime(
-            config_path,
-            config_dir,
-            ConfigKind::Svelte,
-        ) {
+        let map = if let Some(runtime_map) =
+            load_aliases_from_config_runtime(config_path, config_dir, ConfigKind::Svelte)
+        {
             Arc::new(runtime_map)
         } else {
             let content = std::fs::read_to_string(config_path).ok()?;
@@ -510,10 +513,7 @@ impl TypeScriptPathAliasResolver {
         }
 
         // 2. Fallback to Svelte/Vite alias configs if available
-        if let Some(alias) = self.path_to_alias_from_extra_configs(
-            absolute_path,
-            importing_file,
-        ) {
+        if let Some(alias) = self.path_to_alias_from_extra_configs(absolute_path, importing_file) {
             return Some(alias);
         }
 
@@ -691,10 +691,7 @@ impl TypeScriptPathAliasResolver {
     }
 }
 
-fn parse_aliases_from_config(
-    content: &str,
-    config_dir: &Path,
-) -> IndexMap<String, Vec<PathBuf>> {
+fn parse_aliases_from_config(content: &str, config_dir: &Path) -> IndexMap<String, Vec<PathBuf>> {
     let mut map: IndexMap<String, Vec<PathBuf>> = IndexMap::new();
     let alias_re = Regex::new(r"\balias\s*:").expect("alias regex should be valid");
 
@@ -730,7 +727,10 @@ fn load_aliases_from_config_runtime(
     config_dir: &Path,
     kind: ConfigKind,
 ) -> Option<IndexMap<String, Vec<PathBuf>>> {
-    let ext = config_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let ext = config_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
 
     let absolute = config_path.canonicalize().ok()?;
     let file_arg = absolute.to_string_lossy().to_string();
@@ -846,24 +846,14 @@ process.stdout.write(JSON.stringify(normalized));"#,
             false,
             None,
         ),
-        NodeMode::EsmTsx => (
-            "--loader",
-            "tsx",
-            false,
-            None,
-        ),
+        NodeMode::EsmTsx => ("--loader", "tsx", false, None),
         NodeMode::EsmTsxNearest => (
             "--loader",
             "tsx",
             false,
             find_nearest_node_modules(config_dir),
         ),
-        NodeMode::NpxTsx => (
-            "",
-            "",
-            true,
-            None,
-        ),
+        NodeMode::NpxTsx => ("", "", true, None),
     };
 
     let output = if use_npx {
@@ -1067,18 +1057,14 @@ fn collect_alias_object_pairs(
     config_dir: &Path,
     map: &mut IndexMap<String, Vec<PathBuf>>,
 ) {
-    let single_quoted_pair =
-        Regex::new(r#"(?m)'([^']+)'\s*:\s*'([^']+)'"#)
-            .expect("single-quoted alias regex should be valid");
-    let double_quoted_pair =
-        Regex::new(r#"(?m)"([^"]+)"\s*:\s*"([^"]+)""#)
-            .expect("double-quoted alias regex should be valid");
-    let ident_single_pair =
-        Regex::new(r#"(?m)([$A-Za-z_][\w$]*)\s*:\s*'([^']+)'"#)
-            .expect("ident single alias regex should be valid");
-    let ident_double_pair =
-        Regex::new(r#"(?m)([$A-Za-z_][\w$]*)\s*:\s*"([^"]+)""#)
-            .expect("ident double alias regex should be valid");
+    let single_quoted_pair = Regex::new(r#"(?m)'([^']+)'\s*:\s*'([^']+)'"#)
+        .expect("single-quoted alias regex should be valid");
+    let double_quoted_pair = Regex::new(r#"(?m)"([^"]+)"\s*:\s*"([^"]+)""#)
+        .expect("double-quoted alias regex should be valid");
+    let ident_single_pair = Regex::new(r#"(?m)([$A-Za-z_][\w$]*)\s*:\s*'([^']+)'"#)
+        .expect("ident single alias regex should be valid");
+    let ident_double_pair = Regex::new(r#"(?m)([$A-Za-z_][\w$]*)\s*:\s*"([^"]+)""#)
+        .expect("ident double alias regex should be valid");
 
     for caps in single_quoted_pair.captures_iter(block) {
         let key = caps.get(1).map(|m| m.as_str()).unwrap_or("");
@@ -1119,8 +1105,8 @@ fn collect_alias_array_pairs(
     map: &mut IndexMap<String, Vec<PathBuf>>,
 ) {
     let object_re = Regex::new(r#"(?s)\{[^}]*\}"#).expect("alias object regex should be valid");
-    let find_re = Regex::new(r#"find\s*:\s*(['"])([^'"]+)\1"#)
-        .expect("find alias regex should be valid");
+    let find_re =
+        Regex::new(r#"find\s*:\s*(['"])([^'"]+)\1"#).expect("find alias regex should be valid");
     let replacement_re = Regex::new(r#"replacement\s*:\s*(['"])([^'"]+)\1"#)
         .expect("replacement alias regex should be valid");
 
@@ -1155,10 +1141,7 @@ fn normalize_alias_path(value: &str, config_dir: &Path) -> Option<PathBuf> {
     Some(path)
 }
 
-fn resolve_alias_from_map(
-    specifier: &str,
-    map: &IndexMap<String, Vec<PathBuf>>,
-) -> Option<String> {
+fn resolve_alias_from_map(specifier: &str, map: &IndexMap<String, Vec<PathBuf>>) -> Option<String> {
     for (pattern, replacements) in map {
         if let Some(resolved) = resolve_alias_against_pattern(specifier, pattern, replacements) {
             return Some(resolved);
@@ -1231,7 +1214,10 @@ fn path_to_alias_from_map(
                         format!("{}/{}", pattern.trim_end_matches('/'), relative_str)
                     };
                     let score = replacement.components().count();
-                    if best.as_ref().map_or(true, |(best_score, _)| score > *best_score) {
+                    if best
+                        .as_ref()
+                        .map_or(true, |(best_score, _)| score > *best_score)
+                    {
                         best = Some((score, alias));
                     }
                 }
@@ -1245,7 +1231,10 @@ fn path_to_alias_from_map(
                 Path::new("."),
             ) {
                 let score = replacement.components().count();
-                if best.as_ref().map_or(true, |(best_score, _)| score > *best_score) {
+                if best
+                    .as_ref()
+                    .map_or(true, |(best_score, _)| score > *best_score)
+                {
                     best = Some((score, alias));
                 }
             }
@@ -1380,7 +1369,8 @@ export default {
         let resolved_path = resolved.unwrap();
         assert!(resolved_path.ends_with("src/utils/format"));
 
-        let resolved = resolver.resolve_alias("$lib/components/Button", &importing_file, project_root);
+        let resolved =
+            resolver.resolve_alias("$lib/components/Button", &importing_file, project_root);
         assert!(resolved.is_some());
         let resolved_path = resolved.unwrap();
         assert!(resolved_path.ends_with("src/lib/components/Button"));

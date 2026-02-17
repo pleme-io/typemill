@@ -311,7 +311,10 @@ async fn update_imports_in_workspace_directory(
             .await?;
         } else {
             let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
-            if matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mts" | "mjs" | "cts" | "cjs") {
+            if matches!(
+                ext,
+                "ts" | "tsx" | "js" | "jsx" | "mts" | "mjs" | "cts" | "cjs"
+            ) {
                 update_imports_in_single_file(
                     &path,
                     source_package,
@@ -568,10 +571,7 @@ mod tests {
         let parsed: Value = serde_json::from_str(&result).unwrap();
 
         // lodash should keep target version
-        assert_eq!(
-            parsed["dependencies"]["lodash"].as_str(),
-            Some("^4.17.0")
-        );
+        assert_eq!(parsed["dependencies"]["lodash"].as_str(), Some("^4.17.0"));
         // axios should be added
         assert_eq!(parsed["dependencies"]["axios"].as_str(), Some("^1.0.0"));
         // typescript should be added to devDependencies

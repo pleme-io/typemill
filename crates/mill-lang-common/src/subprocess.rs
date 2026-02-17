@@ -208,11 +208,10 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
     let runtime = tool.runtime.clone();
 
     // Offload blocking preparation (temp dir creation, file writing) to a blocking thread
-    let (tmp_dir, _tool_path, cmd_args) = tokio::task::spawn_blocking(move || {
-        prepare_subprocess(&tool)
-    })
-    .await
-    .map_err(|e| MillError::internal(format!("Failed to join blocking task: {}", e)))??;
+    let (tmp_dir, _tool_path, cmd_args) =
+        tokio::task::spawn_blocking(move || prepare_subprocess(&tool))
+            .await
+            .map_err(|e| MillError::internal(format!("Failed to join blocking task: {}", e)))??;
 
     let result = async {
         debug!(
@@ -247,10 +246,7 @@ async fn execute_subprocess_async(tool: SubprocessAstTool, source: &str) -> Plug
 
         // Wait for subprocess to complete asynchronously
         let output = child.wait_with_output().await.map_err(|e| {
-            MillError::parse(format!(
-                "Failed to wait for {} subprocess: {}",
-                runtime, e
-            ))
+            MillError::parse(format!("Failed to wait for {} subprocess: {}", runtime, e))
         })?;
 
         // Check exit status

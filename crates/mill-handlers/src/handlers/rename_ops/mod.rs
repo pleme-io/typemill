@@ -779,8 +779,14 @@ mod tests {
         // Edit 1: line 10
         let edit1 = TextEdit {
             range: Range {
-                start: Position { line: 10, character: 0 },
-                end: Position { line: 10, character: 5 },
+                start: Position {
+                    line: 10,
+                    character: 0,
+                },
+                end: Position {
+                    line: 10,
+                    character: 5,
+                },
             },
             new_text: "new1".to_string(),
         };
@@ -788,8 +794,14 @@ mod tests {
         // Edit 2: line 5
         let edit2 = TextEdit {
             range: Range {
-                start: Position { line: 5, character: 0 },
-                end: Position { line: 5, character: 5 },
+                start: Position {
+                    line: 5,
+                    character: 0,
+                },
+                end: Position {
+                    line: 5,
+                    character: 5,
+                },
             },
             new_text: "new2".to_string(),
         };
@@ -848,8 +860,14 @@ mod tests {
             },
             edits: vec![OneOf::Left(TextEdit {
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 5 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
                 },
                 new_text: "foo".to_string(),
             })],
@@ -867,11 +885,11 @@ mod tests {
         assert_eq!(deduped.len(), 2);
         // Order: Preserved (Create then Edit) as they are independent files
         match &deduped[0] {
-            DocumentChangeOperation::Op(ResourceOp::Create(_)) => {},
+            DocumentChangeOperation::Op(ResourceOp::Create(_)) => {}
             op => panic!("Expected Create first, but got {:?}", op),
         }
         match &deduped[1] {
-            DocumentChangeOperation::Edit(_) => {},
+            DocumentChangeOperation::Edit(_) => {}
             op => panic!("Expected Edit second, but got {:?}", op),
         }
     }
@@ -897,8 +915,14 @@ mod tests {
             },
             edits: vec![OneOf::Left(TextEdit {
                 range: Range {
-                    start: Position { line: 0, character: 0 },
-                    end: Position { line: 0, character: 5 },
+                    start: Position {
+                        line: 0,
+                        character: 0,
+                    },
+                    end: Position {
+                        line: 0,
+                        character: 5,
+                    },
                 },
                 new_text: "updated".to_string(),
             })],
@@ -914,12 +938,12 @@ mod tests {
         assert_eq!(deduped.len(), 2);
 
         match &deduped[0] {
-            DocumentChangeOperation::Op(ResourceOp::Rename(_)) => {},
+            DocumentChangeOperation::Op(ResourceOp::Rename(_)) => {}
             op => panic!("Expected Rename first, but got {:?}", op),
         }
 
         match &deduped[1] {
-            DocumentChangeOperation::Edit(_) => {},
+            DocumentChangeOperation::Edit(_) => {}
             op => panic!("Expected Edit second, but got {:?}", op),
         }
     }
@@ -938,8 +962,14 @@ mod tests {
             edits: vec![OneOf::Right(AnnotatedTextEdit {
                 text_edit: TextEdit {
                     range: Range {
-                        start: Position { line: 0, character: 0 },
-                        end: Position { line: 0, character: 5 },
+                        start: Position {
+                            line: 0,
+                            character: 0,
+                        },
+                        end: Position {
+                            line: 0,
+                            character: 5,
+                        },
                     },
                     new_text: "annotated".to_string(),
                 },
