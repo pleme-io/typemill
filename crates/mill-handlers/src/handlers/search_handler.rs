@@ -384,12 +384,40 @@ impl SearchHandler {
         }
 
         // Stream and paginate without allocating a huge intermediate vector
-        let paginated_symbols: Vec<Value> = symbol_vectors
-            .into_iter()
-            .flatten()
-            .skip(offset)
-            .take(limit)
-            .collect();
+        let remaining_items = total.saturating_sub(offset);
+        let capacity = std::cmp::min(limit, remaining_items);
+        let mut paginated_symbols = Vec::with_capacity(capacity);
+        let mut current_offset = offset;
+
+        // Iterate through symbol vectors manually to skip entire vectors if possible
+        for symbols in symbol_vectors {
+            let len = symbols.len();
+            if len <= current_offset {
+                // Skip this entire vector
+                current_offset -= len;
+                continue;
+            }
+
+            // We need to take some symbols from this vector
+            // The number of items to skip in this vector is `current_offset`
+            let remaining_limit = limit - paginated_symbols.len();
+            let available = len - current_offset;
+            let take_count = std::cmp::min(remaining_limit, available);
+
+            paginated_symbols.extend(
+                symbols
+                    .into_iter()
+                    .skip(current_offset)
+                    .take(take_count),
+            );
+
+            // We've consumed the offset
+            current_offset = 0;
+
+            if paginated_symbols.len() >= limit {
+                break;
+            }
+        }
 
         let processing_time = start_time.elapsed().as_millis() as u64;
 
