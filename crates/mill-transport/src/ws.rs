@@ -175,6 +175,7 @@ async fn handle_connection(
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
     let mut user_id_from_token: Option<String> = None;
+    let mut project_id_from_token: Option<String> = None;
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
@@ -217,6 +218,7 @@ async fn handle_connection(
                             }
 
                             user_id_from_token = token_data.claims.user_id;
+                            project_id_from_token = token_data.claims.project_id;
                             return Ok(response);
                         }
                         Err(e) => {
@@ -260,6 +262,7 @@ async fn handle_connection(
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
     session.user_id = user_id_from_token;
+    session.project_id = project_id_from_token;
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -457,7 +460,19 @@ async fn handle_initialize(
     };
 
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+    if let Some(auth_project_id) = &session.project_id {
+        if let Some(requested_project) = &payload.project {
+            if auth_project_id != requested_project {
+                return Err(MillError::permission_denied(format!(
+                    "Session bound to project '{}', but requested project '{}'",
+                    auth_project_id, requested_project
+                )));
+            }
+        }
+    } else {
+        session.project_id = payload.project;
+    }
+
     session.project_root = payload.project_root;
     session.initialized = true;
 
