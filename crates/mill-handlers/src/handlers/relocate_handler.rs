@@ -30,6 +30,7 @@ use mill_foundation::planning::RefactorPlan;
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::Path;
+use std::time::Instant;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -283,7 +284,15 @@ impl RelocateHandler {
     ) -> ServerResult<Value> {
         debug!(operation_id = %operation_id, "Executing relocate plan");
 
+        let apply_start = Instant::now();
         let result = crate::handlers::common::execute_refactor_plan(context, plan).await?;
+        info!(
+            operation_id = %operation_id,
+            apply_ms = apply_start.elapsed().as_millis(),
+            success = result.success,
+            applied_files = result.applied_files.len(),
+            "perf: relocate_apply"
+        );
 
         if result.success {
             let summary = format!(

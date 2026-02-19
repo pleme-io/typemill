@@ -13,7 +13,7 @@ use mill_foundation::planning::{MovePlan, PlanMetadata, PlanSummary};
 use mill_foundation::protocol::{EditPlan, TextEdit as ProtocolTextEdit};
 use std::collections::HashMap;
 use std::path::Path;
-use tracing::{debug, info};
+use tracing::debug;
 
 use crate::handlers::common::{
     calculate_checksums_for_edits, estimate_impact, lsp_uri_from_file_path, lsp_uri_from_uri_str,
@@ -33,7 +33,7 @@ pub async fn editplan_to_moveplan(
     context: &mill_handler_api::ToolHandlerContext,
     operation_id: &str,
 ) -> ServerResult<MovePlan> {
-    info!(
+    debug!(
         operation_id = %operation_id,
         old_path = %old_path.display(),
         new_path = %new_path.display(),

@@ -20,6 +20,8 @@ pub mod validation;
 
 pub mod app_state_factory;
 pub mod move_service;
+pub mod perf_env;
+pub mod perf_metrics;
 pub mod reference_updater;
 pub mod registry_builder;
 

@@ -1,14 +1,40 @@
 //! Planning logic for file and directory moves
 
+use crate::services::perf_env::{
+    env_truthy, env_u128, DEFAULT_DIRECTORY_MOVE_DETECTOR_MS,
+    DEFAULT_DIRECTORY_MOVE_DOC_REWRITE_MS, PERF_ASSERT_STRICT, PERF_MAX_DIRECTORY_MOVE_DETECTOR_MS,
+    PERF_MAX_DIRECTORY_MOVE_DOC_REWRITE_MS,
+};
+use crate::services::perf_metrics::record_metric;
 use crate::services::reference_updater::helpers::create_import_update_edit;
 use crate::services::reference_updater::{LspImportFinder, ReferenceUpdater};
 use mill_foundation::errors::MillError as ServerError;
 use mill_foundation::protocol::EditPlan;
 use mill_plugin_api::{PluginDiscovery, ScanScope};
 use std::path::Path;
+use std::time::Instant;
 use tracing::{debug, info, warn};
 
 type ServerResult<T> = Result<T, ServerError>;
+
+fn report_perf_threshold(metric: &str, observed_ms: u128, threshold_ms: u128) -> ServerResult<()> {
+    if observed_ms <= threshold_ms {
+        return Ok(());
+    }
+
+    warn!(metric, observed_ms, threshold_ms, "perf threshold exceeded");
+
+    let strict_assert = env_truthy(PERF_ASSERT_STRICT);
+
+    if strict_assert {
+        return Err(ServerError::internal(format!(
+            "Performance assertion failed for {}: observed {}ms > threshold {}ms",
+            metric, observed_ms, threshold_ms
+        )));
+    }
+
+    Ok(())
+}
 
 /// Plan a file move with import updates
 pub async fn plan_file_move(
@@ -160,6 +186,7 @@ pub async fn plan_directory_move(
     rename_scope: Option<&mill_foundation::core::rename_scope::RenameScope>,
     lsp_finder: Option<&dyn LspImportFinder>,
 ) -> ServerResult<EditPlan> {
+    let plan_start = Instant::now();
     info!(
         old_path = %old_abs.display(),
         new_path = %new_abs.display(),
@@ -171,6 +198,7 @@ pub async fn plan_directory_move(
     let mut rename_info = None;
     let mut is_package = false;
 
+    let detector_start = Instant::now();
     for plugin in plugin_registry.all() {
         // Check if plugin has workspace support
         if let Some(workspace_support) = plugin.workspace_support() {
@@ -203,6 +231,8 @@ pub async fn plan_directory_move(
         }
     }
 
+    let detector_ms = detector_start.elapsed().as_millis();
+
     // Pass through the scan scope - don't override it
     // The caller (via RenameScope) determines whether to scan for string literals
     let effective_scan_scope = scan_scope;
@@ -229,7 +259,7 @@ pub async fn plan_directory_move(
             if path.starts_with(old_abs) {
                 if let Ok(relative) = path.strip_prefix(old_abs) {
                     let new_file_path = new_abs.join(relative);
-                    info!(
+                    debug!(
                         old_path = %path.display(),
                         new_path = %new_file_path.display(),
                         "Remapping edit from old directory to new directory"
@@ -276,7 +306,8 @@ pub async fn plan_directory_move(
     }
 
     // Add documentation and config file edits (markdown, TOML, YAML)
-    info!("Scanning for documentation and config file updates");
+    let doc_rewrite_start = Instant::now();
+    debug!("Scanning for documentation and config file updates");
     let doc_config_edits_before = edit_plan.edits.len();
 
     match plan_documentation_and_config_edits(
@@ -289,14 +320,14 @@ pub async fn plan_directory_move(
     .await
     {
         Ok(edits) if !edits.is_empty() => {
-            info!(
+            debug!(
                 doc_config_edits = edits.len(),
                 "Adding documentation and config file edits to plan"
             );
             edit_plan.edits.extend(edits);
         }
         Ok(_) => {
-            info!("No documentation or config file updates needed");
+            debug!("No documentation or config file updates needed");
         }
         Err(e) => {
             warn!(
@@ -306,21 +337,45 @@ pub async fn plan_directory_move(
         }
     }
 
+    let doc_rewrite_ms = doc_rewrite_start.elapsed().as_millis();
     let doc_config_edits_added = edit_plan.edits.len() - doc_config_edits_before;
     if doc_config_edits_added > 0 {
-        info!(
+        debug!(
             doc_config_edits_added,
             "Documentation and config file edits added to plan"
         );
     }
 
     info!(
+        detector_ms,
+        doc_rewrite_ms,
+        total_ms = plan_start.elapsed().as_millis(),
         edits_count = edit_plan.edits.len(),
         old_path = %old_abs.display(),
         new_path = %new_abs.display(),
         is_package,
-        "Directory move plan generated"
+        "perf: directory_move_plan"
     );
+
+    record_metric("directory_move_plan.detector_ms", detector_ms);
+    record_metric("directory_move_plan.doc_rewrite_ms", doc_rewrite_ms);
+
+    report_perf_threshold(
+        "directory_move_plan.detector_ms",
+        detector_ms,
+        env_u128(
+            PERF_MAX_DIRECTORY_MOVE_DETECTOR_MS,
+            DEFAULT_DIRECTORY_MOVE_DETECTOR_MS,
+        ),
+    )?;
+    report_perf_threshold(
+        "directory_move_plan.doc_rewrite_ms",
+        doc_rewrite_ms,
+        env_u128(
+            PERF_MAX_DIRECTORY_MOVE_DOC_REWRITE_MS,
+            DEFAULT_DIRECTORY_MOVE_DOC_REWRITE_MS,
+        ),
+    )?;
 
     Ok(edit_plan)
 }
@@ -412,7 +467,7 @@ async fn plan_documentation_and_config_edits(
         }
     }
 
-    info!(
+    debug!(
         extensions_found = files_by_extension.len(),
         total_files = files_by_extension.values().map(|v| v.len()).sum::<usize>(),
         renames_count = all_renames.len(),
@@ -426,7 +481,7 @@ async fn plan_documentation_and_config_edits(
 
     for (ext, files_to_scan) in &files_by_extension {
         if let Some(plugin) = plugin_registry.find_by_extension(ext) {
-            info!(
+            debug!(
                 extension = ext,
                 plugin_name = plugin.metadata().name,
                 files_count = files_to_scan.len(),
@@ -469,7 +524,7 @@ async fn plan_documentation_and_config_edits(
                 });
             }
         } else {
-            info!(extension = ext, "No plugin found for extension");
+            debug!(extension = ext, "No plugin found for extension");
         }
     }
 
@@ -486,7 +541,7 @@ async fn plan_documentation_and_config_edits(
         }
     }
 
-    info!(
+    debug!(
         files_read = file_infos.len(),
         "Parallel file reads completed, processing with plugins"
     );
@@ -516,7 +571,7 @@ async fn plan_documentation_and_config_edits(
                         .unwrap_or(&file_path);
 
                     if target_file_path != file_path {
-                        info!(
+                        debug!(
                             old_path = %file_path.display(),
                             new_path = %target_file_path.display(),
                             "File will be moved - using NEW path in edit for correct snapshot lookup"
@@ -530,7 +585,7 @@ async fn plan_documentation_and_config_edits(
                         total_changes,
                     );
 
-                    info!(
+                    debug!(
                         file = %file_path.display(),
                         extension = ext,
                         changes = total_changes,
@@ -544,4 +599,34 @@ async fn plan_documentation_and_config_edits(
     }
 
     Ok(edits)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn report_perf_threshold_with_strict(
+        metric: &str,
+        observed_ms: u128,
+        threshold_ms: u128,
+        strict_assert: bool,
+    ) -> ServerResult<()> {
+        if observed_ms <= threshold_ms {
+            return Ok(());
+        }
+        if strict_assert {
+            return Err(ServerError::internal(format!(
+                "Performance assertion failed for {}: observed {}ms > threshold {}ms",
+                metric, observed_ms, threshold_ms
+            )));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn test_report_perf_threshold_strict_mode_fails() {
+        let result =
+            report_perf_threshold_with_strict("directory_move_plan.detector_ms", 200, 100, true);
+        assert!(result.is_err());
+    }
 }

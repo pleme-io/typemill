@@ -171,13 +171,13 @@ impl ReferenceUpdater {
             project_files
                 .retain(|path| path.file_name() != Some(std::ffi::OsStr::new("Cargo.toml")));
             let after_count = project_files.len();
-            tracing::info!(
+            tracing::debug!(
                 filtered_count = before_count - after_count,
                 "Filtered Cargo.toml files during consolidation (handled semantically)"
             );
         }
 
-        tracing::info!(
+        tracing::debug!(
             project_files_count = project_files.len(),
             "Found project files"
         );
@@ -477,7 +477,7 @@ impl ReferenceUpdater {
             );
         }
 
-        tracing::info!(
+        tracing::debug!(
             cache_hit = telemetry.cache_hit,
             lsp_ttl_hit = telemetry.lsp_ttl_hit,
             lsp_query_attempted = telemetry.lsp_query_attempted,
@@ -1654,14 +1654,14 @@ pub async fn find_project_files_with_map(
     let ttl_ms = std::env::var("TYPEMILL_FILELIST_CACHE_TTL_MS")
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(30_000);
+        .unwrap_or(120_000);
     let ttl = Duration::from_millis(ttl_ms);
     if let Some(cached) = load_filelist_cache(&project_root, &scope_key, ttl) {
         if std::env::var("TYPEMILL_PERF")
             .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
             .unwrap_or(false)
         {
-            tracing::info!(files = cached.len(), "filelist cache hit");
+            tracing::debug!(files = cached.len(), "filelist cache hit");
         }
         return Ok(cached);
     }
