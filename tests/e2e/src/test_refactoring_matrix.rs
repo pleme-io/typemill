@@ -14,10 +14,15 @@
 
 use crate::test_real_projects::RealProjectContext;
 use futures::FutureExt;
+use serde::Serialize;
 use serde_json::json;
 use serial_test::serial;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+
+const MATRIX_ARTIFACT_ENV_VAR: &str = "TYPEMILL_MATRIX_ARTIFACT_DIR";
+const PERF_ASSERT_STRICT_ENV_VAR: &str = "TYPEMILL_PERF_ASSERT_STRICT";
+const PERF_ARTIFACT_SCHEMA_VERSION: u32 = 1;
 
 // ============================================================================
 // Test Configuration
@@ -339,8 +344,21 @@ fn collect_files_recursive(
     Ok(())
 }
 
+#[derive(Debug, Serialize, Clone)]
+pub struct MatrixRunTimings {
+    pub warmup_ms: u128,
+    pub baseline_ms: u128,
+    pub initial_verify_ms: u128,
+    pub final_verify_ms: u128,
+    pub operations_total_ms: u128,
+    pub build_verifications_executed: usize,
+    pub build_verifications_failed: usize,
+    pub build_verifications_skipped: usize,
+    pub total_run_ms: u128,
+}
+
 /// Result of a single matrix test
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct MatrixTestResult {
     pub test_name: String,
     pub passed: bool,
@@ -358,6 +376,10 @@ pub struct RefactoringMatrixRunner {
     pub results: Vec<MatrixTestResult>,
     /// Baseline error count before any tests run (for comparative verification)
     pub baseline_errors: usize,
+    /// Recorded perf threshold exceedances during matrix operations.
+    pub threshold_exceedances: Vec<String>,
+    /// Coarse phase timings for the full matrix run.
+    pub run_timings: Option<MatrixRunTimings>,
 }
 
 impl RefactoringMatrixRunner {
@@ -368,10 +390,12 @@ impl RefactoringMatrixRunner {
             ctx,
             results: Vec::new(),
             baseline_errors: 0,
+            threshold_exceedances: Vec::new(),
+            run_timings: None,
         }
     }
 
-    fn matrix_verify_every() -> usize {
+    fn matrix_verify_every(&self) -> usize {
         if let Some(from_env) = std::env::var("TYPEMILL_MATRIX_VERIFY_EVERY")
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
@@ -383,10 +407,22 @@ impl RefactoringMatrixRunner {
         // In perf profile we default to a batched cadence to reduce build-check
         // overhead while preserving full verification defaults elsewhere.
         if Self::matrix_profile() == "perf" {
-            5
+            match self.config.build_verify {
+                // TypeScript full-project checks are the heaviest lane; a slightly
+                // wider cadence reduces wall-clock time without removing final verification.
+                BuildVerification::TypeScript => 14,
+                _ => 10,
+            }
         } else {
             1
         }
+    }
+
+    fn is_high_risk_typescript_operation(name: &str) -> bool {
+        matches!(
+            name,
+            "folder_rename" | "folder_move_down" | "folder_move_up" | "folder_move_sibling"
+        )
     }
 
     /// Warm up LSP for the project
@@ -447,9 +483,17 @@ impl RefactoringMatrixRunner {
     /// Record a test result
     fn record(&mut self, name: &str, result: Result<(), String>, operation_ms: u128) {
         let build_start = std::time::Instant::now();
-        let verify_every = Self::matrix_verify_every();
+        let verify_every = self.matrix_verify_every();
         let operation_index = self.results.len() + 1;
-        let should_verify_now = operation_index % verify_every == 0;
+        let cadence_due = operation_index % verify_every == 0;
+        let high_risk_force_enabled = std::env::var("TYPEMILL_MATRIX_VERIFY_FORCE_HIGH_RISK")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(true);
+        let force_high_risk_verify = high_risk_force_enabled
+            && Self::matrix_profile() == "perf"
+            && matches!(self.config.build_verify, BuildVerification::TypeScript)
+            && Self::is_high_risk_typescript_operation(name);
+        let should_verify_now = cadence_due || force_high_risk_verify;
 
         let build_result = if result.is_ok() && should_verify_now {
             match self.verify_build() {
@@ -556,6 +600,25 @@ impl RefactoringMatrixRunner {
         }
 
         Ok(())
+    }
+
+    fn build_verification_stats(&self) -> (usize, usize, usize) {
+        let executed = self
+            .results
+            .iter()
+            .filter(|r| r.build_passed.is_some())
+            .count();
+        let failed = self
+            .results
+            .iter()
+            .filter(|r| matches!(r.build_passed, Some(false)))
+            .count();
+        let skipped = self
+            .results
+            .iter()
+            .filter(|r| r.passed && r.build_passed.is_none())
+            .count();
+        (executed, failed, skipped)
     }
 
     /// Print summary of all test results
@@ -1262,10 +1325,167 @@ impl RefactoringMatrixRunner {
         self.record(test_name, result, start.elapsed().as_millis());
     }
 
+    /// Test: Delete files with tiered inbound references to stress prune planning.
+    ///
+    /// Tier defaults:
+    /// - perf profile: 120, 500, 1000 inbound refs
+    /// - full profile: 120 inbound refs (keeps full suite runtime manageable)
+    pub async fn test_prune_file_large_inbound_refs(&mut self) {
+        let test_name = "prune_file_large_inbound_refs";
+        println!(
+            "
+🧪 Running: {}",
+            test_name
+        );
+        let start = std::time::Instant::now();
+
+        let result = async {
+            // This targeted benchmark is TS-only because prune/import semantics differ by language
+            if self.config.file_ext != "ts" {
+                return Ok(());
+            }
+
+            let src_dir = self.config.source_dir;
+            let ext = self.config.file_ext;
+            let tiers: Vec<usize> = if Self::matrix_profile() == "perf" {
+                vec![120, 500, 1000]
+            } else {
+                vec![120]
+            };
+
+            for tier in tiers {
+                let target_rel = format!("{}/to_prune_large_{}.{}", src_dir, tier, ext);
+                let importer_dir_rel = format!("{}/prune_inbound_{}", src_dir, tier);
+                let importer_dir_abs = self.ctx.absolute_path(&importer_dir_rel);
+                std::fs::create_dir_all(&importer_dir_abs)
+                    .map_err(|e| format!("failed to create {}: {}", importer_dir_rel, e))?;
+
+                self.ctx
+                    .create_test_file(&target_rel, "export const keepMe = 123;\n");
+                self.ctx.verify_file_exists(&target_rel)?;
+
+                for idx in 0..tier {
+                    let importer_rel =
+                        format!("{}/ref_inbound_{:04}.{}", importer_dir_rel, idx, ext);
+                    let importer_content = format!(
+                        "import {{ keepMe }} from \"../to_prune_large_{}\";\nexport const v{} = keepMe + {};\n",
+                        tier, idx, idx
+                    );
+                    self.ctx.create_test_file(&importer_rel, &importer_content);
+                }
+
+                let cross_dirs = Self::prune_cross_boundary_dirs(src_dir, tier);
+                for (dir_i, cross_dir_rel) in cross_dirs.iter().enumerate() {
+                    let cross_dir_abs = self.ctx.absolute_path(cross_dir_rel);
+                    std::fs::create_dir_all(&cross_dir_abs)
+                        .map_err(|e| format!("failed to create {}: {}", cross_dir_rel, e))?;
+
+                    for idx in 0..10 {
+                        let importer_rel =
+                            format!("{}/cross_ref_{}_{}.{}", cross_dir_rel, dir_i, idx, ext);
+                        let importer_content = format!(
+                            "import {{ keepMe }} from \"../../to_prune_large_{}\";\nexport const cross{}_{} = keepMe + {};\n",
+                            tier, dir_i, idx, idx
+                        );
+                        self.ctx.create_test_file(&importer_rel, &importer_content);
+                    }
+                }
+
+                println!(
+                    "  ℹ️  Created {} inbound ref files for prune stress tier {} (+20 cross-boundary)",
+                    tier, tier
+                );
+
+                let file_path = self.ctx.absolute_path(&target_rel);
+                let prune_start = std::time::Instant::now();
+                self.ctx
+                    .call_tool(
+                        "prune",
+                        json!({
+                            "target": { "kind": "file", "filePath": file_path.to_string_lossy() },
+                            "options": { "dryRun": false }
+                        }),
+                    )
+                    .await
+                    .map_err(|e| format!("prune failed at tier {}: {}", tier, e))?;
+                let tier_ms = prune_start.elapsed().as_millis();
+
+                self.ctx.verify_file_not_exists(&target_rel)?;
+                println!("  📈 prune tier {} completed in {} ms", tier, tier_ms);
+
+                let var_name = format!("TYPEMILL_PRUNE_TIER_{}_MAX_MS", tier);
+                let threshold_ms = std::env::var(&var_name)
+                    .ok()
+                    .and_then(|v| v.parse::<u128>().ok())
+                    .unwrap_or(match tier {
+                        120 => 100,
+                        500 => 300,
+                        1000 => 700,
+                        _ => 1_000,
+                    });
+                if tier_ms > threshold_ms {
+                    let strict_assert = std::env::var(PERF_ASSERT_STRICT_ENV_VAR)
+                        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                        .unwrap_or(false);
+                    let exceedance = format!(
+                        "prune_tier_{}_ms exceeded threshold: {} > {}",
+                        tier, tier_ms, threshold_ms
+                    );
+                    self.threshold_exceedances.push(exceedance.clone());
+                    println!(
+                        "  ⚠️ Perf threshold exceeded for prune tier {}: {} ms > {} ms",
+                        tier, tier_ms, threshold_ms
+                    );
+                    if strict_assert {
+                        return Err(format!(
+                            "perf assertion failed for prune tier {}: {} ms > {} ms",
+                            tier, tier_ms, threshold_ms
+                        ));
+                    }
+                }
+
+
+                // Cleanup stress fixture importers so strict build verifications remain accurate.
+                std::fs::remove_dir_all(&importer_dir_abs)
+                    .map_err(|e| format!("failed to cleanup {}: {}", importer_dir_rel, e))?;
+                self.cleanup_prune_cross_boundary_dirs(src_dir, tier)?;
+            }
+
+            Ok(())
+        }
+        .await;
+
+        self.record(test_name, result, start.elapsed().as_millis());
+    }
+
     fn matrix_profile() -> String {
         std::env::var("TYPEMILL_MATRIX_PROFILE")
             .unwrap_or_else(|_| "full".to_string())
             .to_ascii_lowercase()
+    }
+
+    fn prune_cross_boundary_dirs(src_dir: &str, tier: usize) -> [String; 2] {
+        [
+            format!(
+                "{}/.typemill_prune_stress_workspace_a_{}/src",
+                src_dir, tier
+            ),
+            format!(
+                "{}/.typemill_prune_stress_workspace_b_{}/src",
+                src_dir, tier
+            ),
+        ]
+    }
+
+    fn cleanup_prune_cross_boundary_dirs(&self, src_dir: &str, tier: usize) -> Result<(), String> {
+        for cross_dir_rel in Self::prune_cross_boundary_dirs(src_dir, tier) {
+            let cross_dir_abs = self.ctx.absolute_path(&cross_dir_rel);
+            if cross_dir_abs.exists() {
+                std::fs::remove_dir_all(&cross_dir_abs)
+                    .map_err(|e| format!("failed to cleanup {}: {}", cross_dir_rel, e))?;
+            }
+        }
+        Ok(())
     }
 
     // =========================================================================
@@ -1274,34 +1494,42 @@ impl RefactoringMatrixRunner {
 
     /// Run the complete test matrix
     pub async fn run_all(&mut self) {
+        let run_start = std::time::Instant::now();
         println!("\n{}", "=".repeat(60));
         println!("  RUNNING REFACTORING MATRIX: {}", self.config.project_name);
         println!("{}\n", "=".repeat(60));
 
         // Warmup
+        let warmup_start = std::time::Instant::now();
         println!("🔥 Warming up LSP...");
         if let Err(e) = self.warmup().await {
             println!("❌ LSP warmup failed: {}", e);
             return;
         }
+        let warmup_ms = warmup_start.elapsed().as_millis();
         println!("✅ LSP ready\n");
 
         // Record baseline errors BEFORE any tests (for comparative verification)
         println!("📊 Recording baseline build state...");
+        let baseline_start = std::time::Instant::now();
         self.record_baseline();
+        let baseline_ms = baseline_start.elapsed().as_millis();
 
         // Initial build verification (now uses comparative baseline)
         println!("🔍 Verifying initial build...");
+        let initial_verify_start = std::time::Instant::now();
         match self.verify_build() {
             Ok(()) => println!("✅ Initial build passes\n"),
             Err(e) => println!("⚠️ Initial build: {}\n", e),
         }
+        let initial_verify_ms = initial_verify_start.elapsed().as_millis();
 
+        let operations_start = std::time::Instant::now();
         let profile = Self::matrix_profile();
         println!("⚙️ Matrix profile: {}", profile);
         println!(
             "⚙️ Build verification cadence: every {} operation(s)",
-            Self::matrix_verify_every()
+            self.matrix_verify_every()
         );
 
         if profile == "perf" {
@@ -1312,6 +1540,7 @@ impl RefactoringMatrixRunner {
             self.test_prune_folder().await;
             self.test_find_replace_literal().await;
             self.test_deep_to_shallow().await;
+            self.test_prune_file_large_inbound_refs().await;
         } else {
             // File operations
             println!("\n📁 FILE OPERATIONS");
@@ -1341,18 +1570,79 @@ impl RefactoringMatrixRunner {
             self.test_deep_to_shallow().await;
             self.test_shallow_to_deep().await;
             self.test_prune_file().await;
+            self.test_prune_file_large_inbound_refs().await;
         }
 
+        let operations_total_ms = operations_start.elapsed().as_millis();
+
         // Final build verification
+        let final_verify_start = std::time::Instant::now();
         println!("\n🏁 FINAL BUILD VERIFICATION");
         println!("{}", "-".repeat(40));
         match self.verify_build() {
             Ok(()) => println!("✅ Final build passes!"),
             Err(e) => println!("⚠️ Final build: {}", e),
         }
+        let final_verify_ms = final_verify_start.elapsed().as_millis();
+
+        let (build_verifications_executed, build_verifications_failed, build_verifications_skipped) =
+            self.build_verification_stats();
+        self.run_timings = Some(MatrixRunTimings {
+            warmup_ms,
+            baseline_ms,
+            initial_verify_ms,
+            final_verify_ms,
+            operations_total_ms,
+            build_verifications_executed,
+            build_verifications_failed,
+            build_verifications_skipped,
+            total_run_ms: run_start.elapsed().as_millis(),
+        });
 
         // Print summary
         self.print_summary();
+
+        if let Err(e) = self.write_perf_artifact() {
+            println!("⚠️ Failed to write matrix artifact: {}", e);
+        }
+    }
+
+    fn write_perf_artifact(&self) -> Result<(), String> {
+        let artifact_dir = match std::env::var(MATRIX_ARTIFACT_ENV_VAR) {
+            Ok(v) if !v.trim().is_empty() => v,
+            _ => return Ok(()),
+        };
+
+        let dir = std::path::Path::new(&artifact_dir);
+        std::fs::create_dir_all(dir)
+            .map_err(|e| format!("failed to create artifact dir {}: {}", dir.display(), e))?;
+
+        let artifact_path = dir.join(format!("{}_matrix.json", self.config.project_name));
+        let payload = serde_json::json!({
+            "schema_version": PERF_ARTIFACT_SCHEMA_VERSION,
+            "project": self.config.project_name,
+            "profile": Self::matrix_profile(),
+            "verify_every": self.matrix_verify_every(),
+            "threshold_exceedances": self.threshold_exceedances,
+            "run_timings": self.run_timings,
+            "results": self.results,
+            "generated_at": chrono::Utc::now().to_rfc3339(),
+        });
+
+        std::fs::write(
+            &artifact_path,
+            serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| {
+            format!(
+                "failed to write artifact {}: {}",
+                artifact_path.display(),
+                e
+            )
+        })?;
+
+        println!("📦 Wrote matrix artifact: {}", artifact_path.display());
+        Ok(())
     }
 }
 

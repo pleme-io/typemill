@@ -1,0 +1,108 @@
+name: Perf Gate
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+jobs:
+  perf-gate:
+    runs-on: ubuntu-latest
+    env:
+      TYPEMILL_PERF_ASSERT_STRICT: "1"
+      TYPEMILL_MATRIX_PROFILE: perf
+      TYPEMILL_MATRIX_VERIFY_FORCE_HIGH_RISK: "1"
+      TYPEMILL_MATRIX_ARTIFACT_DIR: ${{ github.workspace }}/perf-artifacts
+      TYPEMILL_MATRIX_TS_INCREMENTAL: "1"
+      TYPEMILL_LSP_MODE: off
+      TYPEMILL_PERF_MAX_DIRECTORY_MOVE_DETECTOR_MS: "250"
+      TYPEMILL_PERF_MAX_DIRECTORY_MOVE_DOC_REWRITE_MS: "5000"
+      TYPEMILL_PERF_MAX_DIRECTORY_MOVE_CONVERT_MS: "1200"
+      TYPEMILL_FILELIST_CACHE_TTL_MS: "120000"
+      TYPEMILL_PRUNE_TIER_120_MAX_MS: "300"
+      TYPEMILL_PRUNE_TIER_500_MAX_MS: "700"
+      TYPEMILL_PRUNE_TIER_1000_MAX_MS: "1200"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-analyzer
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Restore perf trend history cache
+        uses: actions/cache@v4
+        with:
+          path: .perf-history/perf_history.json
+          key: perf-history-${{ github.ref_name }}
+          restore-keys: |
+            perf-history-
+
+      - name: Build debug binaries
+        run: cargo build --workspace --verbose
+
+      - name: Verify rust-analyzer availability
+        run: |
+          rustup component list --installed | rg '^rust-analyzer-'
+          rustup which rust-analyzer
+
+      - name: Smoke test perf history updater (env override)
+        run: |
+          TMP_ART_DIR="$(mktemp -d)"
+          cat > "$TMP_ART_DIR/smoke_matrix.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "project": "smoke",
+            "profile": "perf",
+            "verify_every": 1,
+            "threshold_exceedances": [],
+            "results": []
+          }
+          JSON
+          TYPEMILL_MATRIX_ARTIFACT_DIR="$TMP_ART_DIR" python .github/scripts/update_perf_history.py
+          test -f .perf-history/perf_history.json
+          python - <<'PY2'
+          import json
+          with open('.perf-history/perf_history.json') as f:
+              history=json.load(f)
+          assert history.get('schema_version') == 1
+          assert history['runs'][-1]['artifacts']['smoke_matrix.json']['project'] == 'smoke'
+          PY2
+
+      - name: Run matrix perf lanes (pure refactor pipeline timing)
+        run: |
+          TYPEMILL_MATRIX_VERIFY_EVERY=14 cargo test -p e2e test_matrix_typescript -- --ignored --nocapture
+          TYPEMILL_MATRIX_VERIFY_EVERY=10 cargo test -p e2e test_matrix_rust -- --ignored --nocapture
+          TYPEMILL_MATRIX_VERIFY_EVERY=10 cargo test -p e2e test_matrix_python -- --ignored --nocapture
+
+      - name: Update rolling 30-run trend
+        run: python .github/scripts/update_perf_history.py
+
+      - name: Upload perf artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-artifacts
+          path: |
+            ${{ env.TYPEMILL_MATRIX_ARTIFACT_DIR }}/*.json
+            .perf-history/perf_history.json
+
+  lsp-dependent-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rust-analyzer
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install TypeScript LSP
+        run: npm install -g typescript typescript-language-server
+
+      - name: Build debug binaries
+        run: cargo build --workspace --verbose
+
+      - name: Run focused LSP-dependent e2e checks
+        run: |
+          cargo test -p e2e dry_run_integration::test_dry_run_rename_file_rust_mod_declarations -- --nocapture
+          cargo test -p e2e test_cargo_package_rename::test_complete_cargo_package_rename -- --nocapture

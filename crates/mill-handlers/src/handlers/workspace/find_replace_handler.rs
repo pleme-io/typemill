@@ -250,7 +250,7 @@ pub async fn handle_find_replace(
     info!(
         files_with_matches = all_edits.len(),
         total_matches = total_matches,
-        "Find/replace scan complete"
+        "perf: find_replace_scan_complete"
     );
 
     // 3. Convert to EditPlan
@@ -274,7 +274,7 @@ pub async fn handle_find_replace(
         info!(
             files_modified = files_modified.len(),
             matches_replaced = total_matches,
-            "Find/replace operation completed"
+            "perf: find_replace_operation_completed"
         );
 
         Ok(serde_json::to_value(result)?)

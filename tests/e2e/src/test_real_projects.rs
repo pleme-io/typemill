@@ -14,6 +14,7 @@ use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 
 trait CommandPathExt {
@@ -139,64 +140,79 @@ fn resolve_mill_binary_path() -> PathBuf {
     workspace_root_from_manifest_dir().join("target/debug/mill")
 }
 
-fn run_mill_setup(workspace_path: &std::path::Path) -> Result<(), String> {
+static MILL_BUILD_ONCE: OnceLock<Mutex<()>> = OnceLock::new();
+
+fn ensure_mill_binary_built(workspace_root: &std::path::Path) -> Result<PathBuf, String> {
     let mill_path = resolve_mill_binary_path();
-
     if mill_path.is_file() {
-        let status = Command::new(&mill_path)
-            .with_expanded_path()
-            .args(["setup", "--update"])
-            .current_dir(workspace_path)
-            .status()
-            .map_err(|e| {
-                format!(
-                    "Failed to run mill setup via binary {}: {}",
-                    mill_path.display(),
-                    e
-                )
-            })?;
-
-        if status.success() {
-            return Ok(());
-        }
-
-        return Err(format!(
-            "mill setup failed via binary {} with status {}",
-            mill_path.display(),
-            status
-        ));
+        return Ok(mill_path);
     }
 
-    let workspace_root = workspace_root_from_manifest_dir();
-    println!(
-        "⚠️ mill binary not found at {}, falling back to cargo run --bin mill",
-        mill_path.display()
-    );
+    let lock = MILL_BUILD_ONCE.get_or_init(|| Mutex::new(()));
+    let _guard = lock
+        .lock()
+        .map_err(|_| "failed to acquire mill build lock".to_string())?;
+
+    // Another thread/test may have built it while we waited.
+    if mill_path.is_file() {
+        return Ok(mill_path);
+    }
 
     let manifest_path = workspace_root.join("Cargo.toml");
     let status = Command::new("cargo")
         .with_expanded_path()
         .args([
-            "run",
-            "--quiet",
+            "build",
             "--manifest-path",
             manifest_path.to_string_lossy().as_ref(),
             "--bin",
             "mill",
-            "--",
-            "setup",
-            "--update",
         ])
+        .current_dir(workspace_root)
+        .status()
+        .map_err(|e| format!("Failed to build mill binary for tests: {}", e))?;
+
+    if !status.success() {
+        return Err(format!(
+            "cargo build --bin mill failed in {} with status {}",
+            workspace_root.display(),
+            status
+        ));
+    }
+
+    if mill_path.is_file() {
+        Ok(mill_path)
+    } else {
+        Err(format!(
+            "mill binary missing after successful build: {}",
+            mill_path.display()
+        ))
+    }
+}
+
+fn run_mill_setup(workspace_path: &std::path::Path) -> Result<(), String> {
+    let workspace_root = workspace_root_from_manifest_dir();
+    let mill_path = ensure_mill_binary_built(&workspace_root)?;
+
+    let status = Command::new(&mill_path)
+        .with_expanded_path()
+        .args(["setup", "--update"])
         .current_dir(workspace_path)
         .status()
-        .map_err(|e| format!("Failed to run cargo fallback for mill setup: {}", e))?;
+        .map_err(|e| {
+            format!(
+                "Failed to run mill setup via binary {}: {}",
+                mill_path.display(),
+                e
+            )
+        })?;
 
     if status.success() {
         Ok(())
     } else {
         Err(format!(
-            "mill setup failed via cargo fallback in {} with status {}",
-            workspace_root.display(),
+            "mill setup failed via binary {} with status {}",
+            mill_path.display(),
             status
         ))
     }
@@ -407,15 +423,35 @@ impl RealProjectContext {
     /// Count TypeScript errors in the project
     /// Returns (error_count, error_output) - useful for comparing before/after refactoring
     pub fn count_typescript_errors(&self) -> (usize, String) {
+        let ts_incremental = std::env::var("TYPEMILL_MATRIX_TS_INCREMENTAL")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(true);
+
+        let mut tsc_args = vec!["--noEmit".to_string(), "--skipLibCheck".to_string()];
+        if ts_incremental {
+            let buildinfo_path = self
+                .workspace
+                .path()
+                .join(".typemill")
+                .join("matrix-tsc.tsbuildinfo");
+            if let Some(parent) = buildinfo_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            tsc_args.push("--incremental".to_string());
+            tsc_args.push("--tsBuildInfoFile".to_string());
+            tsc_args.push(buildinfo_path.to_string_lossy().to_string());
+        }
+
         let output = Command::new("npx")
             .with_expanded_path()
-            .args(["tsc", "--noEmit", "--skipLibCheck"])
+            .arg("tsc")
+            .args(tsc_args.iter().map(String::as_str))
             .current_dir(self.workspace.path())
             .output()
             .or_else(|_| {
                 Command::new("tsc")
                     .with_expanded_path()
-                    .args(["--noEmit", "--skipLibCheck"])
+                    .args(tsc_args.iter().map(String::as_str))
                     .current_dir(self.workspace.path())
                     .output()
             });

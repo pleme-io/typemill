@@ -9,6 +9,7 @@ use super::tools::{extensions::get_concrete_app_state, ToolHandler};
 use async_trait::async_trait;
 use mill_foundation::core::model::mcp::ToolCall;
 use mill_foundation::errors::{MillError as ServerError, MillResult as ServerResult};
+use mill_services::services::perf_metrics::snapshot_metrics;
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
@@ -101,6 +102,9 @@ impl SystemHandler {
         // Get paused workflow count from executor
         let paused_workflows = concrete_state.workflow_executor.get_paused_workflow_count();
 
+        // Get internal performance metrics snapshots
+        let perf_metrics = snapshot_metrics();
+
         // Calculate success rate
         let success_rate = if metrics.total_requests > 0 {
             (metrics.successful_requests as f64 / metrics.total_requests as f64) * 100.0
@@ -134,6 +138,9 @@ impl SystemHandler {
             },
             "workflows": {
                 "paused": paused_workflows
+            },
+            "performance": {
+                "metrics": perf_metrics
             }
         }))
     }

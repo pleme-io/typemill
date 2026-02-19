@@ -511,7 +511,7 @@ impl ReferenceDetector for RustReferenceDetector {
                     "Found Rust files affected by module path change"
                 );
             } else {
-                tracing::info!("Module paths are identical - no affected files");
+                tracing::debug!("Module paths are identical - no affected files");
             }
         }
 
