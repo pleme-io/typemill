@@ -5,6 +5,7 @@
 
 use async_trait::async_trait;
 use mill_plugin_api::ReferenceDetector;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use std::path::{Path, PathBuf};
 use tokio::task::JoinSet;
@@ -61,22 +62,22 @@ impl PythonReferenceDetector {
 }
 
 /// Regex for Python import statement: `import module` or `import module as alias`
-fn import_regex() -> Regex {
+static IMPORT_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^import\s+([a-zA-Z_][a-zA-Z0-9_.]*)(?:\s+as\s+\w+)?")
         .expect("import regex should be valid")
-}
+});
 
 /// Regex for Python from import: `from module import ...`
-fn from_import_regex() -> Regex {
+static FROM_IMPORT_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^from\s+([a-zA-Z_][a-zA-Z0-9_.]*|\.+[a-zA-Z_][a-zA-Z0-9_.]*|\.+)\s+import")
         .expect("from import regex should be valid")
-}
+});
 
 /// Regex for relative imports: `from . import ...` or `from .. import ...`
-fn relative_import_regex() -> Regex {
+static RELATIVE_IMPORT_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"^from\s+(\.+)([a-zA-Z_][a-zA-Z0-9_.]*)?\s+import")
         .expect("relative import regex should be valid")
-}
+});
 
 #[async_trait]
 impl ReferenceDetector for PythonReferenceDetector {
@@ -133,11 +134,6 @@ impl ReferenceDetector for PythonReferenceDetector {
             "Computed target module name"
         );
 
-        // Compile regexes once
-        let import_re = import_regex();
-        let from_import_re = from_import_regex();
-        let relative_re = relative_import_regex();
-
         // Parallelize file scanning
         let mut set = JoinSet::new();
 
@@ -171,9 +167,6 @@ impl ReferenceDetector for PythonReferenceDetector {
 
             let file_path = file.clone();
             let target = target_module.clone();
-            let import_re = import_re.clone();
-            let from_import_re = from_import_re.clone();
-            let relative_re = relative_re.clone();
             let is_dir = is_directory;
             let old_path_owned = old_path.to_path_buf();
             let project_root_owned = project_root.to_path_buf();
@@ -191,7 +184,7 @@ impl ReferenceDetector for PythonReferenceDetector {
                         }
 
                         // Check `import module` statements
-                        if let Some(cap) = import_re.captures(trimmed) {
+                        if let Some(cap) = IMPORT_REGEX.captures(trimmed) {
                             if let Some(module) = cap.get(1) {
                                 if Self::import_matches(module.as_str(), &target, is_dir) {
                                     has_reference = true;
@@ -201,7 +194,7 @@ impl ReferenceDetector for PythonReferenceDetector {
                         }
 
                         // Check `from module import ...` statements
-                        if let Some(cap) = from_import_re.captures(trimmed) {
+                        if let Some(cap) = FROM_IMPORT_REGEX.captures(trimmed) {
                             if let Some(module) = cap.get(1) {
                                 let module_str = module.as_str();
 
@@ -216,7 +209,7 @@ impl ReferenceDetector for PythonReferenceDetector {
                         }
 
                         // Check relative imports
-                        if let Some(cap) = relative_re.captures(trimmed) {
+                        if let Some(cap) = RELATIVE_IMPORT_REGEX.captures(trimmed) {
                             let dots = cap.get(1).map(|m| m.as_str()).unwrap_or("");
                             let module_suffix = cap.get(2).map(|m| m.as_str()).unwrap_or("");
 
