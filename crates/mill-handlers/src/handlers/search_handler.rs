@@ -143,15 +143,13 @@ impl SearchHandler {
 
         // Fall back to recursive search (limited depth)
         if !remaining_extensions.is_empty() {
-            let found = Box::pin(Self::find_files_recursive(
+            Box::pin(Self::find_files_recursive(
                 workspace_path,
-                &remaining_extensions,
+                &mut remaining_extensions,
+                &mut results,
                 3,
             ))
             .await;
-            for (ext, path) in found {
-                results.insert(ext, path);
-            }
         }
 
         results
@@ -159,17 +157,15 @@ impl SearchHandler {
 
     async fn find_files_recursive(
         dir: &std::path::Path,
-        extensions: &std::collections::HashSet<String>,
+        needed_extensions: &mut std::collections::HashSet<String>,
+        results: &mut std::collections::HashMap<String, PathBuf>,
         max_depth: u32,
-    ) -> std::collections::HashMap<String, PathBuf> {
+    ) {
         use tokio::fs;
-        let mut results = std::collections::HashMap::new();
 
-        if max_depth == 0 {
-            return results;
+        if max_depth == 0 || needed_extensions.is_empty() {
+            return;
         }
-
-        let mut needed_extensions = extensions.clone();
 
         if let Ok(mut entries) = fs::read_dir(dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
@@ -193,16 +189,13 @@ impl SearchHandler {
                     } else if file_type.is_dir() && !needed_extensions.is_empty() {
                         // Only allocate full path when recursing
                         let path = entry.path();
-                        let found_in_subdir = Box::pin(Self::find_files_recursive(
+                        Box::pin(Self::find_files_recursive(
                             &path,
-                            &needed_extensions,
+                            needed_extensions,
+                            results,
                             max_depth - 1,
                         ))
                         .await;
-                        for (ext, p) in found_in_subdir {
-                            results.insert(ext.clone(), p);
-                            needed_extensions.remove(&ext);
-                        }
                     }
                 }
 
@@ -211,8 +204,6 @@ impl SearchHandler {
                 }
             }
         }
-
-        results
     }
 
     /// Perform workspace-wide symbol search across all plugins
@@ -809,6 +800,47 @@ mod performance_tests {
             "BENCHMARK: Average Cache: {:?}",
             duration_cache / iterations
         );
+    }
+
+    #[tokio::test]
+    async fn test_benchmark_recursive_scan() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Deep structure to force recursion
+        // Level 1: 10 dirs
+        // Level 2: 10 dirs each -> 100 dirs
+        // Level 3: 10 dirs each -> 1000 dirs
+        // Total 1110 dirs
+        // Place one target file at the bottom of the last one
+
+        let deep_path = root.join("d1/d2/d3");
+        fs::create_dir_all(&deep_path).await.unwrap();
+        fs::write(deep_path.join("found.xyz"), "").await.unwrap();
+
+        // Populate some distractors to make read_dir do work
+        for i in 0..10 {
+            fs::create_dir_all(root.join(format!("distractor_{}", i))).await.unwrap();
+        }
+
+        let mut extensions: std::collections::HashSet<String> = ["xyz"].iter().map(|s| s.to_string()).collect();
+        for i in 0..100 {
+            extensions.insert(format!("ext{}", i));
+        }
+
+        // Measure
+        let start = Instant::now();
+        let iterations = 500;
+        for _ in 0..iterations {
+            let mut needed = extensions.clone();
+            let mut found = std::collections::HashMap::new();
+            SearchHandler::find_files_recursive(root, &mut needed, &mut found, 4).await;
+            assert!(!found.is_empty());
+        }
+        let duration = start.elapsed();
+
+        println!("BENCHMARK: Recursive Scan ({} iterations): {:?}", iterations, duration);
+        println!("BENCHMARK: Average Recursive Scan: {:?}", duration / iterations);
     }
 
     #[tokio::test]
