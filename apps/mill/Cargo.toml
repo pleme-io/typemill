@@ -14,6 +14,7 @@ mill-server = { path = "../../crates/mill-server", default-features = false }
 mill-foundation = { path = "../../crates/mill-foundation" }
 mill-transport = { path = "../../crates/mill-transport", default-features = false }
 mill-plugin-api = { path = "../../crates/mill-plugin-api" }
+mill-auth = { path = "../../crates/mill-auth" }
 
 # Plugin bundle - contains all language plugins for inventory discovery
 mill-plugin-bundle = { path = "../../crates/mill-plugin-bundle", default-features = false }
