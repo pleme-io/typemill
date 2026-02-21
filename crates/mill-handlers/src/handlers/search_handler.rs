@@ -371,25 +371,46 @@ impl SearchHandler {
         let results = futures::future::join_all(futures).await;
 
         let mut warnings = Vec::new();
-        let mut symbol_vectors = Vec::new();
         let mut total = 0;
+        // Cap initial allocation to avoid panic on usize::MAX or excessive memory usage
+        let mut paginated_symbols = Vec::with_capacity(limit.min(1000));
 
-        // Collect warnings and calculate total without flattening yet
+        // Track pagination state
+        let mut current_offset = offset;
+
+        // Single pass: collect warnings, calculate total, and extract paginated symbols
+        // efficiently by skipping entire vectors when possible
         for (symbols, warning) in results {
             total += symbols.len();
-            symbol_vectors.push(symbols);
             if let Some(w) = warning {
                 warnings.push(w);
             }
-        }
 
-        // Stream and paginate without allocating a huge intermediate vector
-        let paginated_symbols: Vec<Value> = symbol_vectors
-            .into_iter()
-            .flatten()
-            .skip(offset)
-            .take(limit)
-            .collect();
+            // Optimization: Skip vector entirely if offset consumes it all
+            // Only process symbols if we haven't reached the limit yet
+            if paginated_symbols.len() < limit {
+                let len = symbols.len();
+                if current_offset >= len {
+                    // Entire vector is skipped
+                    current_offset -= len;
+                } else {
+                    // We need some items from this vector
+                    let needed = limit - paginated_symbols.len();
+                    let available = len - current_offset;
+                    let take_count = std::cmp::min(needed, available);
+
+                    paginated_symbols.extend(
+                        symbols
+                            .into_iter()
+                            .skip(current_offset)
+                            .take(take_count),
+                    );
+
+                    // We've consumed the offset, so subsequent vectors start from 0
+                    current_offset = 0;
+                }
+            }
+        }
 
         let processing_time = start_time.elapsed().as_millis() as u64;
 
