@@ -175,6 +175,7 @@ async fn handle_connection(
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
     let mut user_id_from_token: Option<String> = None;
+    let mut project_id_from_token: Option<String> = None;
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
@@ -217,6 +218,7 @@ async fn handle_connection(
                             }
 
                             user_id_from_token = token_data.claims.user_id;
+                            project_id_from_token = token_data.claims.project_id.clone();
                             return Ok(response);
                         }
                         Err(e) => {
@@ -260,6 +262,7 @@ async fn handle_connection(
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
     session.user_id = user_id_from_token;
+    session.project_id = project_id_from_token;
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -457,7 +460,18 @@ async fn handle_initialize(
     };
 
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+    if let Some(bound_project) = &session.project_id {
+        if let Some(requested_project) = &payload.project {
+            if bound_project != requested_project {
+                return Err(MillError::permission_denied(format!(
+                    "Token is restricted to project '{}', but requested '{}'",
+                    bound_project, requested_project
+                )));
+            }
+        }
+    } else {
+        session.project_id = payload.project;
+    }
     session.project_root = payload.project_root;
     session.initialized = true;
 
@@ -650,5 +664,58 @@ mod tests {
             !config.server.is_loopback_host(),
             "example.com should NOT be loopback"
         );
+    }
+
+    #[tokio::test]
+    async fn test_initialize_enforces_project_id() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Simulate token already set the project_id
+        session.project_id = Some("original_project".to_string());
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "new_project"
+            })),
+        };
+
+        let result = handle_initialize(&mut session, request, &config).await;
+
+        // Assert that we get an error
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        match error {
+            MillError::PermissionDenied { operation, .. } => {
+                assert!(operation.contains("Token is restricted to project 'original_project'"));
+            }
+            _ => panic!("Expected PermissionDenied error, got {:?}", error),
+        }
+
+        // Verify session project_id was NOT changed
+        assert_eq!(session.project_id, Some("original_project".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_initialize_allows_setting_project_if_not_bound() {
+        let config = create_test_config(true); // Auth enabled
+        let mut session = Session::new();
+        // Session project_id is None (simulating token without project_id)
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "any_project"
+            })),
+        };
+
+        let result = handle_initialize(&mut session, request, &config).await;
+
+        assert!(result.is_ok());
+        assert_eq!(session.project_id, Some("any_project".to_string()));
     }
 }
