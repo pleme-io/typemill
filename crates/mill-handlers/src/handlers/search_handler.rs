@@ -143,11 +143,11 @@ impl SearchHandler {
 
         // Fall back to recursive search (limited depth)
         if !remaining_extensions.is_empty() {
-            let found = Box::pin(Self::find_files_recursive(
+            let found = Self::find_files_iterative(
                 workspace_path,
                 &remaining_extensions,
                 3,
-            ))
+            )
             .await;
             for (ext, path) in found {
                 results.insert(ext, path);
@@ -157,57 +157,54 @@ impl SearchHandler {
         results
     }
 
-    async fn find_files_recursive(
+    async fn find_files_iterative(
         dir: &std::path::Path,
         extensions: &std::collections::HashSet<String>,
         max_depth: u32,
     ) -> std::collections::HashMap<String, PathBuf> {
         use tokio::fs;
         let mut results = std::collections::HashMap::new();
-
-        if max_depth == 0 {
-            return results;
-        }
-
         let mut needed_extensions = extensions.clone();
 
-        if let Ok(mut entries) = fs::read_dir(dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                // Use file_name() to avoid allocating full path for exclusion check
-                let file_name = entry.file_name();
-                if let Some(name) = file_name.to_str() {
-                    if name.starts_with('.') || name == "node_modules" || name == "target" {
-                        continue;
-                    }
-                }
+        // Stack contains (path, depth)
+        let mut stack = vec![(dir.to_path_buf(), max_depth)];
 
-                if let Ok(file_type) = entry.file_type().await {
-                    if file_type.is_file() {
-                        let path_from_name = std::path::Path::new(&file_name);
-                        if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
-                            if needed_extensions.contains(ext) {
-                                results.insert(ext.to_string(), entry.path());
-                                needed_extensions.remove(ext);
+        while let Some((current_dir, depth)) = stack.pop() {
+            if needed_extensions.is_empty() {
+                break;
+            }
+
+            if depth == 0 {
+                continue;
+            }
+
+            if let Ok(mut entries) = fs::read_dir(&current_dir).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    // Use file_name() to avoid allocating full path for exclusion check
+                    let file_name = entry.file_name();
+                    if let Some(name) = file_name.to_str() {
+                        if name.starts_with('.') || name == "node_modules" || name == "target" {
+                            continue;
+                        }
+                    }
+
+                    if let Ok(file_type) = entry.file_type().await {
+                        if file_type.is_file() {
+                            let path_from_name = std::path::Path::new(&file_name);
+                            if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
+                                if needed_extensions.contains(ext) {
+                                    results.insert(ext.to_string(), entry.path());
+                                    needed_extensions.remove(ext);
+                                    if needed_extensions.is_empty() {
+                                        break;
+                                    }
+                                }
                             }
-                        }
-                    } else if file_type.is_dir() && !needed_extensions.is_empty() {
-                        // Only allocate full path when recursing
-                        let path = entry.path();
-                        let found_in_subdir = Box::pin(Self::find_files_recursive(
-                            &path,
-                            &needed_extensions,
-                            max_depth - 1,
-                        ))
-                        .await;
-                        for (ext, p) in found_in_subdir {
-                            results.insert(ext.clone(), p);
-                            needed_extensions.remove(&ext);
+                        } else if file_type.is_dir() {
+                            // Only allocate full path when pushing to stack
+                            stack.push((entry.path(), depth - 1));
                         }
                     }
-                }
-
-                if needed_extensions.is_empty() {
-                    break;
                 }
             }
         }
