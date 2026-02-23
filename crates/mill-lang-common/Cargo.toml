@@ -20,7 +20,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 # TOML and JSON parsing for manifests
-toml_edit = "0.24"
+toml_edit = "0.25"
 
 # Error handling
 thiserror = { workspace = true }

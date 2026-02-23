@@ -42,7 +42,7 @@ uuid = { workspace = true }
 lsp-types = "0.97"
 clap = { version = "4.0", features = ["derive"] }
 toml = "0.9"
-toml_edit = "0.24"
+toml_edit = "0.25"
 tempfile = "3.0"
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 mill-transport = { path = "../mill-transport", default-features = false }

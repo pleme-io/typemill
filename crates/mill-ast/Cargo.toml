@@ -28,7 +28,7 @@ ignore = "0.4" # For .gitignore-aware file walking
 futures = { workspace = true }
 tracing = { workspace = true } # For logging in import_updater
 dashmap = { workspace = true } # For thread-safe concurrent caching
-toml_edit = "0.24" # For parsing and modifying Cargo.toml files
+toml_edit = "0.25" # For parsing and modifying Cargo.toml files
 mill-config = { path = "../mill-config" }
 
 [features]
