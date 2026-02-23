@@ -68,6 +68,41 @@ impl SearchHandler {
         }
     }
 
+    /// Helper to efficiently paginate results by skipping entire vectors
+    fn paginate_results(
+        symbol_vectors: Vec<Vec<Value>>,
+        offset: usize,
+        limit: usize,
+    ) -> Vec<Value> {
+        // Calculate safe capacity to prevent over-allocation or overflow when limit is huge
+        let total_items: usize = symbol_vectors.iter().map(|v| v.len()).sum();
+        let remaining_items = total_items.saturating_sub(offset);
+        let capacity = std::cmp::min(limit, remaining_items);
+
+        let mut paginated_symbols = Vec::with_capacity(capacity);
+        let mut current_offset = offset;
+        let mut needed = limit;
+
+        for symbols in symbol_vectors {
+            if needed == 0 {
+                break;
+            }
+
+            let len = symbols.len();
+            if current_offset >= len {
+                current_offset -= len;
+                continue;
+            }
+
+            let take_count = std::cmp::min(needed, len - current_offset);
+            paginated_symbols.extend(symbols.into_iter().skip(current_offset).take(take_count));
+
+            needed -= take_count;
+            current_offset = 0;
+        }
+        paginated_symbols
+    }
+
     /// Parse symbol kind from string
     fn parse_symbol_kind(kind_str: &str) -> Option<SymbolKind> {
         match kind_str.to_lowercase().as_str() {
@@ -110,28 +145,22 @@ impl SearchHandler {
                 workspace_path.join(dir)
             };
 
-            // Use tokio fs metadata
-            if let Ok(metadata) = fs::metadata(&search_path).await {
-                if metadata.is_dir() {
-                    if let Ok(mut entries) = fs::read_dir(&search_path).await {
-                        while let Ok(Some(entry)) = entries.next_entry().await {
-                            // Check file type first
-                            if let Ok(file_type) = entry.file_type().await {
-                                if file_type.is_file() {
-                                    // Use file_name() to avoid allocating full path if not needed
-                                    let file_name = entry.file_name();
-                                    let path_from_name = std::path::Path::new(&file_name);
+            // Use tokio fs read_dir directly to avoid extra syscall
+            if let Ok(mut entries) = fs::read_dir(&search_path).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    // Check file type first
+                    if let Ok(file_type) = entry.file_type().await {
+                        if file_type.is_file() {
+                            // Use file_name() to avoid allocating full path if not needed
+                            let file_name = entry.file_name();
+                            let path_from_name = std::path::Path::new(&file_name);
 
-                                    if let Some(ext) =
-                                        path_from_name.extension().and_then(|e| e.to_str())
-                                    {
-                                        if remaining_extensions.contains(ext) {
-                                            results.insert(ext.to_string(), entry.path());
-                                            remaining_extensions.remove(ext);
-                                            if remaining_extensions.is_empty() {
-                                                return results;
-                                            }
-                                        }
+                            if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
+                                if remaining_extensions.contains(ext) {
+                                    results.insert(ext.to_string(), entry.path());
+                                    remaining_extensions.remove(ext);
+                                    if remaining_extensions.is_empty() {
+                                        return results;
                                     }
                                 }
                             }
@@ -384,12 +413,8 @@ impl SearchHandler {
         }
 
         // Stream and paginate without allocating a huge intermediate vector
-        let paginated_symbols: Vec<Value> = symbol_vectors
-            .into_iter()
-            .flatten()
-            .skip(offset)
-            .take(limit)
-            .collect();
+        // Optimized to skip entire vectors when possible
+        let paginated_symbols = Self::paginate_results(symbol_vectors, offset, limit);
 
         let processing_time = start_time.elapsed().as_millis() as u64;
 
@@ -674,6 +699,44 @@ mod tests {
         assert_eq!(lsp_symbol_kind_to_string(5), Some("class"));
         assert_eq!(lsp_symbol_kind_to_string(13), Some("variable"));
         assert_eq!(lsp_symbol_kind_to_string(999), None);
+    }
+
+    #[test]
+    fn test_pagination_optimization() {
+        let v1 = vec![json!(1), json!(2)];
+        let v2 = vec![json!(3), json!(4), json!(5)];
+        let v3 = vec![json!(6)];
+        let vectors = vec![v1.clone(), v2.clone(), v3.clone()];
+
+        // Case 1: No skipping, full take
+        let res = SearchHandler::paginate_results(vectors.clone(), 0, 10);
+        assert_eq!(res.len(), 6);
+        assert_eq!(res[0], json!(1));
+        assert_eq!(res[5], json!(6));
+
+        // Case 2: Skip within first vector
+        let res = SearchHandler::paginate_results(vectors.clone(), 1, 10);
+        assert_eq!(res.len(), 5);
+        assert_eq!(res[0], json!(2));
+
+        // Case 3: Skip entire first vector
+        let res = SearchHandler::paginate_results(vectors.clone(), 2, 10);
+        assert_eq!(res.len(), 4);
+        assert_eq!(res[0], json!(3));
+
+        // Case 4: Skip first and part of second
+        let res = SearchHandler::paginate_results(vectors.clone(), 3, 10);
+        assert_eq!(res.len(), 3);
+        assert_eq!(res[0], json!(4));
+
+        // Case 5: Limit stops early
+        let res = SearchHandler::paginate_results(vectors.clone(), 0, 3);
+        assert_eq!(res.len(), 3);
+        assert_eq!(res, vec![json!(1), json!(2), json!(3)]);
+
+        // Case 6: Deep skip (skip everything)
+        let res = SearchHandler::paginate_results(vectors.clone(), 100, 10);
+        assert!(res.is_empty());
     }
 
     #[test]
