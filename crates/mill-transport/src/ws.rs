@@ -174,11 +174,17 @@ async fn handle_connection(
         .peer_addr()
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
-    let mut user_id_from_token: Option<String> = None;
+    // Use Arc<Mutex<Option<String>>> to safely extract data from the handshake callback
+    // which may be moved into a closure depending on capture rules.
+    let user_id_from_token = Arc::new(std::sync::Mutex::new(None));
+    let project_id_from_token = Arc::new(std::sync::Mutex::new(None));
+
+    let user_id_clone = user_id_from_token.clone();
+    let project_id_clone = project_id_from_token.clone();
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
-    let ws_stream = match accept_hdr_async(stream, |req: &Request, response: Response| {
+    let ws_stream = match accept_hdr_async(stream, move |req: &Request, response: Response| {
         // Check if authentication is required
         if let Some(auth_config) = &config_clone.server.auth {
             // Extract Authorization header
@@ -216,7 +222,12 @@ async fn handle_connection(
                                 );
                             }
 
-                            user_id_from_token = token_data.claims.user_id;
+                            if let Ok(mut lock) = user_id_clone.lock() {
+                                *lock = token_data.claims.user_id;
+                            }
+                            if let Ok(mut lock) = project_id_clone.lock() {
+                                *lock = token_data.claims.project_id;
+                            }
                             return Ok(response);
                         }
                         Err(e) => {
@@ -259,7 +270,14 @@ async fn handle_connection(
     tracing::info!("WebSocket connection established");
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
-    session.user_id = user_id_from_token;
+
+    // Extract values from Arc<Mutex>
+    if let Ok(lock) = user_id_from_token.lock() {
+        session.user_id = lock.clone();
+    }
+    if let Ok(lock) = project_id_from_token.lock() {
+        session.project_id = lock.clone();
+    }
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -457,7 +475,20 @@ async fn handle_initialize(
     };
 
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+    if let Some(bound_project) = &session.project_id {
+        if let Some(requested_project) = &payload.project {
+            if bound_project != requested_project {
+                return Err(MillError::permission_denied(format!(
+                    "Session is bound to project '{}', but requested project '{}'",
+                    bound_project, requested_project
+                )));
+            }
+        }
+        // If payload.project is None, we implicitly use the bound project
+    } else {
+        session.project_id = payload.project;
+    }
+
     session.project_root = payload.project_root;
     session.initialized = true;
 
@@ -562,6 +593,70 @@ mod tests {
             assert!(resp.error.is_none());
         } else {
             panic!("Expected Response message");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_initialize_enforces_project_id() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Simulate session already bound to a project (e.g. from token)
+        session.project_id = Some("project_a".to_string());
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "project_b"
+            })),
+        };
+
+        let result = handle_initialize(&mut session, request, &config).await;
+
+        match result {
+            Ok(McpMessage::Response(resp)) => {
+                if resp.error.is_none() {
+                    // This is currently expected to fail until we fix it
+                    panic!("Expected error when initializing with different project ID, but got success");
+                } else {
+                     // Check error code/message if possible
+                     let error = resp.error.unwrap();
+                     assert_eq!(error.code, -32600); // Invalid Request or similar
+                }
+            }
+            Err(e) => {
+                // Also acceptable if it returns a MillError
+                 assert!(e.to_string().contains("Session is bound to project"));
+            }
+            _ => panic!("Unexpected response type"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_initialize_allows_setting_project_if_not_bound() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Session has no project_id (e.g. token didn't have one)
+        session.project_id = None;
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "project_b"
+            })),
+        };
+
+        let response = handle_initialize(&mut session, request, &config)
+            .await
+            .unwrap();
+
+        // Should succeed and set project_id
+        assert_eq!(session.project_id, Some("project_b".to_string()));
+         if let McpMessage::Response(resp) = response {
+            assert!(resp.error.is_none());
         }
     }
 
