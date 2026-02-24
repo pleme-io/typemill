@@ -200,8 +200,14 @@ pub fn sha256(path: &Path) -> LspResult<String> {
 
 /// Decompress a gzip file
 pub fn decompress_gzip(src: &Path, dest: &Path) -> LspResult<()> {
+    // 5GB limit to prevent zip bombs while allowing large LSP servers
+    decompress_gzip_with_limit(src, dest, 5 * 1024 * 1024 * 1024)
+}
+
+/// Decompress a gzip file with a size limit
+fn decompress_gzip_with_limit(src: &Path, dest: &Path, limit: u64) -> LspResult<()> {
     use flate2::read::GzDecoder;
-    use std::io::copy;
+    use std::io::{Read, Write};
 
     debug!("Decompressing {:?} to {:?}", src, dest);
 
@@ -214,7 +220,25 @@ pub fn decompress_gzip(src: &Path, dest: &Path) -> LspResult<()> {
     }
 
     let mut out_file = fs::File::create(dest)?;
-    copy(&mut decoder, &mut out_file)?;
+    let mut buffer = [0u8; 8192];
+    let mut total_written: u64 = 0;
+
+    loop {
+        let bytes_read = decoder.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+
+        total_written += bytes_read as u64;
+        if total_written > limit {
+            return Err(LspError::DownloadFailed(format!(
+                "Decompression limit exceeded: {} bytes (max: {})",
+                total_written, limit
+            )));
+        }
+
+        out_file.write_all(&buffer[..bytes_read])?;
+    }
 
     debug!("Decompressed to {:?}", dest);
     Ok(())
@@ -405,5 +429,35 @@ mod tests {
         let result = verify_checksum(Path::new("/nonexistent"), "placeholder_abc123");
         // Should succeed with warning
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_zip_bomb_prevention() {
+        use flate2::write::GzEncoder;
+        use flate2::Compression;
+        use std::io::Write;
+
+        // Create a temporary directory
+        let dir = tempfile::tempdir().unwrap();
+        let bomb_path = dir.path().join("bomb.gz");
+        let out_path = dir.path().join("bomb.out");
+
+        // Create a "bomb" - small file that expands to something larger than our test limit
+        // We'll use a small limit for testing, e.g., 1KB
+        let mut encoder = GzEncoder::new(
+            fs::File::create(&bomb_path).unwrap(),
+            Compression::default(),
+        );
+        // Write 2KB of zeros
+        let data = [0u8; 2048];
+        encoder.write_all(&data).unwrap();
+        encoder.finish().unwrap();
+
+        // Try to decompress with a 1KB limit
+        let result = decompress_gzip_with_limit(&bomb_path, &out_path, 1024);
+
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(err.to_string().contains("Decompression limit exceeded"));
     }
 }
