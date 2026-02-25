@@ -59,6 +59,8 @@ pub struct Session {
     pub initialized: bool,
     /// The ID of the user for this session.
     pub user_id: Option<String>,
+    /// The project ID authenticated via token (if any)
+    pub authenticated_project_id: Option<String>,
 }
 
 impl Session {
@@ -69,6 +71,7 @@ impl Session {
             project_root: None,
             initialized: false,
             user_id: None,
+            authenticated_project_id: None,
         }
     }
 }
@@ -175,6 +178,7 @@ async fn handle_connection(
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
     let mut user_id_from_token: Option<String> = None;
+    let mut project_id_from_token: Option<String> = None;
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
@@ -217,6 +221,7 @@ async fn handle_connection(
                             }
 
                             user_id_from_token = token_data.claims.user_id;
+                            project_id_from_token = token_data.claims.project_id;
                             return Ok(response);
                         }
                         Err(e) => {
@@ -260,6 +265,7 @@ async fn handle_connection(
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
     session.user_id = user_id_from_token;
+    session.authenticated_project_id = project_id_from_token;
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -456,8 +462,23 @@ async fn handle_initialize(
         }
     };
 
+    // Enforce project access if token is scoped
+    if let Some(auth_project_id) = &session.authenticated_project_id {
+        if let Some(requested_project) = &payload.project {
+            if auth_project_id != requested_project {
+                return Err(MillError::permission_denied(format!(
+                    "Token is scoped to project '{}' but requested project '{}'",
+                    auth_project_id, requested_project
+                )));
+            }
+        }
+    }
+
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+    // If authenticated_project_id is present, default to it if no project requested
+    session.project_id = payload
+        .project
+        .or(session.authenticated_project_id.clone());
     session.project_root = payload.project_root;
     session.initialized = true;
 
@@ -650,5 +671,77 @@ mod tests {
             !config.server.is_loopback_host(),
             "example.com should NOT be loopback"
         );
+    }
+
+    #[tokio::test]
+    async fn test_initialize_enforces_project_id() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Simulate authenticated session with project ID
+        session.authenticated_project_id = Some("auth-project".to_string());
+
+        // 1. Test mismatch
+        let request_mismatch = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "other-project"
+            })),
+        };
+
+        let result = handle_initialize(&mut session, request_mismatch, &config).await;
+        assert!(result.is_err());
+        let err = result.err().unwrap();
+        assert!(err.to_string().contains("Token is scoped to project"));
+
+        // 2. Test match
+        let request_match = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(2))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "auth-project"
+            })),
+        };
+
+        let response = handle_initialize(&mut session, request_match, &config).await;
+        assert!(response.is_ok());
+        assert_eq!(session.project_id, Some("auth-project".to_string()));
+
+        // 3. Test auto-bind (no project in payload)
+        // Reset session initialized state for re-init (though handle_initialize doesn't check initialized state itself, handle_message does)
+        session.initialized = false;
+
+        let request_none = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(3))),
+            method: "initialize".to_string(),
+            params: Some(json!({})),
+        };
+
+        let response = handle_initialize(&mut session, request_none, &config).await;
+        assert!(response.is_ok());
+        assert_eq!(session.project_id, Some("auth-project".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_initialize_allows_setting_project_if_not_bound() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // No authenticated_project_id
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "any-project"
+            })),
+        };
+
+        let response = handle_initialize(&mut session, request, &config).await;
+        assert!(response.is_ok());
+        assert_eq!(session.project_id, Some("any-project".to_string()));
     }
 }
