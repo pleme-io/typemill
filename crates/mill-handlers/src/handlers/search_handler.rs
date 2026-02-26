@@ -110,28 +110,23 @@ impl SearchHandler {
                 workspace_path.join(dir)
             };
 
-            // Use tokio fs metadata
-            if let Ok(metadata) = fs::metadata(&search_path).await {
-                if metadata.is_dir() {
-                    if let Ok(mut entries) = fs::read_dir(&search_path).await {
-                        while let Ok(Some(entry)) = entries.next_entry().await {
-                            // Check file type first
-                            if let Ok(file_type) = entry.file_type().await {
-                                if file_type.is_file() {
-                                    // Use file_name() to avoid allocating full path if not needed
-                                    let file_name = entry.file_name();
-                                    let path_from_name = std::path::Path::new(&file_name);
+            // Optimization: Skip fs::metadata and call fs::read_dir directly.
+            // fs::read_dir fails if path is not a directory or doesn't exist, which is what we want.
+            if let Ok(mut entries) = fs::read_dir(&search_path).await {
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    // Check file type first
+                    if let Ok(file_type) = entry.file_type().await {
+                        if file_type.is_file() {
+                            // Use file_name() to avoid allocating full path if not needed
+                            let file_name = entry.file_name();
+                            let path_from_name = std::path::Path::new(&file_name);
 
-                                    if let Some(ext) =
-                                        path_from_name.extension().and_then(|e| e.to_str())
-                                    {
-                                        if remaining_extensions.contains(ext) {
-                                            results.insert(ext.to_string(), entry.path());
-                                            remaining_extensions.remove(ext);
-                                            if remaining_extensions.is_empty() {
-                                                return results;
-                                            }
-                                        }
+                            if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
+                                if remaining_extensions.contains(ext) {
+                                    results.insert(ext.to_string(), entry.path());
+                                    remaining_extensions.remove(ext);
+                                    if remaining_extensions.is_empty() {
+                                        return results;
                                     }
                                 }
                             }
@@ -141,14 +136,10 @@ impl SearchHandler {
             }
         }
 
-        // Fall back to recursive search (limited depth)
+        // Fall back to iterative search (limited depth)
         if !remaining_extensions.is_empty() {
-            let found = Box::pin(Self::find_files_recursive(
-                workspace_path,
-                &remaining_extensions,
-                3,
-            ))
-            .await;
+            let found =
+                Self::find_files_iterative(workspace_path, &remaining_extensions, 3).await;
             for (ext, path) in found {
                 results.insert(ext, path);
             }
@@ -157,57 +148,67 @@ impl SearchHandler {
         results
     }
 
-    async fn find_files_recursive(
-        dir: &std::path::Path,
+    /// Iterative file search to avoid recursion and Box::pin allocations
+    async fn find_files_iterative(
+        start_dir: &std::path::Path,
         extensions: &std::collections::HashSet<String>,
         max_depth: u32,
     ) -> std::collections::HashMap<String, PathBuf> {
         use tokio::fs;
         let mut results = std::collections::HashMap::new();
-
-        if max_depth == 0 {
-            return results;
-        }
-
         let mut needed_extensions = extensions.clone();
 
-        if let Ok(mut entries) = fs::read_dir(dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                // Use file_name() to avoid allocating full path for exclusion check
-                let file_name = entry.file_name();
-                if let Some(name) = file_name.to_str() {
-                    if name.starts_with('.') || name == "node_modules" || name == "target" {
-                        continue;
-                    }
-                }
+        // Stack contains (path, depth)
+        let mut stack = vec![(start_dir.to_path_buf(), 0)];
 
-                if let Ok(file_type) = entry.file_type().await {
-                    if file_type.is_file() {
-                        let path_from_name = std::path::Path::new(&file_name);
-                        if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
-                            if needed_extensions.contains(ext) {
-                                results.insert(ext.to_string(), entry.path());
-                                needed_extensions.remove(ext);
+        while let Some((dir, depth)) = stack.pop() {
+            if needed_extensions.is_empty() {
+                break;
+            }
+
+            if depth > max_depth {
+                continue;
+            }
+
+            if let Ok(mut entries) = fs::read_dir(&dir).await {
+                // Collect subdirs to push to stack after processing files
+                let mut subdirs = Vec::new();
+
+                while let Ok(Some(entry)) = entries.next_entry().await {
+                    let file_name = entry.file_name();
+                    if let Some(name) = file_name.to_str() {
+                        if name.starts_with('.') || name == "node_modules" || name == "target" {
+                            continue;
+                        }
+                    }
+
+                    if let Ok(file_type) = entry.file_type().await {
+                        if file_type.is_file() {
+                            let path_from_name = std::path::Path::new(&file_name);
+                            if let Some(ext) = path_from_name.extension().and_then(|e| e.to_str()) {
+                                if needed_extensions.contains(ext) {
+                                    results.insert(ext.to_string(), entry.path());
+                                    needed_extensions.remove(ext);
+                                }
                             }
+                        } else if file_type.is_dir() {
+                            subdirs.push(entry.path());
                         }
-                    } else if file_type.is_dir() && !needed_extensions.is_empty() {
-                        // Only allocate full path when recursing
-                        let path = entry.path();
-                        let found_in_subdir = Box::pin(Self::find_files_recursive(
-                            &path,
-                            &needed_extensions,
-                            max_depth - 1,
-                        ))
-                        .await;
-                        for (ext, p) in found_in_subdir {
-                            results.insert(ext.clone(), p);
-                            needed_extensions.remove(&ext);
-                        }
+                    }
+
+                    if needed_extensions.is_empty() {
+                        break;
                     }
                 }
 
                 if needed_extensions.is_empty() {
                     break;
+                }
+
+                // Push subdirs to stack
+                // Note: Iteration order of subdirs is arbitrary here due to fs::read_dir
+                for subdir in subdirs {
+                    stack.push((subdir, depth + 1));
                 }
             }
         }
@@ -911,5 +912,45 @@ mod performance_tests {
             "BENCHMARK: Search (50k total, 25k matching): {:?}",
             duration
         );
+    }
+
+    #[tokio::test]
+    async fn test_find_files_iterative_fallback() {
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let root = temp_dir.path();
+
+        // Create files in a non-common directory "custom" (not in src, lib, packages, apps)
+        let custom_dir = root.join("custom");
+        fs::create_dir_all(&custom_dir).await.unwrap();
+        fs::write(custom_dir.join("main.rs"), "fn main() {}")
+            .await
+            .unwrap();
+
+        // Python file in same level
+        fs::write(custom_dir.join("script.py"), "print('hello')")
+            .await
+            .unwrap();
+
+        // Deep file
+        let deep_dir = custom_dir.join("deep");
+        fs::create_dir_all(&deep_dir).await.unwrap();
+        fs::write(deep_dir.join("app.ts"), "const x = 1;")
+            .await
+            .unwrap();
+
+        let extensions: std::collections::HashSet<String> =
+            ["rs", "py", "ts"].iter().map(|s| s.to_string()).collect();
+
+        // This should fall back to find_files_iterative because "custom" is not a common dir
+        let found = SearchHandler::find_representative_files(root, &extensions).await;
+
+        assert_eq!(
+            found.len(),
+            3,
+            "Should find all 3 files via iterative search"
+        );
+        assert!(found.contains_key("rs"));
+        assert!(found.contains_key("py"));
+        assert!(found.contains_key("ts"));
     }
 }
