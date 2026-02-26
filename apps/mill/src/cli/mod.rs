@@ -255,6 +255,20 @@ pub enum Commands {
         #[arg(long, default_value = "pretty", value_parser = ["pretty", "compact"])]
         format: String,
     },
+    /// Generate an authentication token for the server
+    GenerateToken {
+        /// Optional project ID to bind the token to
+        #[arg(long)]
+        project_id: Option<String>,
+
+        /// Optional user ID for the token
+        #[arg(long)]
+        user_id: Option<String>,
+
+        /// Optional expiry in seconds
+        #[arg(long)]
+        expiry_seconds: Option<u64>,
+    },
 }
 
 /// Daemon management subcommands
@@ -415,6 +429,55 @@ pub async fn run() {
             format,
         } => {
             handle_convert_naming(&from, &to, &glob, &target, dry_run, &format).await;
+        }
+        Commands::GenerateToken {
+            project_id,
+            user_id,
+            expiry_seconds,
+        } => {
+            handle_generate_token(project_id, user_id, expiry_seconds).await;
+        }
+    }
+}
+
+/// Handle token generation command
+async fn handle_generate_token(
+    project_id: Option<String>,
+    user_id: Option<String>,
+    expiry_seconds: Option<u64>,
+) {
+    let config = match AppConfig::load() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("❌ Failed to load configuration: {}", e);
+            process::exit(1);
+        }
+    };
+
+    let auth_config = match config.server.auth {
+        Some(ac) => ac,
+        None => {
+            eprintln!("❌ Authentication is not configured in mill.toml");
+            process::exit(1);
+        }
+    };
+
+    let expiry = expiry_seconds.unwrap_or(auth_config.jwt_expiry_seconds);
+
+    match mill_auth::generate_token(
+        &auth_config.jwt_secret,
+        expiry,
+        &auth_config.jwt_issuer,
+        &auth_config.jwt_audience,
+        project_id,
+        user_id,
+    ) {
+        Ok(token) => {
+            println!("{}", token);
+        }
+        Err(e) => {
+            eprintln!("❌ Failed to generate token: {}", e);
+            process::exit(1);
         }
     }
 }
