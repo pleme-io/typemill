@@ -33,8 +33,9 @@ pub struct LspProgressInfo {
 /// Direct LSP adapter that bypasses the old LSP manager and its hard-coded mappings
 #[derive(Clone)]
 pub struct DirectLspAdapter {
-    /// LSP clients by extension
-    lsp_clients: Arc<Mutex<HashMap<String, Arc<mill_lsp::lsp_system::LspClient>>>>,
+    /// LSP clients by extension and warmup status
+    /// Map<Extension, (Client, is_warmed_up)>
+    lsp_clients: Arc<Mutex<HashMap<String, (Arc<mill_lsp::lsp_system::LspClient>, bool)>>>,
     /// LSP configuration
     config: mill_config::config::LspConfig,
     /// Supported file extensions
@@ -54,6 +55,167 @@ impl DirectLspAdapter {
             config,
             extensions,
             name,
+        }
+    }
+
+    /// Helper to warm up an LSP client (establish project context, wait for indexing)
+    async fn warmup_client(&self, client: &mill_lsp::lsp_system::LspClient, extension: &str) {
+        // For rust-analyzer, check if workspace indexing notifications are sent:
+        // 1. Try event-driven wait for progress notifications (500ms timeout)
+        // 2. If no progress notification arrives, assume indexing is instant or not needed
+        // This handles both cases: servers that send $/progress and those that complete instantly
+        if extension == "rs" {
+            debug!(
+                extension = %extension,
+                "Checking for rust-analyzer workspace indexing progress"
+            );
+
+            let token =
+                mill_lsp::progress::ProgressToken::String("rustAnalyzer/Indexing".to_string());
+
+            // Check if indexing is already completed
+            if client.is_progress_completed(&token) {
+                debug!(
+                    extension = %extension,
+                    "rust-analyzer indexing already complete"
+                );
+            } else {
+                // Wait briefly (500ms) to see if indexing progress notification arrives
+                // rust-analyzer doesn't send progress for small projects that index instantly
+                match client
+                    .wait_for_indexing(std::time::Duration::from_millis(500))
+                    .await
+                {
+                    Ok(()) => {
+                        debug!(
+                            extension = %extension,
+                            "rust-analyzer indexing complete via progress notification"
+                        );
+                    }
+                    Err(_) => {
+                        // No progress notification - indexing either instant or not happening
+                        debug!(
+                            extension = %extension,
+                            "No progress notification in 500ms - indexing complete or not needed"
+                        );
+                    }
+                }
+            }
+        }
+
+        // For TypeScript, warm up the server by opening a file first
+        // TypeScript LSP needs project context before workspace/symbol works
+        if extension == "ts"
+            || extension == "tsx"
+            || extension == "js"
+            || extension == "jsx"
+        {
+            debug!(
+                extension = %extension,
+                "TypeScript LSP requires warmup - opening a file to establish project context"
+            );
+
+            // Try to find and open a representative file to establish project context
+            if let Some(root_dir) = client.config().root_dir.as_ref() {
+                let mut warmup_file = None;
+
+                // Prefer opening a source file to establish a TS project context.
+                let extensions_to_try = ["ts", "tsx", "js", "jsx"];
+                for ext in &extensions_to_try {
+                    // Try to find any file with this extension in the workspace
+                    if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
+                        while let Ok(Some(entry)) = entries.next_entry().await {
+                            let path = entry.path();
+                            // Note: is_file() on DirEntry is cheap (doesn't stat again on most OSs)
+                            // but path.is_file() might stat. entry.file_type() is async in tokio.
+                            let is_file = match entry.file_type().await {
+                                Ok(ft) => ft.is_file(),
+                                Err(_) => false,
+                            };
+
+                            if is_file
+                                && path.extension().and_then(|e| e.to_str()) == Some(ext)
+                            {
+                                warmup_file = Some(path);
+                                break;
+                            }
+                        }
+                    }
+                    if warmup_file.is_some() {
+                        break;
+                    }
+                }
+
+                // If still not found, try src directory
+                if warmup_file.is_none() {
+                    let src_dir = root_dir.join("src");
+                    let src_exists = tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
+                    let is_dir = if src_exists {
+                        tokio::fs::metadata(&src_dir)
+                            .await
+                            .map(|m| m.is_dir())
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    };
+
+                    if is_dir {
+                        if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
+                            while let Ok(Some(entry)) = entries.next_entry().await {
+                                let path = entry.path();
+                                let is_file = match entry.file_type().await {
+                                    Ok(ft) => ft.is_file(),
+                                    Err(_) => false,
+                                };
+
+                                if is_file {
+                                    if let Some(ext) =
+                                        path.extension().and_then(|e| e.to_str())
+                                    {
+                                        if extensions_to_try.contains(&ext) {
+                                            warmup_file = Some(path);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Final fallback: open tsconfig.json if no source file found.
+                if warmup_file.is_none() {
+                    let tsconfig = root_dir.join("tsconfig.json");
+                    if tsconfig.exists() && tsconfig.is_file() {
+                        warmup_file = Some(tsconfig);
+                    }
+                }
+
+                // Open the warmup file if found
+                if let Some(path) = warmup_file {
+                    debug!(
+                        extension = %extension,
+                        warmup_file = %path.display(),
+                        "Opening file to warm up TypeScript LSP"
+                    );
+                    if let Err(e) = client.notify_file_opened(&path).await {
+                        warn!(
+                            extension = %extension,
+                            warmup_file = %path.display(),
+                            error = %e,
+                            "Failed to open warmup file for TypeScript LSP"
+                        );
+                    } else {
+                        // Allow the server a short window to register the project context.
+                        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    }
+                } else {
+                    debug!(
+                        extension = %extension,
+                        "No suitable warmup file found for TypeScript LSP"
+                    );
+                }
+            }
         }
     }
 
@@ -78,56 +240,81 @@ impl DirectLspAdapter {
             .unwrap_or_else(|| extension.to_string());
 
         // Check if a client already exists and is alive
-        let mut clients = self.lsp_clients.lock().await;
-        if let Some(client) = clients.get(&cache_key) {
-            if client.is_alive().await {
-                debug!(extension, cache_key = %cache_key, "Reusing existing, live LSP client");
-                return Ok(client.clone());
-            } else {
-                // PHASE 2: Dead client found - extract it for cleanup
-                warn!(
-                    extension,
-                    cache_key = %cache_key,
-                    "Found dead LSP client in cache, removing it before creating a new one."
-                );
-                let dead_client = clients.remove(&cache_key);
+        // Use a block to scope the lock guard
+        {
+            let mut clients = self.lsp_clients.lock().await;
+            if let Some((client, warmed_up)) = clients.get_mut(&cache_key) {
+                if client.is_alive().await {
+                    debug!(extension, cache_key = %cache_key, warmed_up, "Reusing existing, live LSP client");
 
-                // Cleanup dead client immediately to prevent zombie processes
-                if let Some(dead_client) = dead_client {
-                    let ext = cache_key.clone();
-                    tokio::spawn(async move {
-                        // Force shutdown (kill + wait) to prevent zombies
-                        if let Err(e) = dead_client.force_shutdown().await {
-                            warn!(
-                                extension = %ext,
-                                error = %e,
-                                "Failed to force shutdown dead LSP client"
-                            );
-                        } else {
-                            debug!(
-                                extension = %ext,
-                                "Force shutdown of dead LSP client completed"
-                            );
+                    // If client exists but hasn't been warmed up, warm it up now
+                    if !*warmed_up {
+                        // Clone client reference before dropping lock
+                        let client_clone = client.clone();
+                        drop(clients);
+
+                        self.warmup_client(&client_clone, extension).await;
+
+                        // Re-acquire lock to update status
+                        let mut clients = self.lsp_clients.lock().await;
+                        if let Some((_, warmed_up)) = clients.get_mut(&cache_key) {
+                            *warmed_up = true;
                         }
-                    });
+
+                        // Return the cloned client which is safe to use
+                        return Ok(client_clone);
+                    }
+
+                    return Ok(client.clone());
+                } else {
+                    // PHASE 2: Dead client found - extract it for cleanup
+                    warn!(
+                        extension,
+                        cache_key = %cache_key,
+                        "Found dead LSP client in cache, removing it before creating a new one."
+                    );
+                    let dead_client_entry = clients.remove(&cache_key);
+
+                    // Cleanup dead client immediately to prevent zombie processes
+                    if let Some((dead_client, _)) = dead_client_entry {
+                        let ext = cache_key.clone();
+                        tokio::spawn(async move {
+                            // Force shutdown (kill + wait) to prevent zombies
+                            if let Err(e) = dead_client.force_shutdown().await {
+                                warn!(
+                                    extension = %ext,
+                                    error = %e,
+                                    "Failed to force shutdown dead LSP client"
+                                );
+                            } else {
+                                debug!(
+                                    extension = %ext,
+                                    "Force shutdown of dead LSP client completed"
+                                );
+                            }
+                        });
+                    }
+                    // Proceed to create a new client below
                 }
-                // Proceed to create a new client below
             }
         }
-        // Drop the lock before the potentially long operation of creating a new client
-        drop(clients);
+        // Lock is dropped here
 
         // Create new LSP client
         let client = mill_lsp::lsp_system::LspClient::new(server_config)
             .await
             .map_err(|e| format!("Failed to create LSP client: {}", e))?;
 
+        // Warm up the new client immediately
+        self.warmup_client(&client, extension).await;
+
         let client = Arc::new(client);
 
         // Store the client
         {
             let mut clients = self.lsp_clients.lock().await;
-            clients.insert(cache_key, client.clone());
+            // Mark as warmed up since we just did it
+            clients.insert(cache_key, (client.clone(), true));
         }
 
         Ok(client)
@@ -141,7 +328,7 @@ impl DirectLspAdapter {
         let clients = self.lsp_clients.lock().await;
         let mut result = HashMap::new();
 
-        for (extension, client) in clients.iter() {
+        for (extension, (client, _)) in clients.iter() {
             let progress_list: Vec<(String, LspProgressInfo)> = client
                 .get_active_progress()
                 .into_iter()
@@ -242,166 +429,7 @@ impl DirectLspAdapter {
                         continue;
                     }
 
-                    // For rust-analyzer, check if workspace indexing notifications are sent:
-                    // 1. Try event-driven wait for progress notifications (500ms timeout)
-                    // 2. If no progress notification arrives, assume indexing is instant or not needed
-                    // This handles both cases: servers that send $/progress and those that complete instantly
-                    if extension == "rs" {
-                        debug!(
-                            extension = %extension,
-                            "Checking for rust-analyzer workspace indexing progress"
-                        );
-
-                        let token = mill_lsp::progress::ProgressToken::String(
-                            "rustAnalyzer/Indexing".to_string(),
-                        );
-
-                        // Check if indexing is already completed
-                        if client.is_progress_completed(&token) {
-                            debug!(
-                                extension = %extension,
-                                "rust-analyzer indexing already complete"
-                            );
-                        } else {
-                            // Wait briefly (500ms) to see if indexing progress notification arrives
-                            // rust-analyzer doesn't send progress for small projects that index instantly
-                            match client
-                                .wait_for_indexing(std::time::Duration::from_millis(500))
-                                .await
-                            {
-                                Ok(()) => {
-                                    debug!(
-                                        extension = %extension,
-                                        "rust-analyzer indexing complete via progress notification"
-                                    );
-                                }
-                                Err(_) => {
-                                    // No progress notification - indexing either instant or not happening
-                                    debug!(
-                                        extension = %extension,
-                                        "No progress notification in 500ms - indexing complete or not needed"
-                                    );
-                                }
-                            }
-                        }
-                    }
-
-                    // For TypeScript, warm up the server by opening a file first
-                    // TypeScript LSP needs project context before workspace/symbol works
-                    if extension == "ts"
-                        || extension == "tsx"
-                        || extension == "js"
-                        || extension == "jsx"
-                    {
-                        debug!(
-                            extension = %extension,
-                            "TypeScript LSP requires warmup - opening a file to establish project context"
-                        );
-
-                        // Try to find and open a representative file to establish project context
-                        if let Some(root_dir) = client.config().root_dir.as_ref() {
-                            let mut warmup_file = None;
-
-                            // Prefer opening a source file to establish a TS project context.
-                            let extensions_to_try = ["ts", "tsx", "js", "jsx"];
-                            for ext in &extensions_to_try {
-                                // Try to find any file with this extension in the workspace
-                                if let Ok(mut entries) = tokio::fs::read_dir(root_dir).await {
-                                    while let Ok(Some(entry)) = entries.next_entry().await {
-                                        let path = entry.path();
-                                        // Note: is_file() on DirEntry is cheap (doesn't stat again on most OSs)
-                                        // but path.is_file() might stat. entry.file_type() is async in tokio.
-                                        let is_file = match entry.file_type().await {
-                                            Ok(ft) => ft.is_file(),
-                                            Err(_) => false,
-                                        };
-
-                                        if is_file
-                                            && path.extension().and_then(|e| e.to_str())
-                                                == Some(ext)
-                                        {
-                                            warmup_file = Some(path);
-                                            break;
-                                        }
-                                    }
-                                }
-                                if warmup_file.is_some() {
-                                    break;
-                                }
-                            }
-
-                            // If still not found, try src directory
-                            if warmup_file.is_none() {
-                                let src_dir = root_dir.join("src");
-                                let src_exists =
-                                    tokio::fs::try_exists(&src_dir).await.unwrap_or(false);
-                                let is_dir = if src_exists {
-                                    tokio::fs::metadata(&src_dir)
-                                        .await
-                                        .map(|m| m.is_dir())
-                                        .unwrap_or(false)
-                                } else {
-                                    false
-                                };
-
-                                if is_dir {
-                                    if let Ok(mut entries) = tokio::fs::read_dir(&src_dir).await {
-                                        while let Ok(Some(entry)) = entries.next_entry().await {
-                                            let path = entry.path();
-                                            let is_file = match entry.file_type().await {
-                                                Ok(ft) => ft.is_file(),
-                                                Err(_) => false,
-                                            };
-
-                                            if is_file {
-                                                if let Some(ext) =
-                                                    path.extension().and_then(|e| e.to_str())
-                                                {
-                                                    if extensions_to_try.contains(&ext) {
-                                                        warmup_file = Some(path);
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Final fallback: open tsconfig.json if no source file found.
-                            if warmup_file.is_none() {
-                                let tsconfig = root_dir.join("tsconfig.json");
-                                if tsconfig.exists() && tsconfig.is_file() {
-                                    warmup_file = Some(tsconfig);
-                                }
-                            }
-
-                            // Open the warmup file if found
-                            if let Some(path) = warmup_file {
-                                debug!(
-                                    extension = %extension,
-                                    warmup_file = %path.display(),
-                                    "Opening file to warm up TypeScript LSP"
-                                );
-                                if let Err(e) = client.notify_file_opened(&path).await {
-                                    warn!(
-                                        extension = %extension,
-                                        warmup_file = %path.display(),
-                                        error = %e,
-                                        "Failed to open warmup file for TypeScript LSP"
-                                    );
-                                } else {
-                                    // Allow the server a short window to register the project context.
-                                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                                }
-                            } else {
-                                debug!(
-                                    extension = %extension,
-                                    "No suitable warmup file found for TypeScript LSP"
-                                );
-                            }
-                        }
-                    }
+                    // Client is now guaranteed to be warmed up by get_or_create_client
 
                     // Send workspace/symbol request to this server
                     match client
@@ -500,7 +528,7 @@ impl DirectLspAdapter {
         let mut errors = Vec::new();
 
         // Drain all clients and shutdown
-        for (extension, client) in clients_map.drain() {
+        for (extension, (client, _)) in clients_map.drain() {
             let strong_count = Arc::strong_count(&client);
 
             // Force shutdown (kill + wait) to prevent zombies
@@ -935,7 +963,7 @@ impl Drop for DirectLspAdapter {
                 );
 
                 // Drain all clients and attempt shutdown
-                for (extension, client) in clients_map.drain() {
+                for (extension, (client, _)) in clients_map.drain() {
                     let strong_count = Arc::strong_count(&client);
 
                     // Force shutdown (kill + wait) to prevent zombies
