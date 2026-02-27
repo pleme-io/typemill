@@ -59,6 +59,8 @@ pub struct Session {
     pub initialized: bool,
     /// The ID of the user for this session.
     pub user_id: Option<String>,
+    /// The project ID authenticated via the token, if any.
+    pub authenticated_project_id: Option<String>,
 }
 
 impl Session {
@@ -69,6 +71,7 @@ impl Session {
             project_root: None,
             initialized: false,
             user_id: None,
+            authenticated_project_id: None,
         }
     }
 }
@@ -175,6 +178,7 @@ async fn handle_connection(
         .unwrap_or_else(|_| "unknown".parse().unwrap());
 
     let mut user_id_from_token: Option<String> = None;
+    let mut project_id_from_token: Option<String> = None;
     let config_clone = config.clone();
 
     // Perform WebSocket handshake with authorization header validation
@@ -217,6 +221,7 @@ async fn handle_connection(
                             }
 
                             user_id_from_token = token_data.claims.user_id;
+                            project_id_from_token = token_data.claims.project_id;
                             return Ok(response);
                         }
                         Err(e) => {
@@ -260,6 +265,7 @@ async fn handle_connection(
     let (mut write, mut read) = ws_stream.split();
     let mut session = Session::new();
     session.user_id = user_id_from_token;
+    session.authenticated_project_id = project_id_from_token;
 
     // Message processing loop with idle timeout
     const IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300); // 5 minutes
@@ -457,7 +463,18 @@ async fn handle_initialize(
     };
 
     // Update session (authentication already done at connection level)
-    session.project_id = payload.project;
+    if let Some(auth_project_id) = &session.authenticated_project_id {
+        if let Some(requested_project_id) = &payload.project {
+            if auth_project_id != requested_project_id {
+                return Err(MillError::permission_denied(format!(
+                    "Project ID mismatch: expected '{}', got '{}'",
+                    auth_project_id, requested_project_id
+                )));
+            }
+        }
+    }
+
+    session.project_id = payload.project.or(session.authenticated_project_id.clone());
     session.project_root = payload.project_root;
     session.initialized = true;
 
@@ -563,6 +580,81 @@ mod tests {
         } else {
             panic!("Expected Response message");
         }
+    }
+
+    #[tokio::test]
+    async fn test_initialize_enforces_project_id() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Simulate an authenticated session for project "proj_A"
+        session.authenticated_project_id = Some("proj_A".to_string());
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "proj_B" // Mismatch!
+            })),
+        };
+
+        let result = handle_initialize(&mut session, request, &config).await;
+
+        match result {
+            Err(e) => {
+                // Should fail with permission denied due to mismatch
+                // MillError uses thiserror so we check the string representation
+                assert!(e.to_string().contains("Project ID mismatch"));
+            }
+            Ok(_) => panic!("Expected permission denied error"),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_initialize_allows_setting_project_if_not_bound() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Not bound to any project (e.g., admin or legacy token without project_id)
+        session.authenticated_project_id = None;
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                "project": "proj_B"
+            })),
+        };
+
+        let _ = handle_initialize(&mut session, request, &config)
+            .await
+            .unwrap();
+
+        assert_eq!(session.project_id, Some("proj_B".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_initialize_infers_project_id() {
+        let config = create_test_config(false);
+        let mut session = Session::new();
+        // Authenticated for "proj_A"
+        session.authenticated_project_id = Some("proj_A".to_string());
+
+        let request = McpRequest {
+            jsonrpc: "2.0".to_string(),
+            id: Some(serde_json::Value::Number(serde_json::Number::from(1))),
+            method: "initialize".to_string(),
+            params: Some(json!({
+                // No project specified in request
+            })),
+        };
+
+        let _ = handle_initialize(&mut session, request, &config)
+            .await
+            .unwrap();
+
+        // Should default to the authenticated project ID
+        assert_eq!(session.project_id, Some("proj_A".to_string()));
     }
 
     #[test]
