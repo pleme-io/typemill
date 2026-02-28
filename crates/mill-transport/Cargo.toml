@@ -29,13 +29,15 @@ mill-ast = { path = "../mill-ast", default-features = false }
 dirs = "5"
 
 [features]
-default = ["lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-typescript"]
+default = ["lang-lua", "lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-typescript", "lang-zig"]
 lang-rust = ["mill-ast/lang-rust"]
 lang-typescript = ["mill-ast/lang-typescript"]
 lang-markdown = ["mill-ast/lang-markdown"]
 mcp-proxy = ["mill-foundation/mcp-proxy", "mill-config/mcp-proxy"]
 lang-python = ["mill-ast/lang-python"]
 lang-svelte = ["mill-ast/lang-svelte"]
+lang-lua = ["mill-ast/lang-lua"]
+lang-zig = ["mill-ast/lang-zig"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

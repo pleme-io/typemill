@@ -15,12 +15,16 @@ use std::sync::Arc;
 // We reference each plugin's public type to ensure the crate is linked.
 #[cfg(feature = "lang-gitignore")]
 use mill_lang_gitignore::GitignoreLanguagePlugin;
+#[cfg(feature = "lang-lua")]
+use mill_lang_lua::LuaPlugin;
 #[cfg(feature = "lang-markdown")]
 use mill_lang_markdown::MarkdownPlugin;
 #[cfg(feature = "lang-python")]
 use mill_lang_python::PythonPlugin;
 #[cfg(feature = "lang-rust")]
 use mill_lang_rust::RustPlugin;
+#[cfg(feature = "lang-shell")]
+use mill_lang_shell::ShellPlugin;
 #[cfg(feature = "lang-svelte")]
 use mill_lang_svelte::SveltePlugin;
 #[cfg(feature = "lang-toml")]
@@ -29,6 +33,8 @@ use mill_lang_toml::TomlLanguagePlugin;
 use mill_lang_typescript::TypeScriptPlugin;
 #[cfg(feature = "lang-yaml")]
 use mill_lang_yaml::YamlLanguagePlugin;
+#[cfg(feature = "lang-zig")]
+use mill_lang_zig::ZigPlugin;
 
 // This function is never called but ensures the linker includes all plugin crates
 #[allow(dead_code)]
@@ -37,12 +43,16 @@ fn _force_plugin_linkage() {
     // The actual plugin instances will be discovered via inventory
     #[cfg(feature = "lang-gitignore")]
     let _: Option<GitignoreLanguagePlugin> = None;
+    #[cfg(feature = "lang-lua")]
+    let _: Option<LuaPlugin> = None;
     #[cfg(feature = "lang-markdown")]
     let _: Option<MarkdownPlugin> = None;
     #[cfg(feature = "lang-python")]
     let _: Option<PythonPlugin> = None;
     #[cfg(feature = "lang-rust")]
     let _: Option<RustPlugin> = None;
+    #[cfg(feature = "lang-shell")]
+    let _: Option<ShellPlugin> = None;
     #[cfg(feature = "lang-svelte")]
     let _: Option<SveltePlugin> = None;
     #[cfg(feature = "lang-toml")]
@@ -51,6 +61,8 @@ fn _force_plugin_linkage() {
     let _: Option<TypeScriptPlugin> = None;
     #[cfg(feature = "lang-yaml")]
     let _: Option<YamlLanguagePlugin> = None;
+    #[cfg(feature = "lang-zig")]
+    let _: Option<ZigPlugin> = None;
 }
 
 /// Returns all language plugins available in this bundle.
@@ -89,12 +101,16 @@ mod tests {
     // Force linker to include language plugins for inventory collection in tests
     #[cfg(all(test, feature = "lang-gitignore"))]
     extern crate mill_lang_gitignore;
+    #[cfg(all(test, feature = "lang-lua"))]
+    extern crate mill_lang_lua;
     #[cfg(all(test, feature = "lang-markdown"))]
     extern crate mill_lang_markdown;
     #[cfg(all(test, feature = "lang-python"))]
     extern crate mill_lang_python;
     #[cfg(all(test, feature = "lang-rust"))]
     extern crate mill_lang_rust;
+    #[cfg(all(test, feature = "lang-shell"))]
+    extern crate mill_lang_shell;
     #[cfg(all(test, feature = "lang-svelte"))]
     extern crate mill_lang_svelte;
     #[cfg(all(test, feature = "lang-toml"))]
@@ -103,6 +119,8 @@ mod tests {
     extern crate mill_lang_typescript;
     #[cfg(all(test, feature = "lang-yaml"))]
     extern crate mill_lang_yaml;
+    #[cfg(all(test, feature = "lang-zig"))]
+    extern crate mill_lang_zig;
 
     #[test]
     fn test_all_plugins_returns_plugins() {

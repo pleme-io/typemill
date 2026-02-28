@@ -19,9 +19,12 @@ mill-lang-markdown = { path = "../../crates/mill-lang-markdown", optional = true
 mill-lang-toml = { path = "../../crates/mill-lang-toml", optional = true, default-features = false }
 mill-lang-yaml = { path = "../../crates/mill-lang-yaml", optional = true, default-features = false }
 mill-lang-svelte = { path = "../mill-lang-svelte", optional = true, default-features = false }
+mill-lang-lua = { path = "../mill-lang-lua", optional = true, default-features = false }
+mill-lang-shell = { path = "../mill-lang-shell", optional = true, default-features = false }
+mill-lang-zig = { path = "../mill-lang-zig", optional = true, default-features = false }
 
 [features]
-default = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-toml", "lang-typescript", "lang-yaml"]
+default = ["lang-gitignore", "lang-lua", "lang-markdown", "lang-python", "lang-rust", "lang-shell", "lang-svelte", "lang-toml", "lang-typescript", "lang-yaml", "lang-zig"]
 lang-rust = ["dep:mill-lang-rust"]
 lang-typescript = ["dep:mill-lang-typescript"]
 lang-markdown = ["dep:mill-lang-markdown"]
@@ -30,3 +33,6 @@ lang-yaml = ["dep:mill-lang-yaml"]
 lang-python = ["dep:mill-lang-python"]
 lang-gitignore = ["dep:mill-lang-gitignore"]
 lang-svelte = ["dep:mill-lang-svelte"]
+lang-lua = ["dep:mill-lang-lua"]
+lang-shell = ["dep:mill-lang-shell"]
+lang-zig = ["dep:mill-lang-zig"]

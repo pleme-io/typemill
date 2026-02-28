@@ -35,15 +35,19 @@ mill-lang-python = { workspace = true, optional = true }
 mill-lang-rust = { workspace = true, optional = true }
 mill-lang-typescript = { workspace = true, optional = true }
 mill-lang-svelte = { workspace = true, optional = true }
+mill-lang-lua = { workspace = true, optional = true }
+mill-lang-zig = { workspace = true, optional = true }
 
 [features]
-default = ["lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-typescript"]
+default = ["lang-lua", "lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-typescript", "lang-zig"]
 mcp-proxy = ["mill-foundation/mcp-proxy", "mill-config/mcp-proxy", "mill-plugin-system/mcp-proxy"]
 lang-markdown = ["dep:mill-lang-markdown", "mill-ast/lang-markdown", "mill-plugin-system/lang-markdown"]
 lang-python = ["dep:mill-lang-python", "mill-ast/lang-python", "mill-plugin-system/lang-python"]
 lang-rust = ["dep:mill-lang-rust", "mill-ast/lang-rust", "mill-plugin-system/lang-rust"]
 lang-typescript = ["dep:mill-lang-typescript", "mill-ast/lang-typescript", "mill-plugin-system/lang-typescript"]
 lang-svelte = ["dep:mill-lang-svelte", "mill-ast/lang-svelte", "mill-plugin-system/lang-svelte"]
+lang-lua = ["dep:mill-lang-lua", "mill-ast/lang-lua", "mill-plugin-system/lang-lua"]
+lang-zig = ["dep:mill-lang-zig", "mill-ast/lang-zig", "mill-plugin-system/lang-zig"]
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

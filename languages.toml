@@ -63,6 +63,24 @@ plugin_struct = "SveltePlugin"
 category = "full"
 default = true
 
+[languages.shell]
+path = "crates/mill-lang-shell"
+plugin_struct = "ShellPlugin"
+category = "config"
+default = true
+
+[languages.zig]
+path = "crates/mill-lang-zig"
+plugin_struct = "ZigPlugin"
+category = "full"
+default = true
+
+[languages.lua]
+path = "crates/mill-lang-lua"
+plugin_struct = "LuaPlugin"
+category = "full"
+default = true
+
 # Future languages (examples, for typemill-languages repo):
 #
 # [languages.go]

@@ -16,6 +16,9 @@ members = [
     "crates/mill-lang-toml",
     "crates/mill-lang-yaml",
     "crates/mill-lang-gitignore",
+    "crates/mill-lang-shell",
+    "crates/mill-lang-zig",
+    "crates/mill-lang-lua",
     "crates/mill-plugin-bundle",
     "apps/mill",
     "tests/e2e",
@@ -106,6 +109,9 @@ mill-lang-rust = { path = "crates/mill-lang-rust", default-features = false }
 mill-lang-python = { path = "crates/mill-lang-python", default-features = false }
 mill-lang-markdown = { path = "crates/mill-lang-markdown", default-features = false }
 mill-lang-svelte = { path = "crates/mill-lang-svelte", default-features = false }
+mill-lang-shell = { path = "crates/mill-lang-shell", default-features = false }
+mill-lang-zig = { path = "crates/mill-lang-zig", default-features = false }
+mill-lang-lua = { path = "crates/mill-lang-lua", default-features = false }
 
 # Optimize build times for dev dependencies
 [profile.dev.build-override]

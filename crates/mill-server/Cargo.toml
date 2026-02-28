@@ -44,7 +44,7 @@ mill-ast = { path = "../mill-ast", default-features = false }
 mill-handlers = { path = "../mill-handlers", default-features = false, features = ["refactor-all"] }
 
 [features]
-default = ["lang-gitignore", "lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-toml", "lang-typescript", "lang-yaml"]
+default = ["lang-gitignore", "lang-lua", "lang-markdown", "lang-python", "lang-rust", "lang-shell", "lang-svelte", "lang-toml", "lang-typescript", "lang-yaml", "lang-zig"]
 # NOTE: mill-handlers and mill-services no longer have language features - they use dependency injection
 lang-rust = ["mill-services/lang-rust", "mill-ast/lang-rust", "mill-plugin-bundle/lang-rust", "mill-plugin-system/lang-rust", "mill-transport/lang-rust"]
 lang-typescript = ["mill-services/lang-typescript", "mill-ast/lang-typescript", "mill-plugin-bundle/lang-typescript", "mill-plugin-system/lang-typescript", "mill-transport/lang-typescript"]
@@ -56,6 +56,9 @@ test-helpers = []
 lang-python = ["mill-services/lang-python", "mill-ast/lang-python", "mill-plugin-bundle/lang-python", "mill-plugin-system/lang-python", "mill-transport/lang-python"]
 lang-gitignore = ["mill-plugin-bundle/lang-gitignore"]
 lang-svelte = ["mill-services/lang-svelte", "mill-ast/lang-svelte", "mill-plugin-bundle/lang-svelte", "mill-plugin-system/lang-svelte", "mill-transport/lang-svelte"]
+lang-lua = ["mill-services/lang-lua", "mill-ast/lang-lua", "mill-plugin-bundle/lang-lua", "mill-plugin-system/lang-lua", "mill-transport/lang-lua"]
+lang-shell = ["mill-plugin-bundle/lang-shell"]
+lang-zig = ["mill-services/lang-zig", "mill-ast/lang-zig", "mill-plugin-bundle/lang-zig", "mill-plugin-system/lang-zig", "mill-transport/lang-zig"]
 
 [dev-dependencies]
 tempfile = "3.0"

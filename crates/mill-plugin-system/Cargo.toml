@@ -27,7 +27,7 @@ mill-foundation = { path = "../mill-foundation", optional = true }
 tokio-test = "0.4"
 
 [features]
-default = ["runtime", "lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-typescript"]
+default = ["runtime", "lang-lua", "lang-markdown", "lang-python", "lang-rust", "lang-svelte", "lang-typescript", "lang-zig"]
 runtime = ["mill-foundation", "mill-config", "mill-ast"]
 mcp-proxy = ["runtime", "mill-config/mcp-proxy"]
 lang-rust = ["runtime", "mill-ast/lang-rust"]
@@ -35,3 +35,5 @@ lang-typescript = ["runtime", "mill-ast/lang-typescript"]
 lang-markdown = ["runtime", "mill-ast/lang-markdown"]
 lang-python = ["runtime", "mill-ast/lang-python"]
 lang-svelte = ["runtime", "mill-ast/lang-svelte"]
+lang-lua = ["runtime", "mill-ast/lang-lua"]
+lang-zig = ["runtime", "mill-ast/lang-zig"]
